@@ -1,0 +1,46 @@
+{
+  "name": "drinkhub-kenya",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Multi-tenant SaaS Progressive Web Application for venues in Kenya",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently --names \"server,customer,staff,admin\" --prefix-colors \"blue,green,magenta,cyan\" \"npm run dev --workspace=apps/server\" \"npm run dev --workspace=apps/customer-pwa\" \"npm run dev --workspace=apps/staff-portal\" \"npm run dev --workspace=apps/admin-portal\"",
+    "dev:server": "npm run dev --workspace=apps/server",
+    "dev:customer": "npm run dev --workspace=apps/customer-pwa",
+    "dev:staff": "npm run dev --workspace=apps/staff-portal",
+    "dev:admin": "npm run dev --workspace=apps/admin-portal",
+    "build": "npm run build --workspace=packages/shared && npm run build --workspace=apps/server",
+    "build:all": "npm run build --workspace=packages/shared && npm run build --workspace=packages/ui && npm run build --workspace=apps/server && npm run build --workspace=apps/client && npm run build --workspace=apps/customer-pwa && npm run build --workspace=apps/staff-portal && npm run build --workspace=apps/admin-portal",
+    "build:server": "npm run build --workspace=packages/shared && npm run build --workspace=apps/server",
+    "build:client": "npm run build --workspace=packages/shared && npm run build --workspace=apps/client",
+    "lint": "eslint \"**/*.{ts,tsx,js,jsx}\"",
+    "lint:fix": "eslint \"**/*.{ts,tsx,js,jsx}\" --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,css}\"",
+    "type-check": "npm run type-check --workspaces --if-present",
+    "start": "node apps/server/dist/server.js",
+    "prepare": "husky || true",
+    "docker:dev": "docker-compose up --build",
+    "docker:down": "docker-compose down"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "concurrently": "^8.2.2",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.35.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "husky": "^9.0.0",
+    "prettier": "^3.3.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

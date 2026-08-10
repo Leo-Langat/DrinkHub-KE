@@ -1,0 +1,29 @@
+export enum OrderStatus {
+  PENDING = 'PENDING',
+  RECEIVED = 'RECEIVED',
+  PREPARING = 'PREPARING',
+  READY = 'READY',
+  SERVED = 'SERVED',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum PaymentMethod {
+  MPESA_STK = 'MPESA_STK',
+  CASH = 'CASH',
+  CARD = 'CARD',
+}
+
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+  REFUNDED = 'REFUNDED',
+}
+
+export enum UserRole {
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  TENANT_ADMIN = 'TENANT_ADMIN',
+  MANAGER = 'MANAGER',
+  KITCHEN_STAFF = 'KITCHEN_STAFF',
+  WAITER = 'WAITER',
+}

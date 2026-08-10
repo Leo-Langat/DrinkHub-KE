@@ -1,0 +1,39 @@
+services:
+  # ─── Express API Server ───────────────────────────────────────────────────
+  - type: web
+    name: drinkhub-server
+    runtime: node
+    region: oregon
+    plan: starter
+    branch: main
+    rootDir: .
+    buildCommand: npm install && npm run build:server
+    startCommand: node apps/server/dist/server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+
+  # ─── React Client (Static Site) ───────────────────────────────────────────
+  - type: web
+    name: drinkhub-client
+    runtime: static
+    branch: main
+    rootDir: apps/client
+    buildCommand: cd ../.. && npm install && npm run build:client
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false

@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════
+   DRINKHUB STAFF / MANAGER PORTAL — DESIGN SYSTEM
+   Light & Dark Mode · CSS Variables · Smooth Transitions
+═══════════════════════════════════════════════════════════ */
+
+/* ─── Light Mode (default) ─────────────────────────────── */
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --bg-body:    #FFFFFF;
+  --bg-card:    #F8FAFC;
+  --bg-muted:   #F1F5F9;
+  --bg-input:   #FFFFFF;
+  --bg-sidebar: #0F172A;
+
+  /* Sidebar internals (always dark, unchanged by light/dark) */
+  --sidebar-item-active: #1E293B;
+  --sidebar-text:        #64748B;
+  --sidebar-text-active: #FFFFFF;
+
+  /* Navbar — Blue in light, Black in dark */
+  --navbar:    #2563EB;
+  --navbar-fg: #FFFFFF;
+
+  /* Brand */
+  --primary:            #2563EB;
+  --primary-hover:      #1D4ED8;
+  --primary-foreground: #FFFFFF;
+
+  /* Text */
+  --text-primary:   #0F172A;
+  --text-secondary: #334155;
+  --text-muted:     #94A3B8;
+
+  /* Structural */
+  --border: #E2E8F0;
+  --ring:   #2563EB;
+
+  /* Semantic */
+  --success:    #16A34A;
+  --success-bg: #F0FDF4;
+  --warning:    #F59E0B;
+  --warning-bg: #FFFBEB;
+  --danger:     #DC2626;
+  --danger-bg:  #FEF2F2;
+  --info:       #2563EB;
+  --info-bg:    #EFF6FF;
+
+  /* Accent */
+  --accent:    #F1F5F9;
+  --accent-fg: #0F172A;
+
+  --theme-transition: 220ms;
+}
+
+/* ─── Dark Mode ────────────────────────────────────────── */
+.dark {
+  color-scheme: dark;
+
+  --bg-body:    #020617;
+  --bg-card:    #0F172A;
+  --bg-muted:   #0F172A;
+  --bg-input:   #0F172A;
+  --bg-sidebar: #020617;
+
+  --navbar:    #020617;
+  --navbar-fg: #FFFFFF;
+
+  --primary:            #2563EB;
+  --primary-hover:      #3B82F6;
+  --primary-foreground: #FFFFFF;
+
+  --text-primary:   #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-muted:     #94A3B8;
+
+  --border: #1E293B;
+  --ring:   #3B82F6;
+
+  --success:    #22C55E;
+  --success-bg: #052E16;
+  --warning:    #FBBF24;
+  --warning-bg: #1C1200;
+  --danger:     #EF4444;
+  --danger-bg:  #1C0000;
+  --info:       #60A5FA;
+  --info-bg:    #0C1A3A;
+
+  --accent:    #1E293B;
+  --accent-fg: #F8FAFC;
+}
+
+/* ─── Reset ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background-color: var(--bg-body);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Theme Transitions ─────────────────────────────────── */
+body,
+main,
+aside,
+header,
+[data-surface] {
+  transition:
+    background-color var(--theme-transition) ease,
+    border-color     var(--theme-transition) ease,
+    color            var(--theme-transition) ease;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ─── Focus ─────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}

@@ -1,0 +1,48 @@
+{
+  "name": "DrinkHub Kenya - Realtime Venue Ordering",
+  "short_name": "DrinkHub KE",
+  "description": "Production-Ready SaaS QR-Code Table Ordering, Kitchen Dispatch & M-Pesa Payments for Kenya's Clubs, Bars & Lounges.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#090d16",
+  "theme_color": "#f59e0b",
+  "scope": "/",
+  "categories": ["food", "drink", "entertainment", "business"],
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Customer QR Menu",
+      "short_name": "QR Menu",
+      "description": "Scan QR table code and browse live menu",
+      "url": "/v/alchemist-westlands",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Waiter Dashboard",
+      "short_name": "Waiters",
+      "description": "Realtime waiter order claim dashboard",
+      "url": "/waiter/dashboard",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}

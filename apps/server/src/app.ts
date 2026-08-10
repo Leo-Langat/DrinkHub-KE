@@ -25,9 +25,12 @@ export const createApp = (): Application => {
   app.use(
     cors({
       origin: (origin, callback) => {
-        // Allow server-to-server / Swagger (no Origin header) in dev or test
-        if (!origin && (env.NODE_ENV === 'development' || env.NODE_ENV === 'test')) return callback(null, true);
-        if (origin && allowedOrigins.includes(origin)) return callback(null, true);
+        // Allow requests with no origin (e.g. mobile apps, curl, server-to-server, health checks)
+        if (!origin) return callback(null, true);
+        // Support wildcard '*' or exact origin match
+        if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
         callback(new Error(`CORS: origin '${origin}' is not allowed`));
       },
       credentials: true,

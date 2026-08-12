@@ -53,13 +53,14 @@ export class AuthController {
 
   register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const callerUserId = (req.user as any)?.userId || (req.user as any)?.id;
       const callerRole = (req.user as any)?.role;
-      const callerClubUuid = (req.user as any)?.tenantId;
+      let callerClubUuid = (req.user as any)?.tenantId || (req.user as any)?.clubUuid;
 
       let body = { ...req.body };
 
-      // SECURITY: A MANAGER may only create WAITER accounts for their own club.
-      if (callerRole === 'MANAGER') {
+      // SECURITY: A MANAGER or CLUB_ADMIN may only create WAITER accounts for their own club.
+      if (callerRole === 'MANAGER' || callerRole === 'CLUB_ADMIN') {
         if (body.role && body.role !== 'WAITER') {
           res.status(403).json({
             success: false,
@@ -68,7 +69,15 @@ export class AuthController {
           return;
         }
 
-        // Guard: manager must have a club assigned in their token
+        // Fallback: If clubUuid wasn't in token payload, fetch from DB user record
+        if (!callerClubUuid && callerUserId) {
+          const callerDbUser = await this.authService.getUserById(callerUserId);
+          if (callerDbUser?.clubUuid) {
+            callerClubUuid = callerDbUser.clubUuid;
+          }
+        }
+
+        // Guard: manager must have a club assigned in their account
         if (!callerClubUuid) {
           res.status(400).json({
             success: false,

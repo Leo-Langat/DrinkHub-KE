@@ -169,8 +169,8 @@ export class AuthService {
       throw new BadRequestError('An account with that email already exists');
     }
 
-    // Enforce club membership: WAITER and MANAGER must always belong to a club.
-    const roleRequiresClub = !data.role || data.role === 'WAITER' || data.role === 'MANAGER';
+    // Enforce club membership: WAITER, MANAGER, and CLUB_ADMIN must always belong to a club.
+    const roleRequiresClub = !data.role || data.role === 'WAITER' || data.role === 'MANAGER' || data.role === 'CLUB_ADMIN';
     if (roleRequiresClub && !data.clubUuid) {
       throw new BadRequestError('A club must be assigned for WAITER and MANAGER accounts');
     }
@@ -301,6 +301,10 @@ export class AuthService {
       clubUuid: u.clubUuid,
       club: u.club ? { name: u.club.name, uuid: u.club.uuid } : null,
     }));
+  }
+
+  async getUserById(userUuid: string) {
+    return this.authRepository.findById(userUuid);
   }
 
   async setUserActive(userUuid: string, isActive: boolean): Promise<void> {

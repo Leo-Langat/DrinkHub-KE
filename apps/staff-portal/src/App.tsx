@@ -8,10 +8,27 @@ type StaffRole = 'waiter' | 'manager';
 interface Session { role: StaffRole }
 
 export const App: React.FC = () => {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<Session | null>(() => {
+    try {
+      const token = localStorage.getItem('drinkhub_token');
+      const userStr = localStorage.getItem('drinkhub_user');
+      if (token && userStr) {
+        const user = JSON.parse(userStr);
+        if (user.role === 'WAITER') return { role: 'waiter' };
+        if (user.role === 'MANAGER' || user.role === 'CLUB_ADMIN' || user.role === 'PLATFORM_ADMIN') return { role: 'manager' };
+      }
+    } catch {
+      /* ignore parse error */
+    }
+    return null;
+  });
 
   const handleLogin = (role: StaffRole) => setSession({ role });
-  const handleLogout = () => setSession(null);
+  const handleLogout = () => {
+    localStorage.removeItem('drinkhub_token');
+    localStorage.removeItem('drinkhub_user');
+    setSession(null);
+  };
 
   if (!session) {
     return <LoginPage onLogin={handleLogin} />;

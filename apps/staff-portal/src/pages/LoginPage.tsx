@@ -16,6 +16,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const [needsPasswordChange, setNeedsPasswordChange] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [tempPassword, setTempPassword] = useState('');
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -51,9 +56,58 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         localStorage.setItem('drinkhub_token', data.data.accessToken);
         localStorage.setItem('drinkhub_user', JSON.stringify(data.data.user));
       }
+
+      const mustChange = data.data?.mustChangePassword || data.data?.user?.mustChangePassword;
+      if (mustChange) {
+        setTempPassword(password);
+        setNeedsPasswordChange(true);
+        setIsLoading(false);
+        return;
+      }
+
       onLogin(role);
     } catch (err: any) {
       setError(err.message || 'Authentication failed. Invalid credentials.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePasswordChangeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (newPassword.length < 8) {
+      setError('New password must be at least 8 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('drinkhub_token');
+      const res = await fetch(getApiUrl('/auth/change-first-password'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          currentPassword: tempPassword,
+          newPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error?.message || data.message || 'Failed to update password.');
+      }
+      setNeedsPasswordChange(false);
+      onLogin(role);
+    } catch (err: any) {
+      setError(err.message || 'Failed to update password.');
     } finally {
       setIsLoading(false);
     }
@@ -170,85 +224,157 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             </p>
           </div>
 
-          {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                Email / Username
-              </label>
-              <input
-                type="email"
-                placeholder={role === 'waiter' ? 'waiter@quiver.co.ke' : 'manager@quiver.co.ke'}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border px-3.5 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-blue-500"
-                style={{
-                  background: 'var(--bg-card)',
-                  borderColor: 'var(--border)',
-                  color: 'var(--text-primary)',
-                }}
-              />
-            </div>
+          {/* First-time login Password Change View */}
+          {needsPasswordChange ? (
+            <form onSubmit={handlePasswordChangeSubmit} className="space-y-4">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-900 space-y-1">
+                <div className="font-bold flex items-center gap-1.5 text-amber-800">
+                  🔒 Password Reset Required
+                </div>
+                <p>
+                  You are logging in with a temporary password. Please set a secure permanent password to continue.
+                </p>
+              </div>
 
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                Password
-              </label>
-              <div className="relative">
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                  New Password
+                </label>
                 <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg border px-3.5 py-2.5 pr-11 text-sm outline-none transition-all focus:ring-2 focus:ring-blue-500"
+                  type="password"
+                  placeholder="Min. 8 characters"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full rounded-lg border px-3.5 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-blue-500"
                   style={{
                     background: 'var(--bg-card)',
                     borderColor: 'var(--border)',
                     color: 'var(--text-primary)',
                   }}
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  placeholder="Repeat new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full rounded-lg border px-3.5 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-blue-500"
+                  style={{
+                    background: 'var(--bg-card)',
+                    borderColor: 'var(--border)',
+                    color: 'var(--text-primary)',
+                  }}
+                />
+              </div>
+
+              {error && (
+                <div className="rounded-lg bg-red-50 border border-red-200 px-3.5 py-2.5 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{ background: '#2563EB' }}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    Save Password & Continue
+                    <ChevronRight className="h-4 w-4" />
+                  </>
+                )}
+              </button>
+            </form>
+          ) : (
+            /* Login Form */
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                  Email / Username
+                </label>
+                <input
+                  type="email"
+                  placeholder={role === 'waiter' ? 'waiter@quiver.co.ke' : 'manager@quiver.co.ke'}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-lg border px-3.5 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-blue-500"
+                  style={{
+                    background: 'var(--bg-card)',
+                    borderColor: 'var(--border)',
+                    color: 'var(--text-primary)',
+                  }}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-lg border px-3.5 py-2.5 pr-11 text-sm outline-none transition-all focus:ring-2 focus:ring-blue-500"
+                    style={{
+                      background: 'var(--bg-card)',
+                      borderColor: 'var(--border)',
+                      color: 'var(--text-primary)',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
                 <button
                   type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
-                  style={{ color: 'var(--text-muted)' }}
+                  className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline"
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  Forgot Password?
                 </button>
               </div>
-            </div>
 
-            <div className="flex justify-end">
-              <button
-                type="button"
-                className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline"
-              >
-                Forgot Password?
-              </button>
-            </div>
-
-            {error && (
-              <div className="rounded-lg bg-red-50 border border-red-200 px-3.5 py-2.5 text-sm text-red-700">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
-              style={{ background: '#2563EB' }}
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  Sign In as {role === 'waiter' ? 'Waiter' : 'Manager'}
-                  <ChevronRight className="h-4 w-4" />
-                </>
+              {error && (
+                <div className="rounded-lg bg-red-50 border border-red-200 px-3.5 py-2.5 text-sm text-red-700">
+                  {error}
+                </div>
               )}
-            </button>
-          </form>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{ background: '#2563EB' }}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    Sign In as {role === 'waiter' ? 'Waiter' : 'Manager'}
+                    <ChevronRight className="h-4 w-4" />
+                  </>
+                )}
+              </button>
+            </form>
+          )}
 
           <p className="text-center text-xs" style={{ color: 'var(--text-muted)' }}>
             Platform Administration?{' '}

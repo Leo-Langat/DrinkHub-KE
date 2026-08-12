@@ -205,3 +205,21 @@ authRouter.post('/reset-password', validateRequest(resetPasswordSchema), authCon
  *         description: Password changed successfully
  */
 authRouter.post('/change-first-password', authenticate, validateRequest(firstLoginPasswordChangeSchema), authController.changeFirstLoginPassword);
+
+/**
+ * @openapi
+ * /auth/staff:
+ *   get:
+ *     summary: List all staff users belonging to the authenticated manager's club
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: role
+ *         schema: { type: string, enum: [WAITER, MANAGER, CLUB_ADMIN] }
+ *     responses:
+ *       200:
+ *         description: Array of staff user objects
+ */
+authRouter.get('/staff', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PLATFORM_ADMIN']), authController.listStaff);

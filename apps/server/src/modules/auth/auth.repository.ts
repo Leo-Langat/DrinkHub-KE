@@ -110,4 +110,15 @@ export class AuthRepository implements IAuthRepository {
       data: { isRevoked: true },
     });
   }
+
+  async listStaffByClub(clubUuid: string, role?: string): Promise<User[]> {
+    return prisma.user.findMany({
+      where: {
+        clubUuid,
+        deletedAt: null,
+        ...(role ? { role: role as UserRole } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }

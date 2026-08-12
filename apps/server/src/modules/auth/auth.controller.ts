@@ -121,4 +121,23 @@ export class AuthController {
       next(error);
     }
   };
+
+  listStaff = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const clubUuid = (req.user as any)?.clubUuid ?? (req.query.clubUuid as string);
+      const { role } = req.query as { role?: string };
+      if (!clubUuid) {
+        res.status(400).json({ success: false, error: { code: 'MISSING_CLUB', message: 'Club UUID is required' } });
+        return;
+      }
+      const staff = await this.authService.listStaff(clubUuid, role);
+      res.json({
+        success: true,
+        data: { staff },
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

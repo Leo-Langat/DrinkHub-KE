@@ -238,4 +238,18 @@ export class AuthService {
       mustChangePassword: false,
     });
   }
+
+  async listStaff(clubUuid: string, role?: string) {
+    const users = await (this.authRepository as any).listStaffByClub(clubUuid, role);
+    // Strip sensitive fields before returning
+    return users.map((u: any) => ({
+      uuid: u.userUuid,
+      fullName: u.fullName,
+      email: u.email,
+      phone: u.phone,
+      role: u.role,
+      isActive: u.isActive,
+      createdAt: u.createdAt,
+    }));
+  }
 }

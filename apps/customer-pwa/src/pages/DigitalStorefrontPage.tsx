@@ -3,125 +3,186 @@ import { useParams } from 'react-router-dom';
 import {
   Plus, Minus, X, ChevronRight, Sparkles, CheckCircle2,
   Clock, AlertCircle, ShoppingCart, MapPin, Wifi, WifiOff,
-  Smartphone, Banknote, CreditCard, ArrowLeft, Star,
+  Smartphone, Banknote, CreditCard, ArrowLeft, Star, Loader2,
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────
-   BRANDING ENGINE
+   API CONFIG
+───────────────────────────────────────────── */
+const getApiUrl = (path: string): string => {
+  const envUrl = (import.meta as any).env?.VITE_API_URL;
+  let base = envUrl ? envUrl.trim() : 'http://localhost:5000/api/v1';
+  if (base.endsWith('/')) base = base.slice(0, -1);
+  if (!base.includes('/api/v1')) base = `${base}/api/v1`;
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+};
+
+/* ─────────────────────────────────────────────
+   TYPES
 ───────────────────────────────────────────── */
 interface BrandingConfig {
   name: string;
   tagline: string;
-  logoUrl: string;
-  bannerUrl: string;
+  logoUrl: string | null;
+  bannerUrl: string | null;
   primary: string;
   primaryDark: string;
   accent: string;
 }
 
-const VENUES: Record<string, BrandingConfig> = {
-  'quiver-kilimani': {
-    name: 'Quiver Lounge',
-    tagline: 'Kilimani · Nairobi',
-    logoUrl: 'https://images.unsplash.com/photo-1574096079513-d8259312b785?w=120&q=80',
-    bannerUrl: 'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?w=1200&q=80',
-    primary: '#DC2626',
-    primaryDark: '#991B1B',
-    accent: '#F59E0B',
-  },
-  'sky-lounge': {
-    name: 'Sky Lounge',
-    tagline: 'Westlands · Nairobi',
-    logoUrl: 'https://images.unsplash.com/photo-1566417713940-fe7c737a9ef2?w=120&q=80',
-    bannerUrl: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=1200&q=80',
-    primary: '#2563EB',
-    primaryDark: '#1E40AF',
-    accent: '#38BDF8',
-  },
-  '1824-club': {
-    name: '1824 Club',
-    tagline: 'Langata · Nairobi',
-    logoUrl: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=120&q=80',
-    bannerUrl: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1200&q=80',
-    primary: '#059669',
-    primaryDark: '#047857',
-    accent: '#34D399',
-  },
-};
-
-const DEFAULT_VENUE = VENUES['quiver-kilimani'];
-
-/* ─────────────────────────────────────────────
-   MENU DATA
-───────────────────────────────────────────── */
-type Category = 'All' | 'Beers' | 'Cocktails' | 'Spirits' | 'Food';
-
 interface MenuItem {
   id: string;
   name: string;
-  category: Exclude<Category, 'All'>;
+  category: string;
   price: number;
   desc: string;
-  img: string;
+  img: string | null;
   badge?: string;
-  rating: number;
+  isAvailable: boolean;
 }
 
-const MENU: MenuItem[] = [
-  {
-    id: '1', name: 'Tusker Lager 500ml', category: 'Beers', price: 350,
-    desc: "Kenya's iconic ice-cold lager since 1922.",
-    img: 'https://images.unsplash.com/photo-1608270586620-248524c67de9?w=300&q=80',
-    badge: '2+1 FREE', rating: 4.8,
-  },
-  {
-    id: '2', name: 'White Cap Crisp 500ml', category: 'Beers', price: 380,
-    desc: 'Sugar-free premium lager. Crisp & refreshing.',
-    img: 'https://images.unsplash.com/photo-1535958636474-b021ee887b13?w=300&q=80',
-    rating: 4.6,
-  },
-  {
-    id: '3', name: 'Nairobi Dawa', category: 'Cocktails', price: 750,
-    desc: 'Vodka, honey, fresh lime & crushed ginger.',
-    img: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=300&q=80',
-    badge: 'BESTSELLER', rating: 4.9,
-  },
-  {
-    id: '4', name: 'Passion Mojito', category: 'Cocktails', price: 700,
-    desc: 'Passion fruit, mint, rum & sparkling water.',
-    img: 'https://images.unsplash.com/photo-1582696785168-4c21c4c2a2e1?w=300&q=80',
-    rating: 4.7,
-  },
-  {
-    id: '5', name: 'Captain Morgan 750ml', category: 'Spirits', price: 3800,
-    desc: 'Caribbean spiced rum. Includes 4 mixers.',
-    img: 'https://images.unsplash.com/photo-1584947897558-b3c0a76e4e91?w=300&q=80',
-    badge: 'BOTTLE SERVICE', rating: 4.8,
-  },
-  {
-    id: '6', name: 'Nyama Choma Platter 1kg', category: 'Food', price: 1800,
-    desc: 'Slow-grilled goat. Served with Kachumbari & Ugali.',
-    img: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=300&q=80',
-    rating: 4.9,
-  },
-];
+interface Offer {
+  id: string;
+  title: string;
+  description: string | null;
+  promoCode: string | null;
+}
 
-const CATEGORIES: Category[] = ['All', 'Beers', 'Cocktails', 'Spirits', 'Food'];
-
-/* ─────────────────────────────────────────────
-   CART TYPES
-───────────────────────────────────────────── */
 type CartMap = Record<string, number>;
+
+const DEFAULT_BRAND: BrandingConfig = {
+  name: 'DrinkHub Venue',
+  tagline: 'Nairobi, Kenya',
+  logoUrl: null,
+  bannerUrl: null,
+  primary: '#DC2626',
+  primaryDark: '#991B1B',
+  accent: '#F59E0B',
+};
 
 /* ─────────────────────────────────────────────
    MAIN PAGE
 ───────────────────────────────────────────── */
 export const DigitalStorefrontPage: React.FC = () => {
   const { venueSlug, tableNum } = useParams<{ venueSlug?: string; tableNum?: string }>();
-  const brand = VENUES[venueSlug ?? ''] ?? DEFAULT_VENUE;
-  const table = tableNum ?? '12';
+  const table = tableNum ?? '';
 
-  /* Inject brand CSS vars */
+  /* ── State ────────────────────────────────── */
+  const [brand, setBrand] = useState<BrandingConfig>(DEFAULT_BRAND);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [categories, setCategories] = useState<string[]>(['All']);
+  const [tableUuid, setTableUuid] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [cat, setCat] = useState<string>('All');
+  const [cart, setCart] = useState<CartMap>({});
+  const [screen, setScreen] = useState<'menu' | 'cart' | 'checkout' | 'success'>('menu');
+  const [ageOk, setAgeOk] = useState(false);
+  const [payment, setPayment] = useState<'mpesa' | 'card' | 'cash'>('mpesa');
+  const [phone, setPhone] = useState('');
+  const [placing, setPlacing] = useState(false);
+  const [placeError, setPlaceError] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const heroRef = useRef<HTMLDivElement>(null);
+  const [heroOpacity, setHeroOpacity] = useState(1);
+
+  /* ── Fetch venue & menu on mount ─────────── */
+  useEffect(() => {
+    if (!venueSlug) {
+      setLoadError('No venue specified. Please scan your table QR code again.');
+      setLoading(false);
+      return;
+    }
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setLoadError(null);
+
+        // 1. Fetch venue branding
+        const tenantRes = await fetch(getApiUrl(`/tenants/${venueSlug}`));
+        if (!tenantRes.ok) {
+          const err = await tenantRes.json().catch(() => ({}));
+          throw new Error(err?.error?.message || `Venue "${venueSlug}" not found.`);
+        }
+        const tenantData = await tenantRes.json();
+        const club = tenantData.data?.club ?? tenantData.data ?? tenantData;
+
+        setBrand({
+          name: club.name ?? 'DrinkHub Venue',
+          tagline: club.tagline ?? club.county ?? 'Kenya',
+          logoUrl: club.logoUrl ?? null,
+          bannerUrl: club.bannerUrl ?? null,
+          primary: club.brandColor ?? '#DC2626',
+          primaryDark: adjustColor(club.brandColor ?? '#DC2626', -20),
+          accent: '#F59E0B',
+        });
+
+        // Resolve table UUID from slug if table number provided
+        if (table && club.tables) {
+          const match = (club.tables as any[]).find(
+            (t: any) => String(t.tableNumber) === String(table)
+          );
+          if (match) setTableUuid(match.uuid);
+        }
+
+        // 2. Fetch menu (tenant context from slug in header)
+        const menuRes = await fetch(getApiUrl('/menu'), {
+          headers: { 'X-Tenant-Id': club.uuid ?? '' },
+        });
+        if (!menuRes.ok) throw new Error('Failed to load the menu. Please try again.');
+        const menuData = await menuRes.json();
+
+        // Flatten categories + products
+        const cats: string[] = ['All'];
+        const items: MenuItem[] = [];
+        const rawOffers: Offer[] = [];
+
+        const menuPayload = menuData.data ?? menuData;
+        const rawCategories: any[] = menuPayload.categories ?? [];
+        const rawOfferList: any[] = menuPayload.offers ?? [];
+
+        rawCategories.forEach((cat: any) => {
+          if (cat.name && !cats.includes(cat.name)) cats.push(cat.name);
+          (cat.products ?? []).forEach((p: any) => {
+            items.push({
+              id: p.uuid,
+              name: p.name,
+              category: cat.name,
+              price: Number(p.price),
+              desc: p.description ?? '',
+              img: p.imageUrl ?? null,
+              badge: p.badge ?? undefined,
+              isAvailable: p.isAvailable !== false,
+            });
+          });
+        });
+
+        rawOfferList.forEach((o: any) => {
+          rawOffers.push({
+            id: o.uuid,
+            title: o.title,
+            description: o.description ?? null,
+            promoCode: o.promoCode ?? null,
+          });
+        });
+
+        setCategories(cats);
+        setMenuItems(items);
+        setOffers(rawOffers);
+      } catch (err: any) {
+        setLoadError(err.message || 'Failed to load menu. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [venueSlug, table]);
+
+  /* ── Inject brand CSS vars ────────────────── */
   useEffect(() => {
     const r = document.documentElement;
     r.style.setProperty('--primary', brand.primary);
@@ -129,43 +190,27 @@ export const DigitalStorefrontPage: React.FC = () => {
     r.style.setProperty('--accent', brand.accent);
   }, [brand]);
 
-  const [cat, setCat] = useState<Category>('All');
-  const [cart, setCart] = useState<CartMap>({});
-  const [screen, setScreen] = useState<'menu' | 'cart' | 'checkout' | 'success'>('menu');
-  const [ageOk, setAgeOk] = useState(false);
-  const [payment, setPayment] = useState<'mpesa' | 'card' | 'cash'>('mpesa');
-  const [phone, setPhone] = useState('');
-  const [placing, setPlacing] = useState(false);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const heroRef = useRef<HTMLDivElement>(null);
-  const [heroOpacity, setHeroOpacity] = useState(1);
-
-  /* Live offline / online detection — ordering is disabled when offline (§34) */
+  /* ── Online detection ─────────────────────── */
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
+    const on = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
   }, []);
 
-  /* Parallax on hero */
+  /* ── Hero parallax ────────────────────────── */
   useEffect(() => {
-    const onScroll = () => {
-      const scrollY = window.scrollY;
-      setHeroOpacity(Math.max(0, 1 - scrollY / 220));
-    };
+    const onScroll = () => setHeroOpacity(Math.max(0, 1 - window.scrollY / 220));
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const filtered = cat === 'All' ? MENU : MENU.filter((m) => m.category === cat);
+  /* ── Cart helpers ─────────────────────────── */
+  const filtered = cat === 'All' ? menuItems : menuItems.filter((m) => m.category === cat);
   const cartCount = Object.values(cart).reduce((s, n) => s + n, 0);
   const cartTotal = Object.entries(cart).reduce((s, [id, n]) => {
-    const item = MENU.find((m) => m.id === id);
+    const item = menuItems.find((m) => m.id === id);
     return s + (item ? item.price * n : 0);
   }, 0);
 
@@ -175,22 +220,35 @@ export const DigitalStorefrontPage: React.FC = () => {
     return { ...p, [id]: p[id] - 1 };
   });
 
+  /* ── Place order (real API) ───────────────── */
   const placeOrder = async () => {
-    // Hard gate: never submit an order while offline (§34 — no offline ordering)
     if (!isOnline) return;
-    if (!ageOk) return; // Belt-and-suspenders: schema also validates server-side
+    if (!ageOk) return;
     setPlacing(true);
-    // TODO: Replace this mock with the real API call to POST /api/v1/orders
-    // The request body must include { ageVerified: true, items, tableUuid, paymentMethod }
-    // Example (uncomment when backend URL is configured):
-    // await fetch('/api/v1/orders', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ ageVerified: true, items: Object.entries(cart).map(([productUuid, quantity]) => ({ productUuid, quantity })), tableUuid: undefined }),
-    // });
-    await new Promise((r) => setTimeout(r, 1600));
-    setPlacing(false);
-    setScreen('success');
+    setPlaceError(null);
+    try {
+      const items = Object.entries(cart).map(([productUuid, quantity]) => ({ productUuid, quantity }));
+      const body: Record<string, any> = {
+        ageVerified: true,
+        items,
+        paymentMethod: payment.toUpperCase(),
+      };
+      if (tableUuid) body.tableUuid = tableUuid;
+      if (payment === 'mpesa' && phone) body.phoneNumber = `+254${phone}`;
+
+      const res = await fetch(getApiUrl('/orders'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || 'Failed to place order.');
+      setScreen('success');
+    } catch (err: any) {
+      setPlaceError(err.message || 'Failed to place order. Please try again.');
+    } finally {
+      setPlacing(false);
+    }
   };
 
   /* ────── OFFLINE GUARD ────── */
@@ -206,6 +264,32 @@ export const DigitalStorefrontPage: React.FC = () => {
     );
   }
 
+  /* ────── LOADING STATE ────── */
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: 'var(--bg)' }}>
+        <Loader2 className="w-10 h-10 animate-spin" style={{ color: 'var(--primary)' }} />
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Loading menu…</p>
+      </div>
+    );
+  }
+
+  /* ────── LOAD ERROR STATE ────── */
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-8 text-center" style={{ background: 'var(--bg)' }}>
+        <AlertCircle className="w-14 h-14 text-red-400" />
+        <div>
+          <h2 className="text-xl font-black text-white">Unable to Load Menu</h2>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>{loadError}</p>
+        </div>
+        <button onClick={() => window.location.reload()} className="btn-primary px-6 py-3 text-sm font-bold" style={{ background: 'var(--primary)' }}>
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
   /* ────── SUCCESS SCREEN ────── */
   if (screen === 'success') {
     return (
@@ -216,13 +300,14 @@ export const DigitalStorefrontPage: React.FC = () => {
         <div>
           <h2 className="text-2xl font-black text-white">Order Placed!</h2>
           <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
-            Your order has been sent to the bar.<br />Your waiter will bring it to <strong className="text-white">Table #{table}</strong>.
+            Your order has been sent to the bar.<br />
+            {table ? <>Your waiter will bring it to <strong className="text-white">Table #{table}</strong>.</> : 'Your waiter will attend to you shortly.'}
           </p>
         </div>
         <div className="w-full max-w-sm card p-5 text-left space-y-3">
           <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Order Summary</p>
           {Object.entries(cart).map(([id, qty]) => {
-            const item = MENU.find((m) => m.id === id);
+            const item = menuItems.find((m) => m.id === id);
             if (!item) return null;
             return (
               <div key={id} className="flex justify-between text-sm">
@@ -248,14 +333,13 @@ export const DigitalStorefrontPage: React.FC = () => {
   if (screen === 'checkout') {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-        {/* Header */}
         <div className="sticky top-0 z-20 flex items-center gap-3 px-4 py-4 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
           <button onClick={() => setScreen('cart')} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--surface)' }}>
             <ArrowLeft className="w-5 h-5 text-white" />
           </button>
           <div>
             <h2 className="font-black text-white text-base leading-none">Checkout</h2>
-            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Table #{table}</p>
+            {table && <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Table #{table}</p>}
           </div>
         </div>
 
@@ -310,7 +394,9 @@ export const DigitalStorefrontPage: React.FC = () => {
                 <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
                 <p className="text-sm font-bold text-amber-400">POS Machine Required</p>
               </div>
-              <p className="text-xs pl-6" style={{ color: 'var(--text-secondary)' }}>Your waiter will bring the POS terminal to Table #{table}.</p>
+              <p className="text-xs pl-6" style={{ color: 'var(--text-secondary)' }}>
+                {table ? `Your waiter will bring the POS terminal to Table #${table}.` : 'Your waiter will bring the POS terminal to you.'}
+              </p>
             </div>
           )}
 
@@ -318,7 +404,7 @@ export const DigitalStorefrontPage: React.FC = () => {
           <div className="card p-5 space-y-3">
             <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Order Summary</p>
             {Object.entries(cart).map(([id, qty]) => {
-              const item = MENU.find((m) => m.id === id);
+              const item = menuItems.find((m) => m.id === id);
               if (!item) return null;
               return (
                 <div key={id} className="flex justify-between items-center text-sm">
@@ -340,6 +426,12 @@ export const DigitalStorefrontPage: React.FC = () => {
               I confirm I am <strong className="text-white">over 18 years old</strong> and will provide valid identification upon request.
             </span>
           </label>
+
+          {placeError && (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+              {placeError}
+            </div>
+          )}
 
           <button
             disabled={!ageOk || placing || (payment === 'mpesa' && phone.length < 9)}
@@ -373,17 +465,20 @@ export const DigitalStorefrontPage: React.FC = () => {
           </button>
           <div>
             <h2 className="font-black text-white text-base leading-none">Your Order</h2>
-            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Table #{table} · {cartCount} item{cartCount !== 1 ? 's' : ''}</p>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{table ? `Table #${table} · ` : ''}{cartCount} item{cartCount !== 1 ? 's' : ''}</p>
           </div>
         </div>
 
         <div className="max-w-md mx-auto px-4 py-6 space-y-3 pb-40">
           {Object.entries(cart).map(([id, qty]) => {
-            const item = MENU.find((m) => m.id === id);
+            const item = menuItems.find((m) => m.id === id);
             if (!item) return null;
             return (
               <div key={id} className="card flex items-center gap-4 p-4">
-                <img src={item.img} alt={item.name} className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
+                {item.img
+                  ? <img src={item.img} alt={item.name} className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
+                  : <div className="w-16 h-16 rounded-xl flex-shrink-0 flex items-center justify-center text-2xl" style={{ background: 'var(--surface-2)' }}>🍸</div>
+                }
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-sm text-white truncate">{item.name}</p>
                   <p className="font-black text-sm mt-0.5" style={{ color: brand.accent }}>KES {(item.price * qty).toLocaleString()}</p>
@@ -423,13 +518,15 @@ export const DigitalStorefrontPage: React.FC = () => {
 
       {/* ── HERO BANNER ─────────────────────── */}
       <div ref={heroRef} className="relative h-56 overflow-hidden">
-        <img
-          src={brand.bannerUrl}
-          alt={brand.name}
-          className="w-full h-full object-cover"
-          style={{ opacity: heroOpacity, transform: `scale(${1 + (1 - heroOpacity) * 0.08})`, transition: 'transform 0.05s linear' }}
-        />
-        {/* Gradient overlay */}
+        {brand.bannerUrl
+          ? <img
+              src={brand.bannerUrl}
+              alt={brand.name}
+              className="w-full h-full object-cover"
+              style={{ opacity: heroOpacity, transform: `scale(${1 + (1 - heroOpacity) * 0.08})`, transition: 'transform 0.05s linear' }}
+            />
+          : <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${brand.primary}CC 0%, ${brand.primaryDark} 100%)` }} />
+        }
         <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(10,10,15,0.2) 0%, rgba(10,10,15,0.85) 70%, rgba(10,10,15,1) 100%)' }} />
 
         {/* Online status chip */}
@@ -443,7 +540,10 @@ export const DigitalStorefrontPage: React.FC = () => {
         {/* Club identity row */}
         <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
           <div className="flex items-center gap-3">
-            <img src={brand.logoUrl} alt={brand.name} className="w-14 h-14 rounded-2xl object-cover border-2" style={{ borderColor: 'rgba(255,255,255,0.15)' }} />
+            {brand.logoUrl
+              ? <img src={brand.logoUrl} alt={brand.name} className="w-14 h-14 rounded-2xl object-cover border-2" style={{ borderColor: 'rgba(255,255,255,0.15)' }} />
+              : <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl border-2" style={{ background: brand.primary, borderColor: 'rgba(255,255,255,0.15)' }}>🍸</div>
+            }
             <div>
               <h1 className="text-xl font-black text-white leading-none">{brand.name}</h1>
               <div className="flex items-center gap-1.5 mt-1">
@@ -453,35 +553,43 @@ export const DigitalStorefrontPage: React.FC = () => {
             </div>
           </div>
           {/* Table badge */}
-          <div className="rounded-2xl px-3 py-2 text-center" style={{ background: brand.primary }}>
-            <p className="text-[9px] font-bold uppercase opacity-80 text-white leading-none">Table</p>
-            <p className="text-lg font-black text-white leading-tight">#{table}</p>
-          </div>
+          {table && (
+            <div className="rounded-2xl px-3 py-2 text-center" style={{ background: brand.primary }}>
+              <p className="text-[9px] font-bold uppercase opacity-80 text-white leading-none">Table</p>
+              <p className="text-lg font-black text-white leading-tight">#{table}</p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* ── HAPPY HOUR OFFER ─────────────────── */}
-      <div className="px-4 pt-4 fade-up">
-        <div className="rounded-2xl p-4 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.15) 0%, rgba(245,158,11,0.05) 100%)', border: '1px solid rgba(245,158,11,0.25)' }}>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(245,158,11,0.2)' }}>
-              <Sparkles className="w-5 h-5 text-amber-400" />
+      {/* ── ACTIVE OFFERS ─────────────────────── */}
+      {offers.length > 0 && (
+        <div className="px-4 pt-4 fade-up">
+          {offers.map((offer) => (
+            <div key={offer.id} className="rounded-2xl p-4 flex items-center justify-between mb-2" style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.15) 0%, rgba(245,158,11,0.05) 100%)', border: '1px solid rgba(245,158,11,0.25)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(245,158,11,0.2)' }}>
+                  <Sparkles className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-xs font-black text-amber-400 uppercase tracking-wide">{offer.title}</p>
+                  {offer.description && <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{offer.description}</p>}
+                </div>
+              </div>
+              {offer.promoCode && (
+                <span className="text-[10px] font-black rounded-lg px-2 py-1.5 flex-shrink-0" style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B', border: '1px solid rgba(245,158,11,0.3)' }}>
+                  {offer.promoCode}
+                </span>
+              )}
             </div>
-            <div>
-              <p className="text-xs font-black text-amber-400 uppercase tracking-wide">Happy Hour · Until 10 PM</p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Buy 2 Tusker Lager, Get 1 Free</p>
-            </div>
-          </div>
-          <span className="text-[10px] font-black rounded-lg px-2 py-1.5 flex-shrink-0" style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B', border: '1px solid rgba(245,158,11,0.3)' }}>
-            HAPPYBEER
-          </span>
+          ))}
         </div>
-      </div>
+      )}
 
       {/* ── CATEGORY PILLS ───────────────────── */}
       <div className="px-4 pt-5 pb-1 fade-up-delay-1">
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
-          {CATEGORIES.map((c) => (
+          {categories.map((c) => (
             <button
               key={c}
               onClick={() => setCat(c)}
@@ -504,10 +612,20 @@ export const DigitalStorefrontPage: React.FC = () => {
           {filtered.length} item{filtered.length !== 1 ? 's' : ''}
         </p>
 
-        {filtered.map((item) => (
+        {filtered.length === 0 && (
+          <div className="text-center py-16">
+            <ShoppingCart className="w-10 h-10 mx-auto mb-3 opacity-30" />
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No items available in this category.</p>
+          </div>
+        )}
+
+        {filtered.filter((i) => i.isAvailable).map((item) => (
           <div key={item.id} className="card flex items-center gap-4 p-4 transition-all active:scale-[0.98]">
             <div className="relative flex-shrink-0">
-              <img src={item.img} alt={item.name} className="w-20 h-20 rounded-xl object-cover" />
+              {item.img
+                ? <img src={item.img} alt={item.name} className="w-20 h-20 rounded-xl object-cover" />
+                : <div className="w-20 h-20 rounded-xl flex items-center justify-center text-3xl" style={{ background: 'var(--surface)' }}>🍸</div>
+              }
               {item.badge && (
                 <span
                   className="absolute -top-2 -right-2 text-[8px] font-black rounded-full px-1.5 py-0.5 text-white"
@@ -519,18 +637,10 @@ export const DigitalStorefrontPage: React.FC = () => {
             </div>
 
             <div className="flex-1 min-w-0 space-y-1">
-              <div className="flex items-center gap-1.5">
-                <p className="font-bold text-sm text-white leading-tight truncate">{item.name}</p>
-              </div>
-              <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{item.desc}</p>
+              <p className="font-bold text-sm text-white leading-tight truncate">{item.name}</p>
+              {item.desc && <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{item.desc}</p>}
               <div className="flex items-center justify-between pt-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-black text-sm" style={{ color: brand.accent }}>KES {item.price.toLocaleString()}</span>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                    <span className="text-[10px] font-bold text-amber-400">{item.rating}</span>
-                  </div>
-                </div>
+                <span className="font-black text-sm" style={{ color: brand.accent }}>KES {item.price.toLocaleString()}</span>
 
                 {(cart[item.id] ?? 0) > 0 ? (
                   <div className="flex items-center gap-2 rounded-xl p-1" style={{ background: 'var(--surface-2)' }}>
@@ -585,3 +695,14 @@ export const DigitalStorefrontPage: React.FC = () => {
     </div>
   );
 };
+
+/* ── Utility: lighten/darken a hex color ── */
+function adjustColor(hex: string, amount: number): string {
+  const h = hex.replace('#', '');
+  if (h.length !== 6) return hex;
+  const num = parseInt(h, 16);
+  const r = Math.min(255, Math.max(0, (num >> 16) + amount));
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + amount));
+  const b = Math.min(255, Math.max(0, (num & 0xff) + amount));
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+}

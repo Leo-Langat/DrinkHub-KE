@@ -12,7 +12,7 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 
-/* â”€â”€â”€ Toast â”€â”€â”€ */
+/*           Toast           */
 const Toast = ({ msg, type = 'success', onDone }: { msg: string; type?: 'success' | 'error'; onDone: () => void }) => {
   React.useEffect(() => { const t = setTimeout(onDone, 3500); return () => clearTimeout(t); }, [onDone]);
   return (
@@ -24,7 +24,7 @@ const Toast = ({ msg, type = 'success', onDone }: { msg: string; type?: 'success
   );
 };
 
-/* â”€â”€â”€ Modal â”€â”€â”€ */
+/*           Modal           */
 const Modal = ({ open, onClose, title, size = 'md', children }: { open: boolean; onClose: () => void; title: string; size?: 'sm' | 'md' | 'lg'; children: React.ReactNode }) => {
   React.useEffect(() => { document.body.style.overflow = open ? 'hidden' : ''; return () => { document.body.style.overflow = ''; }; }, [open]);
   if (!open) return null;
@@ -42,7 +42,7 @@ const Modal = ({ open, onClose, title, size = 'md', children }: { open: boolean;
   );
 };
 
-/* â”€â”€â”€ Form Primitives â”€â”€â”€ */
+/*           Form Primitives           */
 const FL = ({ children, required }: { children: React.ReactNode; required?: boolean }) => (
   <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
     {children}{required && <span className="text-red-500 ml-0.5">*</span>}
@@ -65,7 +65,7 @@ const SS = ({ options, ...p }: React.SelectHTMLAttributes<HTMLSelectElement> & {
   </select>
 );
 
-/* â”€â”€â”€ Shared UI â”€â”€â”€ */
+/*           Shared UI           */
 const StatusBadge = ({ status }: { status: string }) => {
   const m: Record<string, string> = {
     Active: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -106,7 +106,7 @@ const SectionHeader = ({ title, subtitle, action }: { title: string; subtitle?: 
   </div>
 );
 
-/* â”€â”€â”€ Utilities â”€â”€â”€ */
+/*           Utilities           */
 const csvExport = (headers: string[], rows: (string | number | boolean)[][], filename: string) => {
   const e = (v: string | number | boolean) => `"${String(v).replace(/"/g, '""')}"`;
   const content = [headers.map(e).join(','), ...rows.map(r => r.map(e).join(','))].join('\n');
@@ -125,45 +125,40 @@ const generatePassword = (): string => {
   return pwd.join('');
 };
 
-/* â”€â”€â”€ Data â”€â”€â”€ */
+/* --- API config --- */
+const getApiUrl = (path: string): string => {
+  const envUrl = (import.meta as any).env?.VITE_API_URL;
+  let base = envUrl ? envUrl.trim() : 'http://localhost:5000/api/v1';
+  if (base.endsWith('/')) base = base.slice(0, -1);
+  if (!base.includes('/api/v1')) base = `${base}/api/v1`;
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+};
+
+const authHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem('drinkhub_token');
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+};
+
+/* --- Data types --- */
 interface Waiter {
   id: string; firstName: string; lastName: string; phone: string;
   email: string; username: string; employeeNo: string; status: 'Active' | 'Inactive' | 'On Leave';
   shift: string; onlineStatus: 'Online' | 'Offline'; lastLogin: string; notes: string;
 }
 
-const initWaiters: Waiter[] = [
-  { id: 'w1', firstName: 'Amina', lastName: 'Ochieng', phone: '+254 701 234 567', email: 'amina@quiver.co.ke', username: 'amina.o', employeeNo: 'EMP-001', status: 'Active', shift: 'Evening', onlineStatus: 'Online', lastLogin: '5 min ago', notes: '' },
-  { id: 'w2', firstName: 'Kevin', lastName: 'Njoroge', phone: '+254 702 345 678', email: 'kevin@quiver.co.ke', username: 'kevin.n', employeeNo: 'EMP-002', status: 'Active', shift: 'Night', onlineStatus: 'Online', lastLogin: '12 min ago', notes: '' },
-  { id: 'w3', firstName: 'Fatuma', lastName: 'Hassan', phone: '+254 703 456 789', email: 'fatuma@quiver.co.ke', username: 'fatuma.h', employeeNo: 'EMP-003', status: 'Active', shift: 'Evening', onlineStatus: 'Offline', lastLogin: '2 hrs ago', notes: 'Part-time on weekends' },
-  { id: 'w4', firstName: 'Samuel', lastName: 'Gitau', phone: '+254 704 567 890', email: 'samuel@quiver.co.ke', username: 'samuel.g', employeeNo: 'EMP-004', status: 'On Leave', shift: 'Afternoon', onlineStatus: 'Offline', lastLogin: '3 days ago', notes: 'Annual leave until Aug 10' },
-  { id: 'w5', firstName: 'Mary', lastName: 'Wambua', phone: '+254 705 678 901', email: '', username: 'mary.w', employeeNo: 'EMP-005', status: 'Active', shift: 'Morning', onlineStatus: 'Offline', lastLogin: '1 day ago', notes: '' },
-];
+/* Empty initial arrays - data is loaded from the API in each section */
+const initWaiters: Waiter[] = [];
+type OrderRow = { id: string; table: string; item: string; waiter: string; amount: number; status: string; time: string };
+type MenuItem = { id: string; name: string; category: string; price: number; status: string };
 
-const orderData = [
-  { id: 'ORD-001', table: 'T-04', item: 'Tusker Cider Ã— 2', waiter: 'Amina O.', amount: 960, status: 'Preparing', time: '19:42' },
-  { id: 'ORD-002', table: 'T-07', item: 'Konyagi & Sprite Ã— 3', waiter: 'Kevin N.', amount: 1290, status: 'Pending', time: '19:39' },
-  { id: 'ORD-003', table: 'T-02', item: 'Hennessy VSOP Ã— 1', waiter: 'Fatuma H.', amount: 4500, status: 'Ready', time: '19:31' },
-  { id: 'ORD-004', table: 'T-11', item: 'Pitcher Sangria Ã— 1', waiter: 'Amina O.', amount: 2800, status: 'Delivered', time: '19:14' },
-  { id: 'ORD-005', table: 'T-03', item: 'Red Bull Ã— 4', waiter: 'Kevin N.', amount: 1200, status: 'Delivered', time: '19:05' },
-  { id: 'ORD-006', table: 'T-08', item: 'Jameson Ã— 2', waiter: 'Fatuma H.', amount: 3600, status: 'Cancelled', time: '18:55' },
-];
+const orderData: OrderRow[] = [];
+const menuItems: MenuItem[] = [];
+const dailyRevenue: { day: string; rev: number }[] = [];
+const hourlyOrders: { h: string; n: number }[] = [];
 
-const menuItems = [
-  { id: 'mi1', name: 'Tusker Cider', category: 'Beer', price: 480, status: 'Available' },
-  { id: 'mi2', name: 'Konyagi & Sprite', category: 'Spirits', price: 430, status: 'Available' },
-  { id: 'mi3', name: 'Hennessy VSOP', category: 'Cognac', price: 4500, status: 'Available' },
-  { id: 'mi4', name: 'Pitcher Sangria', category: 'Cocktails', price: 2800, status: 'Available' },
-  { id: 'mi5', name: 'Jameson Whisky', category: 'Spirits', price: 1800, status: 'Out of Stock' },
-  { id: 'mi6', name: 'Red Bull', category: 'Mixers', price: 300, status: 'Available' },
-];
-
-const dailyRevenue = [{ day: 'Mon', rev: 48200 }, { day: 'Tue', rev: 55100 }, { day: 'Wed', rev: 41800 }, { day: 'Thu', rev: 68400 }, { day: 'Fri', rev: 112000 }, { day: 'Sat', rev: 148000 }, { day: 'Sun', rev: 126000 }];
-const hourlyOrders = [{ h: '18', n: 12 }, { h: '19', n: 28 }, { h: '20', n: 45 }, { h: '21', n: 62 }, { h: '22', n: 74 }, { h: '23', n: 58 }, { h: '00', n: 40 }, { h: '01', n: 22 }];
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+/* ------------------------------------------------ 
    ADD WAITER MODAL
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+------------------------------------------------ */
 interface WaiterForm {
   firstName: string; lastName: string; phone: string; email: string;
   username: string; employeeNo: string; tempPwd: string;
@@ -209,7 +204,7 @@ const AddWaiterModal = ({ open, onClose, onAdd }: { open: boolean; onClose: () =
     <Modal open={open} onClose={onClose} title="Add New Waiter" size="lg">
       <div className="space-y-6">
 
-        {/* Section 1 â€“ Personal Information */}
+        {/* Section 1     Personal Information */}
         <div>
           <div className="flex items-center gap-2 mb-4">
             <div className="h-6 w-6 rounded-md bg-blue-100 flex items-center justify-center"><Users className="h-3.5 w-3.5 text-blue-600" /></div>
@@ -227,7 +222,7 @@ const AddWaiterModal = ({ open, onClose, onAdd }: { open: boolean; onClose: () =
 
         <div className="border-t" style={{ borderColor: '#E2E8F0' }} />
 
-        {/* Section 2 â€“ Authentication */}
+        {/* Section 2     Authentication */}
         <div>
           <div className="flex items-center gap-2 mb-4">
             <div className="h-6 w-6 rounded-md bg-purple-100 flex items-center justify-center"><Lock className="h-3.5 w-3.5 text-purple-600" /></div>
@@ -261,7 +256,7 @@ const AddWaiterModal = ({ open, onClose, onAdd }: { open: boolean; onClose: () =
 
         <div className="border-t" style={{ borderColor: '#E2E8F0' }} />
 
-        {/* Section 3 â€“ Employment */}
+        {/* Section 3     Employment */}
         <div>
           <div className="flex items-center gap-2 mb-4">
             <div className="h-6 w-6 rounded-md bg-emerald-100 flex items-center justify-center"><Briefcase className="h-3.5 w-3.5 text-emerald-600" /></div>
@@ -274,11 +269,11 @@ const AddWaiterModal = ({ open, onClose, onAdd }: { open: boolean; onClose: () =
             </div>
             <div>
               <FL>Shift <span className="text-slate-400 font-normal normal-case">(optional)</span></FL>
-              <SS value={form.shift} onChange={e => set('shift', e.target.value)} options={[{ v: '', l: 'â€” Not assigned â€”' }, { v: 'Morning', l: 'Morning (6amâ€“2pm)' }, { v: 'Afternoon', l: 'Afternoon (2pmâ€“10pm)' }, { v: 'Evening', l: 'Evening (6pmâ€“2am)' }, { v: 'Night', l: 'Night (10pmâ€“6am)' }]} />
+              <SS value={form.shift} onChange={e => set('shift', e.target.value)} options={[{ v: '', l: '    Not assigned    ' }, { v: 'Morning', l: 'Morning (6am   2pm)' }, { v: 'Afternoon', l: 'Afternoon (2pm   10pm)' }, { v: 'Evening', l: 'Evening (6pm   2am)' }, { v: 'Night', l: 'Night (10pm   6am)' }]} />
             </div>
             <div className="col-span-2">
               <FL>Notes <span className="text-slate-400 font-normal normal-case">(optional)</span></FL>
-              <STA value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Any additional notes about this staff memberâ€¦" />
+              <STA value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Any additional notes about this staff member   " />
             </div>
           </div>
         </div>
@@ -294,14 +289,51 @@ const AddWaiterModal = ({ open, onClose, onAdd }: { open: boolean; onClose: () =
   );
 };
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+/*                                                                                                                   
    STAFF MANAGEMENT PAGE
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+                                                                                                                   */
 const StaffManagementPage = ({ showToast }: { showToast: (m: string) => void }) => {
-  const [waiters, setWaiters] = React.useState<Waiter[]>(initWaiters);
+  const [waiters, setWaiters] = React.useState<Waiter[]>([]);
+  const [loadingWaiters, setLoadingWaiters] = React.useState(true);
   const [search, setSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState('All');
   const [showAdd, setShowAdd] = React.useState(false);
+
+  /* Fetch staff from API */
+  React.useEffect(() => {
+    const fetchStaff = async () => {
+      setLoadingWaiters(true);
+      try {
+        const res = await fetch(getApiUrl('/auth/staff?role=WAITER'), { headers: authHeaders() });
+        if (!res.ok) throw new Error('Failed to load staff');
+        const data = await res.json();
+        const raw: any[] = data.data?.staff ?? data.data ?? [];
+        setWaiters(raw.map((u: any, i: number) => {
+          const parts = (u.fullName ?? '').split(' ');
+          return {
+            id: u.uuid,
+            firstName: parts[0] ?? '',
+            lastName: parts.slice(1).join(' ') ?? '',
+            phone: u.phone ?? '',
+            email: u.email ?? '',
+            username: u.email?.split('@')[0] ?? `staff-${i + 1}`,
+            employeeNo: `EMP-${String(i + 1).padStart(3, '0')}`,
+            status: u.isActive ? 'Active' : 'Inactive' as Waiter['status'],
+            shift: '',
+            onlineStatus: 'Offline' as const,
+            lastLogin: u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-KE') : 'Never',
+            notes: '',
+          };
+        }));
+      } catch {
+        // On error, keep empty state - do not fall back to hardcoded data
+        setWaiters([]);
+      } finally {
+        setLoadingWaiters(false);
+      }
+    };
+    fetchStaff();
+  }, []);
 
   const filtered = waiters.filter(w => {
     const matchSearch = `${w.firstName} ${w.lastName} ${w.username} ${w.phone}`.toLowerCase().includes(search.toLowerCase());
@@ -327,9 +359,10 @@ const StaffManagementPage = ({ showToast }: { showToast: (m: string) => void }) 
     if (w) showToast(`${w.firstName} ${w.lastName} removed`);
   };
 
+
   return (
     <div className="space-y-5">
-      <SectionHeader title="Staff Management" subtitle="Manage waiters for your venue â€” only managers can create staff" action={
+      <SectionHeader title="Staff Management" subtitle="Manage waiters for your venue     only managers can create staff" action={
         <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold text-white hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>
           <Plus className="h-3.5 w-3.5" /> Add Waiter
         </button>
@@ -347,7 +380,7 @@ const StaffManagementPage = ({ showToast }: { showToast: (m: string) => void }) 
       <div className="flex items-center gap-3">
         <div className="flex-1 flex items-center gap-2 rounded-lg border px-3.5 py-2" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
           <Search className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, username or phoneâ€¦" className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--text-primary)' }} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, username or phone   " className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--text-primary)' }} />
         </div>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="rounded-lg border px-3.5 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
           {['All', 'Active', 'Inactive', 'On Leave'].map(s => <option key={s}>{s}</option>)}
@@ -393,7 +426,7 @@ const StaffManagementPage = ({ showToast }: { showToast: (m: string) => void }) 
                     <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{w.onlineStatus}</span>
                   </div>
                 </td>
-                <td className="px-4 py-3.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{w.shift || 'â€”'}</td>
+                <td className="px-4 py-3.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{w.shift || '   '}</td>
                 <td className="px-4 py-3.5 text-xs" style={{ color: 'var(--text-muted)' }}>{w.lastLogin}</td>
                 <td className="px-4 py-3.5">
                   <div className="flex items-center gap-1.5">
@@ -427,26 +460,51 @@ const StaffManagementPage = ({ showToast }: { showToast: (m: string) => void }) 
   );
 };
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+/*                                                                                                                   
    ORDERS PAGE
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+                                                                                                                   */
 const OrdersPage = ({ showToast }: { showToast: (m: string) => void }) => {
-  const [orders, setOrders] = React.useState(orderData);
+  const [orders, setOrders] = React.useState<OrderRow[]>([]);
   const [filter, setFilter] = React.useState('All');
   const [search, setSearch] = React.useState('');
   const [refreshing, setRefreshing] = React.useState(false);
 
-  const statuses = ['All', 'Pending', 'Preparing', 'Ready', 'Delivered', 'Cancelled'];
-  const filtered = orders.filter(o => (filter === 'All' || o.status === filter) && (search === '' || o.id.toLowerCase().includes(search.toLowerCase()) || o.table.toLowerCase().includes(search.toLowerCase()) || o.waiter.toLowerCase().includes(search.toLowerCase())));
+  const fetchOrders = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const res = await fetch(getApiUrl('/orders'), { headers: authHeaders() });
+      if (!res.ok) throw new Error('Failed to load orders');
+      const data = await res.json();
+      const raw: any[] = data.data?.orders ?? data.data ?? [];
+      setOrders(raw.map((o: any) => ({
+        id: o.orderNumber ?? o.uuid?.slice(0, 8).toUpperCase() ?? '-',
+        table: o.table?.tableNumber ? `T-${String(o.table.tableNumber).padStart(2, '0')}` : '-',
+        item: (o.items ?? o.orderItems ?? []).map((i: any) => `${i.product?.name ?? i.name} x ${i.quantity}`).join(', ') || '-',
+        waiter: o.waiter ? `${(o.waiter.fullName ?? '').split(' ')[0]} ${(o.waiter.fullName ?? '').split(' ').slice(-1)[0]?.charAt(0) ?? ''}.` : 'Unclaimed',
+        amount: Number(o.totalAmount ?? 0),
+        status: o.status ?? '-',
+        time: o.createdAt ? new Date(o.createdAt).toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' }) : '-',
+      })));
+    } catch {
+      // Keep empty on error
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
-  const doRefresh = async () => { setRefreshing(true); await new Promise(r => setTimeout(r, 1400)); setRefreshing(false); showToast('Orders refreshed'); };
+  React.useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  const doRefresh = async () => { await fetchOrders(); showToast('Orders refreshed'); };
+
+  const statuses = ['All', 'PENDING', 'PREPARING', 'READY', 'DELIVERED', 'CANCELLED'];
+  const filtered = orders.filter(o => (filter === 'All' || o.status === filter) && (search === '' || o.id.toLowerCase().includes(search.toLowerCase()) || o.table.toLowerCase().includes(search.toLowerCase()) || o.waiter.toLowerCase().includes(search.toLowerCase())));
 
   return (
     <div className="space-y-5">
       <SectionHeader title="Live Orders" subtitle="Real-time order feed for your venue" action={
         <div className="flex items-center gap-2">
           <button onClick={doRefresh} disabled={refreshing} className="flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-slate-50 transition-colors disabled:opacity-50" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-            <RefreshCcw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />{refreshing ? 'Refreshingâ€¦' : 'Refresh'}
+            <RefreshCcw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />{refreshing ? 'Refreshing   ' : 'Refresh'}
           </button>
           <button onClick={() => { csvExport(['Order', 'Table', 'Item', 'Waiter', 'Amount (KES)', 'Status', 'Time'], filtered.map(o => [o.id, o.table, o.item, o.waiter, o.amount, o.status, o.time]), 'orders-export.csv'); showToast('Orders exported'); }}
             className="flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-slate-50 transition-colors" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
@@ -457,7 +515,7 @@ const OrdersPage = ({ showToast }: { showToast: (m: string) => void }) => {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex-1 min-w-48 flex items-center gap-2 rounded-lg border px-3.5 py-2" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
           <Search className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search order, table, waiterâ€¦" className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--text-primary)' }} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search order, table, waiter   " className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--text-primary)' }} />
         </div>
         <div className="flex gap-1.5 flex-wrap">
           {statuses.map(s => (
@@ -474,13 +532,15 @@ const OrdersPage = ({ showToast }: { showToast: (m: string) => void }) => {
               <th key={h} className="px-5 py-3 text-left text-xs font-bold" style={{ color: 'var(--text-muted)' }}>{h}</th>
             ))}
           </tr></thead>
-          <tbody>{filtered.map(o => (
+          <tbody>{filtered.length === 0 ? (
+            <tr><td colSpan={7} className="text-center py-8 text-xs text-slate-400">No orders found</td></tr>
+          ) : filtered.map(o => (
             <tr key={o.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
               <td className="px-5 py-3.5 font-mono text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{o.id}</td>
-              <td className="px-5 py-3.5 font-bold text-xs" style={{ color: 'var(--text-primary)' }}>{o.table}</td>
-              <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{o.item}</td>
+              <td className="px-5 py-3.5 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{o.table}</td>
+              <td className="px-5 py-3.5 text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{o.item}</td>
               <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{o.waiter}</td>
-              <td className="px-5 py-3.5 font-bold text-xs text-emerald-600">KES {o.amount.toLocaleString()}</td>
+              <td className="px-5 py-3.5 text-xs font-bold text-emerald-600">KES {o.amount.toLocaleString()}</td>
               <td className="px-5 py-3.5"><StatusBadge status={o.status} /></td>
               <td className="px-5 py-3.5 text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{o.time}</td>
             </tr>
@@ -491,18 +551,42 @@ const OrdersPage = ({ showToast }: { showToast: (m: string) => void }) => {
   );
 };
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   MENU PAGE
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* --- MENU PAGE --- */
 const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
-  const [items, setItems] = React.useState(menuItems);
+  const [items, setItems] = React.useState<MenuItem[]>([]);
   const [showAdd, setShowAdd] = React.useState(false);
   const [addForm, setAddForm] = React.useState({ name: '', category: 'Beer', price: '' });
+
+  React.useEffect(() => {
+    const fetchMenu = async () => {
+      try {
+        const res = await fetch(getApiUrl('/menu'), { headers: authHeaders() });
+        if (!res.ok) return;
+        const data = await res.json();
+        const rawCats: any[] = (data.data ?? data).categories ?? [];
+        const flat: MenuItem[] = [];
+        rawCats.forEach((cat: any) => {
+          (cat.products ?? []).forEach((p: any) => {
+            flat.push({
+              id: p.uuid,
+              name: p.name,
+              category: cat.name,
+              price: Number(p.price),
+              status: p.isAvailable !== false ? 'Available' : 'Out of Stock',
+            });
+          });
+        });
+        setItems(flat);
+      } catch { /* keep empty on error */ }
+    };
+    fetchMenu();
+  }, []);
 
   const toggle = (id: string) => {
     setItems(prev => prev.map(i => {
       if (i.id !== id) return i;
       const next = i.status === 'Available' ? 'Out of Stock' : 'Available';
+      fetch(getApiUrl(`/menu/products/${id}/availability`), { method: 'PATCH', headers: authHeaders() }).catch(() => {});
       showToast(`${i.name} marked as ${next}`);
       return { ...i, status: next };
     }));
@@ -556,30 +640,84 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
   );
 };
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+/*                                                                                                                   
    DASHBOARD PAGE
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+                                                                                                                   */
 const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
   const [refreshing, setRefreshing] = React.useState(false);
-  const doRefresh = async () => { setRefreshing(true); await new Promise(r => setTimeout(r, 1400)); setRefreshing(false); showToast('Dashboard refreshed'); };
+  const [kpis, setKpis] = React.useState({ revenue: '-', orders: '-', waiters: '-', avgOrder: '-' });
+  const [revChart, setRevChart] = React.useState<{ day: string; rev: number }[]>([]);
+  const [hourChart, setHourChart] = React.useState<{ h: string; n: number }[]>([]);
+  const [recentOrders, setRecentOrders] = React.useState<OrderRow[]>([]);
+
+  const fetchDashboard = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const [analyticsRes, ordersRes] = await Promise.all([
+        fetch(getApiUrl('/reports/analytics?period=WEEKLY'), { headers: authHeaders() }),
+        fetch(getApiUrl('/orders'), { headers: authHeaders() }),
+      ]);
+      if (analyticsRes.ok) {
+        const d = await analyticsRes.json();
+        const report = d.data?.report ?? d.data ?? {};
+        const k = report.kpis ?? {};
+        setKpis({
+          revenue: k.totalRevenue != null ? `KES ${Number(k.totalRevenue).toLocaleString()}` : '-',
+          orders: k.totalOrdersCount != null ? String(k.totalOrdersCount) : '-',
+          waiters: k.activeWaitersCount != null ? String(k.activeWaitersCount) : '-',
+          avgOrder: k.averageOrderValue != null ? `KES ${Number(k.averageOrderValue).toLocaleString()}` : '-',
+        });
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        if (report.dailyRevenue?.length) {
+          setRevChart(report.dailyRevenue.map((d: any) => ({ day: d.day ?? d.date, rev: Number(d.revenue ?? d.rev ?? 0) })));
+        } else {
+          setRevChart(days.map(day => ({ day, rev: 0 })));
+        }
+        if (report.hourlyOrders?.length) {
+          setHourChart(report.hourlyOrders.map((h: any) => ({ h: String(h.hour ?? h.h), n: Number(h.count ?? h.n ?? 0) })));
+        } else {
+          setHourChart([]);
+        }
+      }
+      if (ordersRes.ok) {
+        const od = await ordersRes.json();
+        const raw: any[] = od.data?.orders ?? od.data ?? [];
+        setRecentOrders(raw.slice(0, 4).map((o: any) => ({
+          id: o.orderNumber ?? o.uuid?.slice(0, 8).toUpperCase() ?? '-',
+          table: o.table?.tableNumber ? `T-${String(o.table.tableNumber).padStart(2, '0')}` : '-',
+          item: (o.items ?? o.orderItems ?? []).map((i: any) => `${i.product?.name ?? i.name}`).join(', ') || '-',
+          waiter: o.waiter?.fullName?.split(' ')[0] ?? 'Unclaimed',
+          amount: Number(o.totalAmount ?? 0),
+          status: o.status ?? '-',
+          time: o.createdAt ? new Date(o.createdAt).toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' }) : '-',
+        })));
+      }
+    } catch { /* keep current state on error */ } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  React.useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
+  const doRefresh = async () => { await fetchDashboard(); showToast('Dashboard refreshed'); };
+
   return (
     <div className="space-y-5">
-      <SectionHeader title="Club Overview" subtitle="Quiver Lounge Kilimani â€” Live dashboard" action={
+      <SectionHeader title="Club Overview" subtitle="Live dashboard" action={
         <button onClick={doRefresh} disabled={refreshing} className="flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-slate-50 transition-colors disabled:opacity-50" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-          <RefreshCcw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />{refreshing ? 'Refreshingâ€¦' : 'Refresh'}
+          <RefreshCcw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />{refreshing ? 'Refreshing   ' : 'Refresh'}
         </button>
       } />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <KPI label="Revenue Today" value="KES 42,600" sub="â†‘ 12% from last Sat" icon={<TrendingUp className="h-5 w-5 text-emerald-500" />} />
-        <KPI label="Active Orders" value="6" sub="3 preparing Â· 1 ready" icon={<ClipboardList className="h-5 w-5 text-blue-500" />} />
-        <KPI label="Waiters Online" value="2" sub="of 5 registered" icon={<Users className="h-5 w-5 text-purple-500" />} />
-        <KPI label="Avg Order Value" value="KES 2,390" sub="â†‘ from KES 2,100" icon={<ArrowUpRight className="h-5 w-5 text-amber-500" />} />
+        <KPI label="Revenue (Period)" value={kpis.revenue} sub="From completed orders" icon={<TrendingUp className="h-5 w-5 text-emerald-500" />} />
+        <KPI label="Total Orders" value={kpis.orders} sub="All statuses" icon={<ClipboardList className="h-5 w-5 text-blue-500" />} />
+        <KPI label="Active Waiters" value={kpis.waiters} sub="With completed orders" icon={<Users className="h-5 w-5 text-purple-500" />} />
+        <KPI label="Avg Order Value" value={kpis.avgOrder} sub="Completed orders" icon={<ArrowUpRight className="h-5 w-5 text-amber-500" />} />
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
           <h3 className="text-sm font-black mb-4" style={{ color: 'var(--text-primary)' }}>Weekly Revenue (KES)</h3>
           <ResponsiveContainer width="100%" height={180}>
-            <AreaChart data={dailyRevenue}>
+            <AreaChart data={revChart}>
               <defs><linearGradient id="revG" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563EB" stopOpacity={0.12} /><stop offset="95%" stopColor="#2563EB" stopOpacity={0} /></linearGradient></defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
@@ -590,9 +728,9 @@ const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
           </ResponsiveContainer>
         </div>
         <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          <h3 className="text-sm font-black mb-4" style={{ color: 'var(--text-primary)' }}>Orders by Hour (Tonight)</h3>
+          <h3 className="text-sm font-black mb-4" style={{ color: 'var(--text-primary)' }}>Orders by Hour</h3>
           <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={hourlyOrders}>
+            <BarChart data={hourChart}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis dataKey="h" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} tickFormatter={(h: number | string) => `${h}:00`} />
               <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
@@ -609,10 +747,12 @@ const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
           <StatusBadge status="Online" />
         </div>
         <table className="w-full text-sm">
-          <tbody>{orderData.slice(0, 4).map(o => (
+          <tbody>{recentOrders.length === 0 ? (
+            <tr><td colSpan={5} className="text-center py-6 text-xs text-slate-400">No recent orders</td></tr>
+          ) : recentOrders.map(o => (
             <tr key={o.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
               <td className="px-5 py-3 font-mono text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{o.id}</td>
-              <td className="px-5 py-3 text-xs" style={{ color: 'var(--text-secondary)' }}>{o.table} Â· {o.item}</td>
+              <td className="px-5 py-3 text-xs" style={{ color: 'var(--text-secondary)' }}>{o.table} | {o.item}</td>
               <td className="px-5 py-3 text-xs font-bold text-emerald-600">KES {o.amount.toLocaleString()}</td>
               <td className="px-5 py-3"><StatusBadge status={o.status} /></td>
               <td className="px-5 py-3 text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{o.time}</td>
@@ -624,18 +764,64 @@ const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
   );
 };
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   REPORTS PAGE
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-const ReportsPage = ({ showToast }: { showToast: (m: string) => void }) => {
+/* --- REPORTS PAGE --- */
+const ReportsPage = ({ showToast }: { showToast: (m: string, type?: 'success' | 'error') => void }) => {
+  const exportReport = async (title: string, type: string) => {
+    showToast(`Generating ${title}...`);
+    try {
+      if (type === 'revenue') {
+        const res = await fetch(getApiUrl('/reports/analytics?period=WEEKLY'), { headers: authHeaders() });
+        const d = await res.json();
+        const report = d.data?.report ?? d.data ?? {};
+        const rows = (report.hourlyOrders ?? []).map((h: any) => [`${h.hour ?? h.h}:00`, h.count ?? h.n ?? 0, (h.count ?? 0) * 2000]);
+        csvExport(['Hour', 'Orders', 'Revenue (KES)'], rows, 'daily-revenue.csv');
+      } else if (type === 'weekly') {
+        const res = await fetch(getApiUrl('/reports/analytics?period=WEEKLY'), { headers: authHeaders() });
+        const d = await res.json();
+        const report = d.data?.report ?? d.data ?? {};
+        const rows = (report.dailyRevenue ?? []).map((d: any) => [d.day ?? d.date, d.revenue ?? 0]);
+        csvExport(['Day', 'Revenue (KES)'], rows, 'weekly-orders.csv');
+      } else if (type === 'orders') {
+        const res = await fetch(getApiUrl('/orders'), { headers: authHeaders() });
+        const d = await res.json();
+        const raw: any[] = d.data?.orders ?? d.data ?? [];
+        const rows = raw.map((o: any) => [o.orderNumber ?? o.uuid?.slice(0, 8), o.table?.tableNumber ? `T-${o.table.tableNumber}` : '-', (o.items ?? []).map((i: any) => i.product?.name).join('; '), o.waiter?.fullName ?? 'Unclaimed', o.totalAmount, o.status]);
+        csvExport(['Order', 'Table', 'Item', 'Waiter', 'Amount (KES)', 'Status'], rows, 'order-summary.csv');
+      } else if (type === 'menu') {
+        const res = await fetch(getApiUrl('/menu'), { headers: authHeaders() });
+        const d = await res.json();
+        const rawCats: any[] = (d.data ?? d).categories ?? [];
+        const rows: any[] = [];
+        rawCats.forEach((cat: any) => {
+          (cat.products ?? []).forEach((p: any) => {
+            rows.push([p.name, cat.name, p.price, p.isAvailable ? 'Available' : 'Out of Stock']);
+          });
+        });
+        csvExport(['Item', 'Category', 'Price (KES)', 'Status'], rows, 'menu-performance.csv');
+      } else if (type === 'staff') {
+        const res = await fetch(getApiUrl('/auth/staff?role=WAITER'), { headers: authHeaders() });
+        const d = await res.json();
+        const staff: any[] = d.data?.staff ?? d.data ?? [];
+        const rows = staff.map((s: any) => [s.fullName, s.email, s.isActive ? 'Active' : 'Inactive', '-', s.createdAt]);
+        csvExport(['Name', 'Email', 'Status', 'Shift', 'Created At'], rows, 'staff-activity.csv');
+      } else {
+        csvExport(['Method', 'Share (%)'], [['M-Pesa', 68], ['Card', 20], ['Cash', 12]], 'payment-methods.csv');
+      }
+      showToast(`${title} exported successfully`);
+    } catch {
+      showToast(`Failed to export ${title}`, 'error');
+    }
+  };
+
   const reports = [
-    { title: 'Daily Revenue', desc: 'Revenue breakdown by hour for the current date', headers: ['Hour', 'Orders', 'Revenue (KES)'], rows: hourlyOrders.map(h => [`${h.h}:00`, h.n, h.n * 2390]), file: 'daily-revenue.csv' },
-    { title: 'Weekly Orders', desc: 'Order volume by day for the past 7 days', headers: ['Day', 'Revenue (KES)'], rows: dailyRevenue.map(d => [d.day, d.rev]), file: 'weekly-orders.csv' },
-    { title: 'Order Summary', desc: 'Full list of all orders with status and amounts', headers: ['Order', 'Table', 'Item', 'Waiter', 'Amount (KES)', 'Status'], rows: orderData.map(o => [o.id, o.table, o.item, o.waiter, o.amount, o.status]), file: 'order-summary.csv' },
-    { title: 'Menu Performance', desc: 'Sales volume and availability per menu item', headers: ['Item', 'Category', 'Price (KES)', 'Status'], rows: menuItems.map(i => [i.name, i.category, i.price, i.status]), file: 'menu-performance.csv' },
-    { title: 'Staff Activity', desc: 'Waiter logins, orders handled, and shift data', headers: ['Name', 'Username', 'Status', 'Shift', 'Last Login'], rows: initWaiters.map(w => [`${w.firstName} ${w.lastName}`, w.username, w.status, w.shift, w.lastLogin]), file: 'staff-activity.csv' },
-    { title: 'Payment Methods', desc: 'Breakdown of payments by method (M-Pesa, Card, Cash)', headers: ['Method', 'Share (%)'], rows: [['M-Pesa', 68], ['Card', 20], ['Cash', 12]], file: 'payment-methods.csv' },
+    { title: 'Daily Revenue', desc: 'Revenue breakdown by hour for current date', type: 'revenue' },
+    { title: 'Weekly Orders', desc: 'Order volume by day for the past 7 days', type: 'weekly' },
+    { title: 'Order Summary', desc: 'Full list of all orders with status and amounts', type: 'orders' },
+    { title: 'Menu Performance', desc: 'Sales volume and availability per menu item', type: 'menu' },
+    { title: 'Staff Activity', desc: 'Waiter status and account creation details', type: 'staff' },
+    { title: 'Payment Methods', desc: 'Breakdown of payments by method (M-Pesa, Card, Cash)', type: 'payment' },
   ];
+
   return (
     <div className="space-y-5">
       <SectionHeader title="Reports" subtitle="Download detailed reports for your venue" />
@@ -646,7 +832,7 @@ const ReportsPage = ({ showToast }: { showToast: (m: string) => void }) => {
               <div className="font-black text-sm mb-1" style={{ color: 'var(--text-primary)' }}>{r.title}</div>
               <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{r.desc}</div>
             </div>
-            <button onClick={() => { csvExport(r.headers, r.rows, r.file); showToast(`${r.title} exported`); }}
+            <button onClick={() => exportReport(r.title, r.type)}
               className="ml-4 flex-shrink-0 flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
               <Download className="h-3.5 w-3.5" /> Export CSV
             </button>
@@ -657,9 +843,7 @@ const ReportsPage = ({ showToast }: { showToast: (m: string) => void }) => {
   );
 };
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   SETTINGS PAGE
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* --- Settings Page --- */
 const ManagerSettingsPage = ({ showToast }: { showToast: (m: string) => void }) => {
   const [openingTime, setOpeningTime] = React.useState('18:00');
   const [closingTime, setClosingTime] = React.useState('02:00');
@@ -667,7 +851,7 @@ const ManagerSettingsPage = ({ showToast }: { showToast: (m: string) => void }) 
   const [soundAlerts, setSoundAlerts] = React.useState(true);
   return (
     <div className="space-y-6 max-w-2xl">
-      <SectionHeader title="Club Settings" subtitle="Configuration for Quiver Lounge Kilimani" />
+      <SectionHeader title="Club Settings" subtitle="Venue configuration" />
       <div className="rounded-xl border p-5 space-y-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
         <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>Operating Hours</h3>
         <div className="grid grid-cols-2 gap-4">
@@ -688,7 +872,7 @@ const ManagerSettingsPage = ({ showToast }: { showToast: (m: string) => void }) 
   );
 };
 
-/* â”€â”€â”€ Nav â”€â”€â”€ */
+/* --- Nav --- */
 type NavKey = 'dashboard' | 'orders' | 'menu' | 'staff' | 'reports' | 'settings';
 const NAV_ITEMS: { key: NavKey; label: string; icon: React.ReactNode }[] = [
   { key: 'dashboard', label: 'Overview', icon: <LayoutDashboard className="h-4 w-4" /> },
@@ -700,16 +884,11 @@ const NAV_ITEMS: { key: NavKey; label: string; icon: React.ReactNode }[] = [
 ];
 const PAGE_TITLES: Record<NavKey, string> = { dashboard: 'Overview', orders: 'Live Orders', menu: 'Menu', staff: 'Staff Management', reports: 'Reports', settings: 'Settings' };
 
-/* â”€â”€â”€ Notification Data â”€â”€â”€ */
+/*           Notification Data           */
 interface MgrNotif { id: string; title: string; body: string; time: string; read: boolean; icon: React.ReactNode; }
-const INIT_MGR_NOTIFS: MgrNotif[] = [
-  { id: 'm1', title: 'New order â€” Table 4', body: 'Amina placed an order for 2Ã— Tusker Cider.', time: '2 min ago', read: false, icon: <ClipboardList className="h-4 w-4 text-blue-500" /> },
-  { id: 'm2', title: 'Order ready â€” Table 2', body: 'Hennessy VSOP is ready for delivery.', time: '8 min ago', read: false, icon: <CheckCircle2 className="h-4 w-4 text-emerald-500" /> },
-  { id: 'm3', title: 'Staff alert', body: 'Samuel Gitau checked in for his shift.', time: '22 min ago', read: false, icon: <Users className="h-4 w-4 text-purple-500" /> },
-  { id: 'm4', title: 'Low stock warning', body: 'Jameson Whisky is running out.', time: '1 hr ago', read: true, icon: <AlertCircle className="h-4 w-4 text-amber-500" /> },
-];
+const INIT_MGR_NOTIFS: MgrNotif[] = [];
 
-/* â”€â”€â”€ Main Export â”€â”€â”€ */
+/*           Main Export           */
 export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const [page, setPage] = React.useState<NavKey>('dashboard');
   const [collapsed, setCollapsed] = React.useState(false);
@@ -778,16 +957,16 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
         <header className="border-b px-6 py-3 flex items-center justify-between sticky top-0 z-20" style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}>
           <div>
             <h1 className="text-base font-black" style={{ color: 'var(--text-primary)' }}>{PAGE_TITLES[page]}</h1>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Quiver Lounge Kilimani Â· Tuesday 4 Aug 2026</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Quiver Lounge Kilimani  | Tuesday 4 Aug 2026</p>
           </div>
 
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-700 font-semibold">
-              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Open Â· 6PMâ€“2AM
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Open  | 6PM   2AM
             </div>
             <ThemeToggle />
 
-            {/* â”€â”€ Notifications â”€â”€ */}
+            {/*        Notifications        */}
             <div className="relative" ref={notifRef}>
               <button
                 onClick={() => { setNotifOpen(v => !v); setProfileOpen(false); }}
@@ -834,14 +1013,14 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
 
                   <div className="border-t px-4 py-2.5" style={{ borderColor: 'var(--border)' }}>
                     <button onClick={() => { setPage('orders'); setNotifOpen(false); }} className="w-full text-center text-xs font-semibold text-blue-500 hover:text-blue-600 transition-colors py-0.5">
-                      View live orders â†’
+                      View live orders    
                     </button>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* â”€â”€ Profile â”€â”€ */}
+            {/*        Profile        */}
             <div className="relative" ref={profileRef}>
               <button
                 onClick={() => { setProfileOpen(v => !v); setNotifOpen(false); }}

@@ -77,7 +77,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
             </p>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             {[
               { icon: <Globe className="h-4 w-4 text-blue-400" />, label: 'Multi-tenant SaaS management' },
               { icon: <Server className="h-4 w-4 text-purple-400" />, label: 'System health & infrastructure' },
@@ -89,20 +89,6 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
                   {item.icon}
                 </div>
                 <span className="text-sm text-slate-400">{item.label}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: 'Active Clubs', value: '28' },
-              { label: 'MRR', value: 'KES 1.24M' },
-              { label: 'Platform Uptime', value: '99.98%' },
-              { label: 'API Calls / Day', value: '2.4M' },
-            ].map((s) => (
-              <div key={s.label} className="rounded-xl bg-slate-800/50 border border-slate-700/50 p-3.5">
-                <div className="text-xl font-black text-white">{s.value}</div>
-                <div className="text-[11px] text-slate-500 mt-0.5">{s.label}</div>
               </div>
             ))}
           </div>
@@ -229,7 +215,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
 
           <p className="text-center text-xs" style={{ color: 'var(--text-muted)' }}>
             Staff operations?{' '}
-            <a href="http://localhost:3001" className="text-blue-600 hover:underline font-medium">
+            <a href={`${(import.meta as any).env?.VITE_STAFF_URL || 'http://localhost:3001'}`} className="text-blue-600 hover:underline font-medium">
               Staff Portal →
             </a>
           </p>

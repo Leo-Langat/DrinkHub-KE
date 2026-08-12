@@ -153,34 +153,31 @@ const SectionHeader = ({ title, subtitle, action }: { title: string; subtitle?: 
   </div>
 );
 
+/* ─── API Config ─── */
+const getApiUrl = (path: string): string => {
+  const envUrl = (import.meta as any).env?.VITE_API_URL;
+  let base = envUrl ? envUrl.trim() : 'http://localhost:5000/api/v1';
+  if (base.endsWith('/')) base = base.slice(0, -1);
+  if (!base.includes('/api/v1')) base = `${base}/api/v1`;
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+};
+
+const authHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem('token') || localStorage.getItem('drinkhub_token');
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
+};
+
 /* ─── Data ─── */
-const initManagers: Manager[] = [
-  { id: 'm1', firstName: 'James', lastName: 'Muthoni', email: 'james@quiver.co.ke', phone: '+254 712 345 678', username: 'james.muthoni', clubId: 'c1', clubName: 'Quiver Lounge Kilimani', status: 'Active', lastLogin: '2 min ago' },
-  { id: 'm2', firstName: 'David', lastName: 'Kamau', email: 'david@skylounge.co.ke', phone: '+254 723 456 789', username: 'david.kamau', clubId: 'c2', clubName: 'Sky Lounge Westlands', status: 'Active', lastLogin: '1 hr ago' },
-  { id: 'm3', firstName: 'Grace', lastName: 'Wanjiru', email: 'grace@1824.co.ke', phone: '+254 734 567 890', username: 'grace.wanjiru', clubId: 'c3', clubName: '1824 Club Langata', status: 'Active', lastLogin: '3 hrs ago' },
-  { id: 'm4', firstName: 'Brian', lastName: 'Otieno', email: 'brian@mombasa.co.ke', phone: '+254 745 678 901', username: 'brian.otieno', clubId: 'c4', clubName: 'Mombasa Beach Club', status: 'Active', lastLogin: '30 min ago' },
-  { id: 'm5', firstName: 'Winnie', lastName: 'Achieng', email: 'winnie@lakebasin.co.ke', phone: '+254 756 789 012', username: 'winnie.achieng', clubId: 'c5', clubName: 'Lake Basin Lounge', status: 'Inactive', lastLogin: '2 days ago' },
-];
-const initClubs: Club[] = [
-  { id: 'c1', name: 'Quiver Lounge Kilimani', description: 'Premium rooftop lounge with panoramic city views', address: 'Lenana Road', city: 'Kilimani', county: 'Nairobi', phone: '+254 712 000 001', email: 'info@quiver.co.ke', openingTime: '18:00', closingTime: '02:00', logoUrl: '', bannerUrl: '', themeColor: '#1E3A5F', plan: 'Pro', status: 'Active', mrr: 8900, orders: 312, managerId: 'm1', createdAt: '2026-01-15', trialDays: 0, startDate: '2026-01-15', expiryDate: '2027-01-15' },
-  { id: 'c2', name: 'Sky Lounge Westlands', description: 'Contemporary bar and lounge in the heart of Westlands', address: 'Westlands Road', city: 'Westlands', county: 'Nairobi', phone: '+254 723 000 002', email: 'info@skylounge.co.ke', openingTime: '17:00', closingTime: '03:00', logoUrl: '', bannerUrl: '', themeColor: '#2D1B69', plan: 'Pro', status: 'Active', mrr: 8900, orders: 287, managerId: 'm2', createdAt: '2026-02-01', trialDays: 0, startDate: '2026-02-01', expiryDate: '2027-02-01' },
-  { id: 'c3', name: '1824 Club Langata', description: 'Classic club with live music and premium spirits', address: 'Langata Road', city: 'Langata', county: 'Nairobi', phone: '+254 734 000 003', email: 'info@1824.co.ke', openingTime: '20:00', closingTime: '04:00', logoUrl: '', bannerUrl: '', themeColor: '#7B1D1D', plan: 'Starter', status: 'Active', mrr: 3900, orders: 198, managerId: 'm3', createdAt: '2026-02-15', trialDays: 0, startDate: '2026-02-15', expiryDate: '2027-02-15' },
-  { id: 'c4', name: 'Mombasa Beach Club', description: 'Beachfront venue with cocktails and ocean views', address: 'Nyali Road', city: 'Nyali', county: 'Mombasa', phone: '+254 745 000 004', email: 'info@mombasa.co.ke', openingTime: '16:00', closingTime: '02:00', logoUrl: '', bannerUrl: '', themeColor: '#064E3B', plan: 'Pro', status: 'Active', mrr: 8900, orders: 241, managerId: 'm4', createdAt: '2026-03-01', trialDays: 0, startDate: '2026-03-01', expiryDate: '2027-03-01' },
-  { id: 'c5', name: 'Lake Basin Lounge', description: 'Lakeside lounge with fresh seafood and local drinks', address: 'Lake Victoria Road', city: 'Kisumu', county: 'Kisumu', phone: '+254 756 000 005', email: 'info@lakebasin.co.ke', openingTime: '17:00', closingTime: '01:00', logoUrl: '', bannerUrl: '', themeColor: '#1D4ED8', plan: 'Starter', status: 'Trial', mrr: 0, orders: 54, managerId: 'm5', createdAt: '2026-07-01', trialDays: 14, startDate: '2026-07-01', expiryDate: '2026-07-15' },
-];
-const mrrData = [{ month: 'Feb', mrr: 820000 }, { month: 'Mar', mrr: 910000 }, { month: 'Apr', mrr: 975000 }, { month: 'May', mrr: 1050000 }, { month: 'Jun', mrr: 1120000 }, { month: 'Jul', mrr: 1180000 }, { month: 'Aug', mrr: 1240000 }];
-const venueData = [{ county: 'Nairobi', clubs: 14, revenue: 680000 }, { county: 'Mombasa', clubs: 6, revenue: 290000 }, { county: 'Kisumu', clubs: 4, revenue: 148000 }, { county: 'Nakuru', clubs: 2, revenue: 74000 }, { county: 'Kiambu', clubs: 2, revenue: 48000 }];
-const payData = [{ name: 'M-Pesa', value: 68, color: '#10B981' }, { name: 'Card', value: 20, color: '#2563EB' }, { name: 'Cash', value: 12, color: '#F59E0B' }];
-const subscriptions = [{ plan: 'Pro', price: 8900, clubs: 18, mrr: 160200 }, { plan: 'Starter', price: 3900, clubs: 8, mrr: 31200 }, { plan: 'Trial', price: 0, clubs: 2, mrr: 0 }];
-const weeklyOrders = [{ day: 'Mon', orders: 210 }, { day: 'Tue', orders: 245 }, { day: 'Wed', orders: 198 }, { day: 'Thu', orders: 312 }, { day: 'Fri', orders: 480 }, { day: 'Sat', orders: 620 }, { day: 'Sun', orders: 540 }];
-const auditLogs = [
-  { id: 'a1', action: 'Club Created', actor: 'admin@drinkhub.co.ke', resource: 'Quiver Lounge', ip: '41.80.10.1', time: '14:22:01', level: 'success' },
-  { id: 'a2', action: 'Manager Created', actor: 'admin@drinkhub.co.ke', resource: 'james.muthoni', ip: '41.80.10.1', time: '14:22:01', level: 'success' },
-  { id: 'a3', action: 'User Login', actor: 'james@quiver.co.ke', resource: 'Auth', ip: '41.80.12.44', time: '17:43:02', level: 'info' },
-  { id: 'a4', action: 'Payment Processed', actor: 'system', resource: 'KES 2,450', ip: '—', time: '17:40:55', level: 'success' },
-  { id: 'a5', action: 'Failed Login Attempt', actor: 'unknown@test.com', resource: 'Auth', ip: '196.201.4.11', time: '17:38:30', level: 'warn' },
-  { id: 'a6', action: 'Menu Item Deleted', actor: 'david@skylounge.co.ke', resource: 'Menu #84', ip: '41.80.15.22', time: '17:30:00', level: 'warn' },
-];
+const initManagers: Manager[] = [];
+const initClubs: Club[] = [];
+const mrrData: { month: string; mrr: number }[] = [];
+const venueData: { county: string; clubs: number; revenue: number }[] = [];
+const payData: { name: string; value: number; color: string }[] = [];
+const subscriptions: { plan: string; price: number; clubs: number; mrr: number }[] = [];
+const weeklyOrders: { day: string; orders: number }[] = [];
+const auditLogs: { id: string; action: string; actor: string; resource: string; ip: string; time: string; level: string }[] = [];
 
 /* ══════════════════════════════════════
    CREATE CLUB STEPPER
@@ -494,17 +491,75 @@ const CreateClubStepper = ({ onSuccess, onCancel }: { onSuccess: (club: Club, ma
     setErrors(e); return Object.keys(e).length === 0;
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step === 1 && !validate1()) return;
     if (step === 2 && !validate2()) return;
     if (step === 3) {
-      const id = `c${Date.now()}`;
-      const mgrId = `m${Date.now()}`;
-      const club: Club = { id, name: form.name, description: form.description, address: form.address, city: form.city, county: form.county, phone: form.phone, email: form.email, openingTime: form.openingTime, closingTime: form.closingTime, logoUrl: form.logoUrl, bannerUrl: form.bannerUrl, themeColor: form.themeColor, plan: form.plan, status: form.subStatus, mrr: form.plan === 'Pro' ? 8900 : 3900, orders: 0, managerId: mgrId, createdAt: new Date().toISOString().split('T')[0], trialDays: parseInt(form.trialDays) || 0, startDate: form.startDate, expiryDate: form.expiryDate };
-      const manager: Manager = { id: mgrId, firstName: form.mgrFirstName, lastName: form.mgrLastName, email: form.mgrEmail, phone: form.mgrPhone, username: form.mgrUsername || form.mgrEmail.split('@')[0], clubId: id, clubName: form.name, status: 'Active', lastLogin: 'Never' };
-      setCreatedClub(club);
-      setDone(true);
-      onSuccess(club, manager);
+      try {
+        const slug = form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        const res = await fetch(getApiUrl('/tenants/provision'), {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({
+            name: form.name,
+            slug: slug || `club-${Date.now()}`,
+            brandColor: form.themeColor,
+            county: form.county,
+            managerFullName: `${form.mgrFirstName} ${form.mgrLastName}`,
+            managerEmail: form.mgrEmail,
+            managerPassword: form.tempPwd,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data?.error?.message || 'Failed to create club on server.');
+        }
+        const rawClub = data.data?.club ?? {};
+        const rawMgr = data.data?.manager ?? {};
+        const id = rawClub.uuid ?? `c${Date.now()}`;
+        const mgrId = rawMgr.userUuid ?? `m${Date.now()}`;
+        const club: Club = {
+          id,
+          name: rawClub.name ?? form.name,
+          description: form.description,
+          address: form.address,
+          city: form.city,
+          county: rawClub.county ?? form.county,
+          phone: form.phone,
+          email: form.email,
+          openingTime: form.openingTime,
+          closingTime: form.closingTime,
+          logoUrl: form.logoUrl,
+          bannerUrl: form.bannerUrl,
+          themeColor: rawClub.brandColor ?? form.themeColor,
+          plan: form.plan,
+          status: rawClub.status ?? form.subStatus,
+          mrr: form.plan === 'Pro' ? 8900 : 3900,
+          orders: 0,
+          managerId: mgrId,
+          createdAt: new Date().toISOString().split('T')[0],
+          trialDays: parseInt(form.trialDays) || 0,
+          startDate: form.startDate,
+          expiryDate: form.expiryDate,
+        };
+        const manager: Manager = {
+          id: mgrId,
+          firstName: form.mgrFirstName,
+          lastName: form.mgrLastName,
+          email: rawMgr.email ?? form.mgrEmail,
+          phone: form.mgrPhone,
+          username: form.mgrUsername || form.mgrEmail.split('@')[0],
+          clubId: id,
+          clubName: form.name,
+          status: 'Active',
+          lastLogin: 'Never',
+        };
+        setCreatedClub(club);
+        setDone(true);
+        onSuccess(club, manager);
+      } catch (err: any) {
+        alert(err.message || 'Error creating club.');
+      }
       return;
     }
     setStep(s => s + 1);
@@ -737,11 +792,70 @@ const ClubDetailsPage = ({ club, managers, onBack, onReplaceManager, showToast }
    CLUBS PAGE
 ══════════════════════════════════════ */
 const ClubsPage = ({ showToast }: { showToast: (m: string) => void }) => {
-  const [clubs, setClubs] = useState(initClubs);
-  const [managers, setManagers] = useState(initManagers);
+  const [clubs, setClubs] = useState<Club[]>(initClubs);
+  const [managers, setManagers] = useState<Manager[]>(initManagers);
   const [view, setView] = useState<'list' | 'create' | 'details'>('list');
   const [selectedClub, setSelectedClub] = useState<Club | null>(null);
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const tenantRes = await fetch(getApiUrl('/tenants'), { headers: authHeaders() });
+        if (tenantRes.ok) {
+          const tenantData = await tenantRes.json();
+          const rawTenants: any[] = tenantData.data ?? tenantData;
+          const parsedClubs: Club[] = rawTenants.map(t => ({
+            id: t.uuid,
+            name: t.name,
+            description: t.description ?? '',
+            address: t.address ?? '',
+            city: t.city ?? '',
+            county: t.county ?? 'Nairobi',
+            phone: t.phone ?? '',
+            email: t.email ?? '',
+            openingTime: '18:00',
+            closingTime: '02:00',
+            logoUrl: t.logoUrl ?? '',
+            bannerUrl: t.bannerUrl ?? '',
+            themeColor: t.brandColor ?? '#1E3A5F',
+            plan: 'Pro',
+            status: t.status ?? 'Active',
+            mrr: 8900,
+            orders: 0,
+            managerId: '',
+            createdAt: t.createdAt ? new Date(t.createdAt).toISOString().split('T')[0] : '',
+            trialDays: 0,
+            startDate: '',
+            expiryDate: '',
+          }));
+          setClubs(parsedClubs);
+        }
+
+        const staffRes = await fetch(getApiUrl('/auth/staff?role=CLUB_ADMIN'), { headers: authHeaders() });
+        if (staffRes.ok) {
+          const staffData = await staffRes.json();
+          const rawStaff: any[] = staffData.data?.staff ?? staffData.data ?? [];
+          const parsedMgrs: Manager[] = rawStaff.map(s => ({
+            id: s.userUuid,
+            firstName: s.fullName ? s.fullName.split(' ')[0] : 'Manager',
+            lastName: s.fullName ? s.fullName.split(' ').slice(1).join(' ') : '',
+            email: s.email,
+            phone: s.phone ?? '',
+            username: s.email.split('@')[0],
+            clubId: s.clubUuid ?? '',
+            clubName: s.club?.name ?? 'Venue',
+            status: s.isActive !== false ? 'Active' : 'Suspended',
+            lastLogin: 'Active',
+          }));
+          setManagers(parsedMgrs);
+        }
+      } catch {
+        /* Keep state empty if fetch fails */
+      }
+    };
+    fetchData();
+  }, []);
 
   if (view === 'create') return (
     <CreateClubStepper
@@ -825,8 +939,35 @@ const ClubsPage = ({ showToast }: { showToast: (m: string) => void }) => {
    MANAGERS PAGE (read-only; no Add button)
 ══════════════════════════════════════ */
 const ManagersPage = ({ showToast }: { showToast: (m: string) => void }) => {
-  const [managers, setManagers] = useState(initManagers);
+  const [managers, setManagers] = useState<Manager[]>(initManagers);
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    const fetchManagers = async () => {
+      try {
+        const res = await fetch(getApiUrl('/auth/staff?role=CLUB_ADMIN'), { headers: authHeaders() });
+        if (!res.ok) return;
+        const data = await res.json();
+        const rawStaff: any[] = data.data?.staff ?? data.data ?? [];
+        const parsedMgrs: Manager[] = rawStaff.map(s => ({
+          id: s.userUuid,
+          firstName: s.fullName ? s.fullName.split(' ')[0] : 'Manager',
+          lastName: s.fullName ? s.fullName.split(' ').slice(1).join(' ') : '',
+          email: s.email,
+          phone: s.phone ?? '',
+          username: s.email.split('@')[0],
+          clubId: s.clubUuid ?? '',
+          clubName: s.club?.name ?? 'Venue',
+          status: s.isActive !== false ? 'Active' : 'Suspended',
+          lastLogin: 'Active',
+        }));
+        setManagers(parsedMgrs);
+      } catch {
+        /* Keep state empty if error */
+      }
+    };
+    fetchManagers();
+  }, []);
   const filtered = managers.filter(m =>
     `${m.firstName} ${m.lastName} ${m.email} ${m.clubName}`.toLowerCase().includes(search.toLowerCase())
   );
@@ -896,61 +1037,153 @@ const ManagersPage = ({ showToast }: { showToast: (m: string) => void }) => {
 /* ══════════════════════════════════════
    OTHER PAGES (unchanged)
 ══════════════════════════════════════ */
-const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => (
-  <div className="space-y-6">
-    <SectionHeader title="Platform Overview" subtitle="DrinkHub Kenya · August 2026" action={
-      <button onClick={() => { csvExport(['Club', 'City', 'Plan', 'Status', 'MRR (KES)', 'Orders'], initClubs.map(c => [c.name, c.city, c.plan, c.status, c.mrr, c.orders]), 'platform-report.csv'); showToast('Platform report exported'); }}
-        className="flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-slate-50 transition-colors" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-        <Download className="h-3.5 w-3.5" /> Export Report
-      </button>
-    } />
-    <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-      <KPI label="Active Clubs" value="28" change="+3 this month" positive icon={<Building2 className="h-5 w-5 text-blue-500" />} />
-      <KPI label="MRR" value="KES 1.24M" change="+5.1% MoM" positive icon={<TrendingUp className="h-5 w-5 text-emerald-500" />} />
-      <KPI label="Total Managers" value="28" change="+3 this month" positive icon={<Users className="h-5 w-5 text-purple-500" />} />
-      <KPI label="Churn Rate" value="2.1%" change="↑ 0.3%" positive={false} icon={<AlertCircle className="h-5 w-5 text-red-500" />} />
+const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
+  const [clubs, setClubs] = useState<Club[]>([]);
+  const [managers, setManagers] = useState<Manager[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const tenantRes = await fetch(getApiUrl('/tenants'), { headers: authHeaders() });
+        if (tenantRes.ok) {
+          const tenantData = await tenantRes.json();
+          const rawTenants: any[] = tenantData.data ?? tenantData;
+          const parsedClubs: Club[] = rawTenants.map(t => ({
+            id: t.uuid,
+            name: t.name,
+            description: t.description ?? '',
+            address: t.address ?? '',
+            city: t.city ?? '',
+            county: t.county ?? 'Nairobi',
+            phone: t.phone ?? '',
+            email: t.email ?? '',
+            openingTime: '18:00',
+            closingTime: '02:00',
+            logoUrl: t.logoUrl ?? '',
+            bannerUrl: t.bannerUrl ?? '',
+            themeColor: t.brandColor ?? '#1E3A5F',
+            plan: 'Pro',
+            status: t.status ?? 'Active',
+            mrr: 8900,
+            orders: 0,
+            managerId: '',
+            createdAt: t.createdAt ? new Date(t.createdAt).toISOString().split('T')[0] : '',
+            trialDays: 0,
+            startDate: '',
+            expiryDate: '',
+          }));
+          setClubs(parsedClubs);
+        }
+
+        const staffRes = await fetch(getApiUrl('/auth/staff?role=CLUB_ADMIN'), { headers: authHeaders() });
+        if (staffRes.ok) {
+          const staffData = await staffRes.json();
+          const rawStaff: any[] = staffData.data?.staff ?? staffData.data ?? [];
+          const parsedMgrs: Manager[] = rawStaff.map(s => ({
+            id: s.userUuid,
+            firstName: s.fullName ? s.fullName.split(' ')[0] : 'Manager',
+            lastName: s.fullName ? s.fullName.split(' ').slice(1).join(' ') : '',
+            email: s.email,
+            phone: s.phone ?? '',
+            username: s.email.split('@')[0],
+            clubId: s.clubUuid ?? '',
+            clubName: s.club?.name ?? 'Venue',
+            status: s.isActive !== false ? 'Active' : 'Suspended',
+            lastLogin: 'Active',
+          }));
+          setManagers(parsedMgrs);
+        }
+      } catch {
+        /* Keep empty on error */
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const activeClubsCount = clubs.filter(c => c.status === 'Active').length;
+  const totalMrr = clubs.reduce((acc, c) => acc + (c.mrr || 0), 0);
+  const totalManagersCount = managers.length;
+
+  const countyMap: Record<string, { county: string; clubs: number; revenue: number }> = {};
+  clubs.forEach(c => {
+    const cName = c.county || 'Nairobi';
+    if (!countyMap[cName]) countyMap[cName] = { county: cName, clubs: 0, revenue: 0 };
+    countyMap[cName].clubs += 1;
+    countyMap[cName].revenue += c.mrr || 0;
+  });
+  const venueData = Object.values(countyMap);
+
+  return (
+    <div className="space-y-6">
+      <SectionHeader title="Platform Overview" subtitle="DrinkHub Kenya · Real-Time Data" action={
+        <button onClick={() => { csvExport(['Club', 'City', 'Plan', 'Status', 'MRR (KES)', 'Orders'], clubs.map(c => [c.name, c.city, c.plan, c.status, c.mrr, c.orders]), 'platform-report.csv'); showToast('Platform report exported'); }}
+          className="flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-slate-50 transition-colors" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+          <Download className="h-3.5 w-3.5" /> Export Report
+        </button>
+      } />
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <KPI label="Active Clubs" value={String(activeClubsCount)} change={activeClubsCount > 0 ? `+${activeClubsCount} active` : '0 active'} positive icon={<Building2 className="h-5 w-5 text-blue-500" />} />
+        <KPI label="MRR" value={`KES ${totalMrr.toLocaleString()}`} change={totalMrr > 0 ? 'Live MRR' : 'KES 0'} positive icon={<TrendingUp className="h-5 w-5 text-emerald-500" />} />
+        <KPI label="Total Managers" value={String(totalManagersCount)} change={totalManagersCount > 0 ? `+${totalManagersCount} active` : '0 active'} positive icon={<Users className="h-5 w-5 text-purple-500" />} />
+        <KPI label="Churn Rate" value="0%" change="0%" positive icon={<AlertCircle className="h-5 w-5 text-red-500" />} />
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        <div className="col-span-2 rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          <h3 className="text-sm font-black mb-1" style={{ color: 'var(--text-primary)' }}>Monthly Recurring Revenue</h3>
+          <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Revenue trend</p>
+          {clubs.length === 0 ? (
+            <div className="h-48 flex items-center justify-center text-xs text-slate-400">No MRR data available</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={[{ month: 'Current', mrr: totalMrr }]}>
+                <defs><linearGradient id="mrrG" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563EB" stopOpacity={0.12} /><stop offset="95%" stopColor="#2563EB" stopOpacity={0} /></linearGradient></defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}K`} />
+                <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '11px' }} formatter={(v: number) => [`KES ${v.toLocaleString()}`, 'MRR']} />
+                <Area type="monotone" dataKey="mrr" stroke="#2563EB" strokeWidth={2} fill="url(#mrrG)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+        <div className="rounded-xl border p-5 space-y-3" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>System Health</h3>
+          {[{ label: 'API Gateway', ok: true, up: '99.98%' }, { label: 'PostgreSQL', ok: true, up: '99.95%' }, { label: 'Redis Cache', ok: true, up: '100%' }, { label: 'Socket.IO', ok: true, up: '99.92%' }, { label: 'M-Pesa Daraja', ok: true, up: '99.90%' }].map(s => (
+            <div key={s.label} className="flex items-center justify-between">
+              <div className="flex items-center gap-2"><div className={`h-2 w-2 rounded-full ${s.ok ? 'bg-emerald-500' : 'bg-amber-500'}`} /><span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{s.label}</span></div>
+              <span className="text-xs font-bold" style={{ color: s.ok ? '#10B981' : '#F59E0B' }}>{s.up}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          <h3 className="text-sm font-black mb-4" style={{ color: 'var(--text-primary)' }}>Clubs by County</h3>
+          {venueData.length === 0 ? (
+            <div className="h-40 flex items-center justify-center text-xs text-slate-400">No registered clubs</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={160}>
+              <BarChart data={venueData} layout="vertical"><CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" /><XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} /><YAxis dataKey="county" type="category" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} width={60} /><Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '11px' }} /><Bar dataKey="clubs" fill="#2563EB" radius={[0, 4, 4, 0]} maxBarSize={14} /></BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+        <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          <h3 className="text-sm font-black mb-4" style={{ color: 'var(--text-primary)' }}>Revenue by County</h3>
+          {venueData.length === 0 ? (
+            <div className="h-40 flex items-center justify-center text-xs text-slate-400">No revenue data</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={160}>
+              <BarChart data={venueData} layout="vertical"><CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" /><XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} tickFormatter={v => `${v / 1000}K`} /><YAxis dataKey="county" type="category" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} width={60} /><Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '11px' }} formatter={(v: number) => [`KES ${v.toLocaleString()}`, 'Revenue']} /><Bar dataKey="revenue" fill="#10B981" radius={[0, 4, 4, 0]} maxBarSize={14} /></BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
     </div>
-    <div className="grid grid-cols-3 gap-4">
-      <div className="col-span-2 rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-        <h3 className="text-sm font-black mb-1" style={{ color: 'var(--text-primary)' }}>Monthly Recurring Revenue</h3>
-        <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>7-month trend</p>
-        <ResponsiveContainer width="100%" height={200}>
-          <AreaChart data={mrrData}>
-            <defs><linearGradient id="mrrG" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563EB" stopOpacity={0.12} /><stop offset="95%" stopColor="#2563EB" stopOpacity={0} /></linearGradient></defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-            <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}K`} />
-            <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '11px' }} formatter={(v: number) => [`KES ${v.toLocaleString()}`, 'MRR']} />
-            <Area type="monotone" dataKey="mrr" stroke="#2563EB" strokeWidth={2} fill="url(#mrrG)" />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="rounded-xl border p-5 space-y-3" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-        <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>System Health</h3>
-        {[{ label: 'API Gateway', ok: true, up: '99.98%' }, { label: 'PostgreSQL', ok: true, up: '99.95%' }, { label: 'Redis Cache', ok: true, up: '100%' }, { label: 'Socket.IO', ok: true, up: '99.92%' }, { label: 'M-Pesa Daraja', ok: false, up: '99.41%' }].map(s => (
-          <div key={s.label} className="flex items-center justify-between">
-            <div className="flex items-center gap-2"><div className={`h-2 w-2 rounded-full ${s.ok ? 'bg-emerald-500' : 'bg-amber-500'}`} /><span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{s.label}</span></div>
-            <span className="text-xs font-bold" style={{ color: s.ok ? '#10B981' : '#F59E0B' }}>{s.up}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-    <div className="grid grid-cols-2 gap-4">
-      <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-        <h3 className="text-sm font-black mb-4" style={{ color: 'var(--text-primary)' }}>Clubs by County</h3>
-        <ResponsiveContainer width="100%" height={160}>
-          <BarChart data={venueData} layout="vertical"><CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" /><XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} /><YAxis dataKey="county" type="category" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} width={60} /><Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '11px' }} /><Bar dataKey="clubs" fill="#2563EB" radius={[0, 4, 4, 0]} maxBarSize={14} /></BarChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-        <h3 className="text-sm font-black mb-4" style={{ color: 'var(--text-primary)' }}>Revenue by County</h3>
-        <ResponsiveContainer width="100%" height={160}>
-          <BarChart data={venueData} layout="vertical"><CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" /><XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} tickFormatter={v => `${v / 1000}K`} /><YAxis dataKey="county" type="category" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} width={60} /><Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '11px' }} formatter={(v: number) => [`KES ${v.toLocaleString()}`, 'Revenue']} /><Bar dataKey="revenue" fill="#10B981" radius={[0, 4, 4, 0]} maxBarSize={14} /></BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  </div>
-);
+  );
+};
 
 const BillingPage = ({ showToast }: { showToast: (m: string) => void }) => (
   <div className="space-y-6">

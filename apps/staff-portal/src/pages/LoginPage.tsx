@@ -83,16 +83,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 max-w-sm">
+          <div className="space-y-3 max-w-sm">
             {[
-              { label: 'Active Venues', value: '28' },
-              { label: 'Orders Today', value: '1,240' },
-              { label: 'Waiters Online', value: '64' },
-              { label: 'Revenue Today', value: 'KES 184K' },
-            ].map((stat) => (
-              <div key={stat.label} className="rounded-xl bg-white/10 backdrop-blur-sm p-4 border border-white/10">
-                <div className="text-2xl font-black text-white">{stat.value}</div>
-                <div className="text-xs text-blue-200 mt-0.5">{stat.label}</div>
+              { icon: '🍸', text: 'Real-time order management for your venue' },
+              { icon: '📲', text: 'M-Pesa, Card & Cash payment tracking' },
+              { icon: '👥', text: 'Staff coordination across all tables' },
+              { icon: '📊', text: 'Live revenue & analytics dashboard' },
+            ].map((f) => (
+              <div key={f.text} className="flex items-center gap-3 rounded-xl bg-white/10 backdrop-blur-sm px-4 py-3 border border-white/10">
+                <span className="text-lg">{f.icon}</span>
+                <span className="text-sm text-blue-100">{f.text}</span>
               </div>
             ))}
           </div>
@@ -252,7 +252,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
           <p className="text-center text-xs" style={{ color: 'var(--text-muted)' }}>
             Platform Administration?{' '}
-            <a href="http://localhost:3002" className="text-blue-600 hover:underline font-medium">
+            <a href={`${(import.meta as any).env?.VITE_ADMIN_URL || 'http://localhost:3002'}`} className="text-blue-600 hover:underline font-medium">
               Admin Portal →
             </a>
           </p>

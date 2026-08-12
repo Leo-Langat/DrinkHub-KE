@@ -12,7 +12,7 @@ export class AuthRepository implements IAuthRepository {
 
   async findById(userUuid: string): Promise<User | null> {
     return prisma.user.findFirst({
-      where: { userUuid, deletedAt: null, isActive: true },
+      where: { userUuid, deletedAt: null },
     });
   }
 

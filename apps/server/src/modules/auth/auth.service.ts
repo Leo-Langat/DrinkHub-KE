@@ -302,4 +302,10 @@ export class AuthService {
       club: u.club ? { name: u.club.name, uuid: u.club.uuid } : null,
     }));
   }
+
+  async setUserActive(userUuid: string, isActive: boolean): Promise<void> {
+    const user = await this.authRepository.findById(userUuid);
+    if (!user) throw new NotFoundError('User not found');
+    await this.authRepository.updateUser(userUuid, { isActive });
+  }
 }

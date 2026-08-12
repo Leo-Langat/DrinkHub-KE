@@ -52,17 +52,34 @@ const FE = ({ msg }: { msg?: string }) => msg ? <p className="text-xs text-red-5
 
 const SI = ({ error, ...p }: React.InputHTMLAttributes<HTMLInputElement> & { error?: string }) => (
   <div>
-    <input {...p} className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition ${error ? 'border-red-400 bg-red-50 focus:ring-2 focus:ring-red-300' : 'border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent'}`} />
+    <input {...p} className={`w-full rounded-lg border px-3 py-2.5 text-sm text-slate-900 outline-none transition ${error ? 'border-red-400 bg-red-50 focus:ring-2 focus:ring-red-300' : 'border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent'}`} />
     <FE msg={error} />
   </div>
 );
 const STA = (p: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
-  <textarea {...p} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition resize-none" />
+  <textarea {...p} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 transition resize-none" />
 );
 const SS = ({ options, ...p }: React.SelectHTMLAttributes<HTMLSelectElement> & { options: { v: string; l: string }[] }) => (
-  <select {...p} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition">
+  <select {...p} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 transition">
     {options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
   </select>
+);
+
+/* Phone field with +254 prefix */
+const PhoneInput = ({ error, value, onChange, placeholder }: { error?: string; value: string; onChange: (v: string) => void; placeholder?: string }) => (
+  <div>
+    <div className="flex">
+      <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-slate-200 bg-slate-50 text-sm font-medium text-slate-600 select-none">+254</span>
+      <input
+        type="tel"
+        value={value}
+        onChange={e => onChange(e.target.value.replace(/^\+?254/, '').replace(/^0/, ''))}
+        placeholder={placeholder ?? '7XX XXX XXX'}
+        className={`flex-1 rounded-r-lg border px-3 py-2.5 text-sm text-slate-900 outline-none transition ${error ? 'border-red-400 bg-red-50 focus:ring-2 focus:ring-red-300' : 'border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent'}`}
+      />
+    </div>
+    {error && <p className="text-xs text-red-500 mt-1 font-medium">{error}</p>}
+  </div>
 );
 
 /*           Shared UI           */
@@ -255,7 +272,7 @@ const AddWaiterModal = ({ open, onClose, onAdd }: {
           <div className="grid grid-cols-2 gap-3">
             <div><FL required>First Name</FL><SI value={form.firstName} onChange={e => set('firstName', e.target.value)} placeholder="Jane" error={errors.firstName} /></div>
             <div><FL required>Last Name</FL><SI value={form.lastName} onChange={e => set('lastName', e.target.value)} placeholder="Wanjiku" error={errors.lastName} /></div>
-            <div><FL required>Phone Number</FL><SI type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+254 712 000 000" error={errors.phone} /></div>
+            <div><FL required>Phone Number</FL><PhoneInput value={form.phone} onChange={v => set('phone', v)} error={errors.phone} /></div>
             <div><FL required>Email</FL><SI type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="jane@club.co.ke" error={errors.email} /></div>
             <div><FL>Employee No. <span className="text-slate-400 font-normal normal-case">(optional)</span></FL><SI value={form.employeeNo} onChange={e => set('employeeNo', e.target.value)} placeholder="EMP-006" /></div>
           </div>

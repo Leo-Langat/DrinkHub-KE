@@ -224,3 +224,31 @@ authRouter.post('/change-first-password', authenticate, validateRequest(firstLog
  *         description: Array of staff user objects
  */
 authRouter.get('/staff', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PLATFORM_ADMIN']), authController.listStaff);
+
+/**
+ * @openapi
+ * /auth/users/{uuid}/status:
+ *   patch:
+ *     summary: Toggle a user's active/inactive status
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: uuid
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [isActive]
+ *             properties:
+ *               isActive: { type: boolean }
+ *     responses:
+ *       200:
+ *         description: User status updated
+ */
+authRouter.patch('/users/:uuid/status', authenticate, authorize(['PLATFORM_ADMIN', 'CLUB_ADMIN', 'MANAGER']), authController.toggleUserStatus);

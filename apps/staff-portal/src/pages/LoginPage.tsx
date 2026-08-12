@@ -10,9 +10,11 @@ interface LoginPageProps {
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [role, setRole] = useState<StaffRole>('waiter');
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -25,8 +27,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     e.preventDefault();
     setError('');
 
-    if (!email || !password) {
-      setError('Please enter your email and password.');
+    if (!username || !password) {
+      setError('Please enter your username and password.');
       return;
     }
 
@@ -35,12 +37,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       const res = await fetch(getApiUrl('/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: username, password }),
       });
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        const msg = data.error?.message || data.message || 'Invalid credentials. Please check your email and password.';
+        const msg = data.error?.message || data.message || 'Invalid credentials. Please check your username and password.';
         throw new Error(msg);
       }
 
@@ -208,9 +210,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 type="button"
                 onClick={() => {
                   if (role === 'waiter') {
-                    setEmail('waiter.kamau@alchemist.co.ke');
+                    setUsername('waiter.kamau@alchemist.co.ke');
                   } else {
-                    setEmail('admin@alchemist.co.ke');
+                    setUsername('admin@alchemist.co.ke');
                   }
                   setPassword('Password123!');
                 }}
@@ -240,36 +242,48 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                   New Password
                 </label>
-                <input
-                  type="password"
-                  placeholder="Min. 8 characters"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full rounded-lg border px-3.5 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-blue-500"
-                  style={{
-                    background: 'var(--bg-card)',
-                    borderColor: 'var(--border)',
-                    color: 'var(--text-primary)',
-                  }}
-                />
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    placeholder="Min. 8 characters"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full rounded-lg border px-3.5 py-2.5 pr-11 text-sm outline-none transition-all focus:ring-2 focus:ring-blue-500"
+                    style={{
+                      background: 'var(--bg-card)',
+                      borderColor: 'var(--border)',
+                      color: 'var(--text-primary)',
+                    }}
+                  />
+                  <button type="button" onClick={() => setShowNewPassword(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }}>
+                    {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                   Confirm New Password
                 </label>
-                <input
-                  type="password"
-                  placeholder="Repeat new password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full rounded-lg border px-3.5 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-blue-500"
-                  style={{
-                    background: 'var(--bg-card)',
-                    borderColor: 'var(--border)',
-                    color: 'var(--text-primary)',
-                  }}
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="Repeat new password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full rounded-lg border px-3.5 py-2.5 pr-11 text-sm outline-none transition-all focus:ring-2 focus:ring-blue-500"
+                    style={{
+                      background: 'var(--bg-card)',
+                      borderColor: 'var(--border)',
+                      color: 'var(--text-primary)',
+                    }}
+                  />
+                  <button type="button" onClick={() => setShowConfirmPassword(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }}>
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
 
               {error && (
@@ -299,13 +313,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                  Email / Username
+                  Username
                 </label>
                 <input
-                  type="email"
-                  placeholder={role === 'waiter' ? 'waiter@quiver.co.ke' : 'manager@quiver.co.ke'}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  type="text"
+                  placeholder={role === 'waiter' ? 'e.g. waiter.jane' : 'e.g. manager.john'}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  autoComplete="username"
                   className="w-full rounded-lg border px-3.5 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-blue-500"
                   style={{
                     background: 'var(--bg-card)',

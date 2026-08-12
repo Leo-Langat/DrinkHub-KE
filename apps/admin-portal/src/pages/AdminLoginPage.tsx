@@ -7,7 +7,7 @@ interface AdminLoginPageProps {
 }
 
 export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -16,7 +16,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!email || !password) {
+    if (!username || !password) {
       setError('Administrator credentials are required.');
       return;
     }
@@ -25,11 +25,11 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
       const res = await fetch(getApiUrl('/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: username, password }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        const msg = data.error?.message || data.message || 'Invalid administrator email or password.';
+        const msg = data.error?.message || data.message || 'Invalid username or password.';
         throw new Error(msg);
       }
 
@@ -132,7 +132,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
               <button
                 type="button"
                 onClick={() => {
-                  setEmail('superadmin@drinkhub.co.ke');
+                  setUsername('superadmin@drinkhub.co.ke');
                   setPassword('Password123!');
                 }}
                 className="mt-1 text-[11px] underline text-blue-600 hover:text-blue-800 font-medium"
@@ -146,13 +146,14 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                Administrator Email
+                Username
               </label>
               <input
-                type="email"
-                placeholder="admin@drinkhub.co.ke"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                placeholder="e.g. superadmin"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
                 className="w-full rounded-lg border px-3.5 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-blue-500"
                 style={{
                   background: 'var(--bg-card)',

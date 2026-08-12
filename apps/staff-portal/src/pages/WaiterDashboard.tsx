@@ -97,7 +97,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
     catch { return {}; }
   }, []);
 
-  const clubName = user.club?.name || 'DrinkHub Venue';
+  const clubName = user.club?.name || user.clubName || 'Your Venue';
   const fullName = user.fullName || 'Waiter';
   const nameParts = fullName.trim().split(' ');
   const firstName = nameParts[0] || 'Waiter';

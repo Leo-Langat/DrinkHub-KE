@@ -39,6 +39,19 @@ const csvExport = (headers: string[], rows: (string | number | boolean)[][], fil
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
+const getApiUrl = (path: string): string => {
+  const envUrl = (import.meta as any).env?.VITE_API_URL;
+  let base = envUrl ? envUrl.trim() : 'http://localhost:5000/api/v1';
+  if (base.endsWith('/')) base = base.slice(0, -1);
+  if (!base.includes('/api/v1')) base = `${base}/api/v1`;
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+};
+
+const authHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem('drinkhub_token');
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+};
+
 const generatePassword = (): string => {
   const u = 'ABCDEFGHJKLMNPQRSTUVWXYZ', l = 'abcdefghjkmnpqrstuvwxyz', d = '23456789', s = '@#$!';
   const all = u + l + d + s;
@@ -99,17 +112,34 @@ const FG = ({ children, span = 1 }: { children: React.ReactNode; span?: 1 | 2 })
 
 const SI = ({ error, ...p }: React.InputHTMLAttributes<HTMLInputElement> & { error?: string }) => (
   <div>
-    <input {...p} className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition ${error ? 'border-red-400 bg-red-50 focus:ring-2 focus:ring-red-300' : 'border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent'}`} />
+    <input {...p} className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition text-slate-900 ${error ? 'border-red-400 bg-red-50 focus:ring-2 focus:ring-red-300' : 'border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent'}`} />
     <FE msg={error} />
   </div>
 );
 const STA = (p: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
-  <textarea {...p} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition resize-none" />
+  <textarea {...p} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 transition resize-none" />
 );
 const SS = ({ options, ...p }: React.SelectHTMLAttributes<HTMLSelectElement> & { options: { v: string; l: string }[] }) => (
-  <select {...p} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition">
+  <select {...p} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 transition">
     {options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
   </select>
+);
+
+/* Phone field with +254 prefix */
+const PhoneInput = ({ error, value, onChange }: { error?: string; value: string; onChange: (v: string) => void }) => (
+  <div>
+    <div className="flex">
+      <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-slate-200 bg-slate-50 text-sm font-medium text-slate-600 select-none">+254</span>
+      <input
+        type="tel"
+        value={value}
+        onChange={e => onChange(e.target.value.replace(/^\+?254/, '').replace(/^0/, ''))}
+        placeholder="7XX XXX XXX"
+        className={`flex-1 rounded-r-lg border px-3 py-2.5 text-sm text-slate-900 outline-none transition ${error ? 'border-red-400 bg-red-50 focus:ring-2 focus:ring-red-300' : 'border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent'}`}
+      />
+    </div>
+    {error && <p className="text-xs text-red-500 mt-1 font-medium">{error}</p>}
+  </div>
 );
 
 /* ─── Shared UI ─── */
@@ -153,21 +183,6 @@ const SectionHeader = ({ title, subtitle, action }: { title: string; subtitle?: 
   </div>
 );
 
-/* ─── API Config ─── */
-const getApiUrl = (path: string): string => {
-  const envUrl = (import.meta as any).env?.VITE_API_URL;
-  let base = envUrl ? envUrl.trim() : 'http://localhost:5000/api/v1';
-  if (base.endsWith('/')) base = base.slice(0, -1);
-  if (!base.includes('/api/v1')) base = `${base}/api/v1`;
-  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
-};
-
-const authHeaders = (): Record<string, string> => {
-  const token = localStorage.getItem('token') || localStorage.getItem('drinkhub_token');
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  return headers;
-};
 
 /* ─── Data ─── */
 const initManagers: Manager[] = [];
@@ -283,7 +298,7 @@ const Step1 = ({ f, set, errors }: { f: CF; set: (k: keyof CF, v: string) => voi
       </div>
       <div>
         <FL>Phone Number</FL>
-        <SI value={f.phone} onChange={e => set('phone', e.target.value)} placeholder="+254 712 000 000" type="tel" />
+        <PhoneInput value={f.phone} onChange={v => set('phone', v)} />
       </div>
       <div className="col-span-2">
         <FL>Email Address</FL>
@@ -356,7 +371,7 @@ const Step2 = ({ f, set, errors }: { f: CF; set: (k: keyof CF, v: string) => voi
         </div>
         <div>
           <FL required>Phone Number</FL>
-          <SI type="tel" value={f.mgrPhone} onChange={e => set('mgrPhone', e.target.value)} placeholder="+254 712 000 000" error={errors.mgrPhone} />
+          <PhoneInput value={f.mgrPhone} onChange={v => set('mgrPhone', v)} />
         </div>
         <div className="col-span-2">
           <FL>Username <span className="text-slate-400 font-normal normal-case">(optional — email used if blank)</span></FL>
@@ -774,7 +789,7 @@ const ClubDetailsPage = ({ club, managers, onBack, onReplaceManager, showToast }
             <div><FL required>First Name</FL><SI value={replaceForm.firstName} onChange={e => setReplaceForm(p => ({ ...p, firstName: e.target.value }))} placeholder="First Name" /></div>
             <div><FL required>Last Name</FL><SI value={replaceForm.lastName} onChange={e => setReplaceForm(p => ({ ...p, lastName: e.target.value }))} placeholder="Last Name" /></div>
             <div className="col-span-2"><FL required>Email</FL><SI type="email" value={replaceForm.email} onChange={e => setReplaceForm(p => ({ ...p, email: e.target.value }))} placeholder="new.manager@club.co.ke" /></div>
-            <div className="col-span-2"><FL required>Phone</FL><SI type="tel" value={replaceForm.phone} onChange={e => setReplaceForm(p => ({ ...p, phone: e.target.value }))} placeholder="+254 712 000 000" /></div>
+            <div className="col-span-2"><FL required>Phone</FL><PhoneInput value={replaceForm.phone} onChange={v => setReplaceForm(p => ({ ...p, phone: v }))} /></div>
             <div className="col-span-2">
               <FL required>Temporary Password</FL>
               <div className="flex gap-2">
@@ -953,7 +968,7 @@ const ClubsPage = ({ showToast }: { showToast: (m: string) => void }) => {
 /* ══════════════════════════════════════
    MANAGERS PAGE (read-only; no Add button)
 ══════════════════════════════════════ */
-const ManagersPage = ({ showToast }: { showToast: (m: string) => void }) => {
+const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' | 'error') => void }) => {
   const [managers, setManagers] = useState<Manager[]>(initManagers);
   const [search, setSearch] = useState('');
 
@@ -986,10 +1001,26 @@ const ManagersPage = ({ showToast }: { showToast: (m: string) => void }) => {
   const filtered = managers.filter(m =>
     `${m.firstName} ${m.lastName} ${m.email} ${m.clubName}`.toLowerCase().includes(search.toLowerCase())
   );
-  const toggle = (id: string) => {
-    setManagers(prev => prev.map(m => m.id === id ? { ...m, status: m.status === 'Active' ? 'Suspended' : 'Active' } : m));
+  const toggle = async (id: string) => {
     const mgr = managers.find(m => m.id === id);
-    if (mgr) showToast(`${mgr.firstName}'s account ${mgr.status === 'Active' ? 'suspended' : 'activated'}`);
+    if (!mgr) return;
+    const newIsActive = mgr.status !== 'Active';
+    try {
+      const res = await fetch(getApiUrl(`/auth/users/${id}/status`), {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ isActive: newIsActive }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showToast(err?.error?.message ?? 'Failed to update status', 'error');
+        return;
+      }
+      setManagers(prev => prev.map(m => m.id === id ? { ...m, status: newIsActive ? 'Active' : 'Suspended' } : m));
+      showToast(`${mgr.firstName}'s account ${newIsActive ? 'activated' : 'deactivated'}`);
+    } catch {
+      showToast('Network error — could not update status', 'error');
+    }
   };
   return (
     <div className="space-y-5">

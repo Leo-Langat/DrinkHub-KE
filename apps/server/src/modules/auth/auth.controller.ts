@@ -157,7 +157,7 @@ export class AuthController {
   listStaff = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userRole = (req.user as any)?.role;
-      const clubUuid = (req.user as any)?.clubUuid ?? (req.query.clubUuid as string);
+      const clubUuid = (req.user as any)?.tenantId ?? (req.query.clubUuid as string);
       const { role } = req.query as { role?: string };
 
       let staff: any[];
@@ -176,6 +176,28 @@ export class AuthController {
       res.json({
         success: true,
         data: { staff },
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  toggleUserStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { uuid } = req.params;
+      const { isActive } = req.body as { isActive: boolean };
+
+      if (typeof isActive !== 'boolean') {
+        res.status(400).json({ success: false, error: { code: 'INVALID_BODY', message: 'isActive must be a boolean' } });
+        return;
+      }
+
+      await (this.authService as any).setUserActive(uuid, isActive);
+
+      res.json({
+        success: true,
+        data: { message: `User ${isActive ? 'activated' : 'deactivated'} successfully` },
         meta: { timestamp: new Date().toISOString(), version: 'v1' },
       });
     } catch (error) {

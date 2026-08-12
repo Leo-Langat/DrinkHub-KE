@@ -4,8 +4,12 @@ import { IAuthRepository } from './auth.interface';
 
 export class AuthRepository implements IAuthRepository {
   async findByEmail(email: string): Promise<User | null> {
+    const trimmed = (email || '').trim();
     return prisma.user.findFirst({
-      where: { email, deletedAt: null, isActive: true },
+      where: {
+        email: { equals: trimmed, mode: 'insensitive' },
+        deletedAt: null,
+      },
       include: { club: true } as any,
     });
   }

@@ -40,7 +40,7 @@ export const createClubWithManagerSchema = z.object({
     closingHours: z.string().optional().default('04:00'),
     // Manager fields
     managerFullName: z.string().min(2, 'Manager name must be at least 2 characters'),
-    managerEmail: z.string().email('Valid manager email is required'),
+    managerEmail: z.string().min(1, 'Manager username or email is required'),
     managerPhone: z.string().optional(),
     managerPassword: z.string().min(8, 'Temporary password must be at least 8 characters'),
   }),

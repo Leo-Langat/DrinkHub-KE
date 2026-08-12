@@ -230,14 +230,14 @@ type CF = {
   phone: string; email: string; openingTime: string; closingTime: string;
   logoUrl: string; bannerUrl: string; themeColor: string;
   mgrFirstName: string; mgrLastName: string; mgrEmail: string; mgrPhone: string;
-  mgrUsername: string; tempPwd: string; confirmPwd: string;
+  mgrUsername: string; tempPwd: string;
   plan: string; trialDays: string; subStatus: string; startDate: string; expiryDate: string;
 };
 
 const defaultForm: CF = {
   name: '', description: '', address: '', city: '', county: 'Nairobi', phone: '', email: '',
   openingTime: '18:00', closingTime: '02:00', logoUrl: '', bannerUrl: '', themeColor: '#1D4ED8',
-  mgrFirstName: '', mgrLastName: '', mgrEmail: '', mgrPhone: '', mgrUsername: '', tempPwd: '', confirmPwd: '',
+  mgrFirstName: '', mgrLastName: '', mgrEmail: '', mgrPhone: '', mgrUsername: '', tempPwd: '',
   plan: 'Pro', trialDays: '14', subStatus: 'Trial', startDate: new Date().toISOString().split('T')[0], expiryDate: '',
 };
 
@@ -347,7 +347,6 @@ const Step1 = ({ f, set, errors }: { f: CF; set: (k: keyof CF, v: string) => voi
 /* Step 2 */
 const Step2 = ({ f, set, errors }: { f: CF; set: (k: keyof CF, v: string) => void; errors: Partial<Record<keyof CF, string>> }) => {
   const [showPwd, setShowPwd] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 flex gap-3">
@@ -373,8 +372,8 @@ const Step2 = ({ f, set, errors }: { f: CF; set: (k: keyof CF, v: string) => voi
           <FL required>Phone Number</FL>
           <PhoneInput value={f.mgrPhone} onChange={v => set('mgrPhone', v)} />
         </div>
-        <div className="col-span-2">
-          <FL>Username <span className="text-slate-400 font-normal normal-case">(optional — email used if blank)</span></FL>
+        <div>
+          <FL>Username <span className="text-slate-400 font-normal normal-case">(optional)</span></FL>
           <SI value={f.mgrUsername} onChange={e => set('mgrUsername', e.target.value)} placeholder="e.g. jane.kamau" />
         </div>
         <div>
@@ -386,18 +385,9 @@ const Step2 = ({ f, set, errors }: { f: CF; set: (k: keyof CF, v: string) => voi
                 {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
-            <button type="button" onClick={() => { const p = generatePassword(); set('tempPwd', p); set('confirmPwd', p); }}
+            <button type="button" onClick={() => set('tempPwd', generatePassword())}
               className="flex-shrink-0 rounded-lg border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:border-blue-300 transition-all whitespace-nowrap flex items-center gap-1.5">
               <RotateCcw className="h-3.5 w-3.5" /> Generate
-            </button>
-          </div>
-        </div>
-        <div>
-          <FL required>Confirm Password</FL>
-          <div className="relative">
-            <SI type={showConfirm ? 'text' : 'password'} value={f.confirmPwd} onChange={e => set('confirmPwd', e.target.value)} placeholder="Repeat password" error={errors.confirmPwd} />
-            <button type="button" onClick={() => setShowConfirm(v => !v)} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors">
-              {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
         </div>
@@ -502,7 +492,6 @@ const CreateClubStepper = ({ onSuccess, onCancel }: { onSuccess: (club: Club, ma
     else if (!/\S+@\S+\.\S+/.test(form.mgrEmail)) e.mgrEmail = 'Invalid email address';
     if (!form.mgrPhone.trim()) e.mgrPhone = 'Required';
     if (form.tempPwd.length < 8) e.tempPwd = 'Password must be at least 8 characters';
-    else if (form.tempPwd !== form.confirmPwd) e.confirmPwd = 'Passwords do not match';
     setErrors(e); return Object.keys(e).length === 0;
   };
 

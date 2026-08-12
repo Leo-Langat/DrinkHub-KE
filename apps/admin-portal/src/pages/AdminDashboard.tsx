@@ -627,7 +627,7 @@ const ClubDetailsPage = ({ club, managers, onBack, onReplaceManager, showToast }
   club: Club; managers: Manager[]; onBack: () => void;
   onReplaceManager: (club: Club) => void; showToast: (m: string) => void;
 }) => {
-  const manager = managers.find(m => m.id === club.managerId);
+  const manager = managers.find(m => m.clubId === club.id || (club.managerId && m.id === club.managerId));
   const [showReplace, setShowReplace] = useState(false);
   const [replaceForm, setReplaceForm] = useState({ firstName: '', lastName: '', email: '', phone: '', tempPwd: generatePassword() });
 
@@ -812,30 +812,33 @@ const ClubsPage = ({ showToast }: { showToast: (m: string) => void }) => {
         if (tenantRes.ok) {
           const tenantData = await tenantRes.json();
           const rawTenants: any[] = tenantData.data ?? tenantData;
-          const parsedClubs: Club[] = rawTenants.map(t => ({
-            id: t.uuid,
-            name: t.name,
-            description: t.description ?? '',
-            address: t.address ?? '',
-            city: t.city ?? '',
-            county: t.county ?? 'Nairobi',
-            phone: t.phone ?? '',
-            email: t.email ?? '',
-            openingTime: '18:00',
-            closingTime: '02:00',
-            logoUrl: t.logoUrl ?? '',
-            bannerUrl: t.bannerUrl ?? '',
-            themeColor: t.brandColor ?? '#1E3A5F',
-            plan: 'Pro',
-            status: t.status ?? 'Active',
-            mrr: 8900,
-            orders: 0,
-            managerId: '',
-            createdAt: t.createdAt ? new Date(t.createdAt).toISOString().split('T')[0] : '',
-            trialDays: 0,
-            startDate: '',
-            expiryDate: '',
-          }));
+          const parsedClubs: Club[] = rawTenants.map(t => {
+            const primaryUser = t.users?.find((u: any) => u.role === 'CLUB_ADMIN' || u.role === 'MANAGER') ?? t.users?.[0];
+            return {
+              id: t.uuid,
+              name: t.name,
+              description: t.description ?? '',
+              address: t.address ?? '',
+              city: t.city ?? '',
+              county: t.county ?? 'Nairobi',
+              phone: t.phone ?? '',
+              email: t.email ?? '',
+              openingTime: t.openingHours ?? '18:00',
+              closingTime: t.closingHours ?? '02:00',
+              logoUrl: t.logoUrl ?? '',
+              bannerUrl: t.bannerUrl ?? '',
+              themeColor: t.brandColor ?? '#1E3A5F',
+              plan: 'Pro',
+              status: t.status ?? 'Active',
+              mrr: 8900,
+              orders: 0,
+              managerId: primaryUser ? (primaryUser.userUuid || primaryUser.uuid || '') : '',
+              createdAt: t.createdAt ? new Date(t.createdAt).toISOString().split('T')[0] : '',
+              trialDays: 0,
+              startDate: '',
+              expiryDate: '',
+            };
+          });
           setClubs(parsedClubs);
         }
 
@@ -914,7 +917,7 @@ const ClubsPage = ({ showToast }: { showToast: (m: string) => void }) => {
           </thead>
           <tbody>
             {filtered.map(club => {
-              const mgr = managers.find(m => m.id === club.managerId);
+              const mgr = managers.find(m => m.clubId === club.id || (club.managerId && m.id === club.managerId));
               return (
                 <tr key={club.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
                   <td className="px-4 py-3.5">
@@ -1061,30 +1064,33 @@ const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
         if (tenantRes.ok) {
           const tenantData = await tenantRes.json();
           const rawTenants: any[] = tenantData.data ?? tenantData;
-          const parsedClubs: Club[] = rawTenants.map(t => ({
-            id: t.uuid,
-            name: t.name,
-            description: t.description ?? '',
-            address: t.address ?? '',
-            city: t.city ?? '',
-            county: t.county ?? 'Nairobi',
-            phone: t.phone ?? '',
-            email: t.email ?? '',
-            openingTime: '18:00',
-            closingTime: '02:00',
-            logoUrl: t.logoUrl ?? '',
-            bannerUrl: t.bannerUrl ?? '',
-            themeColor: t.brandColor ?? '#1E3A5F',
-            plan: 'Pro',
-            status: t.status ?? 'Active',
-            mrr: 8900,
-            orders: 0,
-            managerId: '',
-            createdAt: t.createdAt ? new Date(t.createdAt).toISOString().split('T')[0] : '',
-            trialDays: 0,
-            startDate: '',
-            expiryDate: '',
-          }));
+          const parsedClubs: Club[] = rawTenants.map(t => {
+            const primaryUser = t.users?.find((u: any) => u.role === 'CLUB_ADMIN' || u.role === 'MANAGER') ?? t.users?.[0];
+            return {
+              id: t.uuid,
+              name: t.name,
+              description: t.description ?? '',
+              address: t.address ?? '',
+              city: t.city ?? '',
+              county: t.county ?? 'Nairobi',
+              phone: t.phone ?? '',
+              email: t.email ?? '',
+              openingTime: t.openingHours ?? '18:00',
+              closingTime: t.closingHours ?? '02:00',
+              logoUrl: t.logoUrl ?? '',
+              bannerUrl: t.bannerUrl ?? '',
+              themeColor: t.brandColor ?? '#1E3A5F',
+              plan: 'Pro',
+              status: t.status ?? 'Active',
+              mrr: 8900,
+              orders: 0,
+              managerId: primaryUser ? (primaryUser.userUuid || primaryUser.uuid || '') : '',
+              createdAt: t.createdAt ? new Date(t.createdAt).toISOString().split('T')[0] : '',
+              trialDays: 0,
+              startDate: '',
+              expiryDate: '',
+            };
+          });
           setClubs(parsedClubs);
         }
 

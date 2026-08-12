@@ -13,7 +13,7 @@ export class TenantRepository implements ITenantRepository {
     return prisma.club.findFirst({
       where: { clubUuid, deletedAt: null },
       include: {
-        users: { where: { role: UserRole.MANAGER } },
+        users: { where: { role: { in: [UserRole.CLUB_ADMIN, UserRole.MANAGER] } } },
         venueTables: { include: { qrCode: true } },
       },
     });
@@ -24,7 +24,7 @@ export class TenantRepository implements ITenantRepository {
       where: { deletedAt: null },
       orderBy: { createdAt: 'desc' },
       include: {
-        users: { where: { role: UserRole.MANAGER } },
+        users: { where: { role: { in: [UserRole.CLUB_ADMIN, UserRole.MANAGER] } } },
       },
     });
   }
@@ -78,7 +78,7 @@ export class TenantRepository implements ITenantRepository {
           passwordHash: data.managerPasswordHash,
           fullName: data.managerFullName,
           phone: data.managerPhone,
-          role: UserRole.MANAGER,
+          role: UserRole.CLUB_ADMIN,
           isActive: true,
           // Force manager to change their temporary password on first login
           mustChangePassword: true,

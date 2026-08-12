@@ -112,11 +112,15 @@ export class AuthRepository implements IAuthRepository {
   }
 
   async listStaffByClub(clubUuid: string, role?: string): Promise<User[]> {
+    const roleFilter = (role === 'CLUB_ADMIN' || role === 'MANAGER')
+      ? { in: [UserRole.CLUB_ADMIN, UserRole.MANAGER] }
+      : (role ? { equals: role as UserRole } : undefined);
+
     return prisma.user.findMany({
       where: {
         clubUuid,
         deletedAt: null,
-        ...(role ? { role: role as UserRole } : {}),
+        ...(roleFilter ? { role: roleFilter } : {}),
       },
       orderBy: { createdAt: 'desc' },
       include: { club: true } as any,
@@ -124,10 +128,14 @@ export class AuthRepository implements IAuthRepository {
   }
 
   async listAllStaff(role?: string): Promise<User[]> {
+    const roleFilter = (role === 'CLUB_ADMIN' || role === 'MANAGER')
+      ? { in: [UserRole.CLUB_ADMIN, UserRole.MANAGER] }
+      : (role ? { equals: role as UserRole } : undefined);
+
     return prisma.user.findMany({
       where: {
         deletedAt: null,
-        ...(role ? { role: role as UserRole } : {}),
+        ...(roleFilter ? { role: roleFilter } : {}),
       },
       orderBy: { createdAt: 'desc' },
       include: { club: true } as any,

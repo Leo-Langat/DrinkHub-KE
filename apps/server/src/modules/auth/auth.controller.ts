@@ -53,7 +53,28 @@ export class AuthController {
 
   register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = await this.authService.registerUser(req.body);
+      const callerRole = (req.user as any)?.role;
+      const callerClubUuid = (req.user as any)?.tenantId;
+
+      let body = { ...req.body };
+
+      // SECURITY: A MANAGER may only create WAITER accounts for their own club.
+      if (callerRole === 'MANAGER') {
+        if (body.role && body.role !== 'WAITER') {
+          res.status(403).json({
+            success: false,
+            error: { code: 'FORBIDDEN', message: 'Managers can only create WAITER accounts' },
+          });
+          return;
+        }
+        body.role = 'WAITER';
+        // Auto-assign the manager's club to the new waiter
+        if (callerClubUuid && !body.clubUuid) {
+          body.clubUuid = callerClubUuid;
+        }
+      }
+
+      const user = await this.authService.registerUser(body);
       res.status(201).json({
         success: true,
         data: user,
@@ -63,6 +84,7 @@ export class AuthController {
       next(error);
     }
   };
+
 
   verifyEmail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

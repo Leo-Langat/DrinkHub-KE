@@ -189,7 +189,10 @@ export class AuthService {
       id: user.userUuid,
       email: user.email,
       fullName: user.fullName,
+      phone: user.phone,
       role: user.role,
+      clubUuid: user.clubUuid,
+      mustChangePassword: user.mustChangePassword,
       message: 'Account created. Please verify your email before logging in.',
     };
   }

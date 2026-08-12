@@ -109,11 +109,12 @@ authRouter.post('/logout', validateRequest(refreshTokenSchema), authController.l
  *       201:
  *         description: Registered user details
  */
-// SECURITY: Only authenticated PLATFORM_ADMIN or CLUB_ADMIN may register new users
+// SECURITY: Only authenticated PLATFORM_ADMIN, CLUB_ADMIN, or MANAGER may register new users
+// MANAGER can only create WAITER accounts (enforced in the controller)
 authRouter.post(
   '/register',
   authenticate,
-  authorize(['PLATFORM_ADMIN', 'CLUB_ADMIN']),
+  authorize(['PLATFORM_ADMIN', 'CLUB_ADMIN', 'MANAGER']),
   validateRequest(registerSchema),
   authController.register,
 );

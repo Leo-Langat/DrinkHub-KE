@@ -113,9 +113,8 @@ export class AuthRepository implements IAuthRepository {
   }
 
   async listStaffByClub(clubUuid: string, role?: string): Promise<User[]> {
-    const roleFilter = (role === 'CLUB_ADMIN' || role === 'MANAGER')
-      ? { in: [UserRole.CLUB_ADMIN, UserRole.MANAGER] }
-      : (role ? { equals: role as UserRole } : undefined);
+    // Build role filter: no special grouping needed — each role maps to itself
+    const roleFilter = role ? { equals: role as UserRole } : undefined;
 
     return prisma.user.findMany({
       where: {
@@ -127,6 +126,7 @@ export class AuthRepository implements IAuthRepository {
       include: { club: true } as any,
     });
   }
+
 
   async listAllStaff(role?: string): Promise<User[]> {
     const roleFilter = (role === 'CLUB_ADMIN' || role === 'MANAGER')

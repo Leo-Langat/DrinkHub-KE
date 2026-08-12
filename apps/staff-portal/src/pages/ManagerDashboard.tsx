@@ -169,10 +169,16 @@ const defaultWaiterForm: WaiterForm = {
   tempPwd: '', requirePwdChange: true, status: 'Active', shift: 'Evening', notes: '',
 };
 
-const AddWaiterModal = ({ open, onClose, onAdd }: { open: boolean; onClose: () => void; onAdd: (w: Waiter) => void }) => {
+const AddWaiterModal = ({ open, onClose, onAdd }: {
+  open: boolean;
+  onClose: () => void;
+  onAdd: (w: Waiter) => void;
+  onError?: (msg: string) => void;
+}) => {
   const [form, setForm] = React.useState<WaiterForm>({ ...defaultWaiterForm, tempPwd: generatePassword() });
-  const [errors, setErrors] = React.useState<Partial<Record<keyof WaiterForm, string>>>({});
+  const [errors, setErrors] = React.useState<Partial<Record<keyof WaiterForm | 'api', string>>>({});
   const [showPwd, setShowPwd] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
 
   const set = (k: keyof WaiterForm, v: string | boolean) => { setForm(p => ({ ...p, [k]: v })); setErrors(p => ({ ...p, [k]: '' })); };
 
@@ -181,23 +187,59 @@ const AddWaiterModal = ({ open, onClose, onAdd }: { open: boolean; onClose: () =
     if (!form.firstName.trim()) e.firstName = 'Required';
     if (!form.lastName.trim()) e.lastName = 'Required';
     if (!form.phone.trim()) e.phone = 'Required';
-    if (!form.username.trim()) e.username = 'Required';
+    if (!form.email.trim()) e.email = 'Email is required for login';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Enter a valid email address';
     if (form.tempPwd.length < 8) e.tempPwd = 'Min. 8 characters';
     setErrors(e); return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
-    onAdd({
-      id: `w${Date.now()}`, firstName: form.firstName, lastName: form.lastName,
-      phone: form.phone, email: form.email, username: form.username,
-      employeeNo: form.employeeNo || `EMP-${Math.floor(Math.random() * 900 + 100)}`,
-      status: form.status as Waiter['status'], shift: form.shift,
-      onlineStatus: 'Offline', lastLogin: 'Never', notes: form.notes,
-    });
-    setForm({ ...defaultWaiterForm, tempPwd: generatePassword() });
+    setSaving(true);
     setErrors({});
-    onClose();
+    try {
+      const res = await fetch(getApiUrl('/auth/register'), {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          email: form.email.trim().toLowerCase(),
+          password: form.tempPwd,
+          fullName: `${form.firstName.trim()} ${form.lastName.trim()}`,
+          phone: form.phone.trim() || undefined,
+          role: 'WAITER',
+          mustChangePassword: form.requirePwdChange,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrors({ api: data?.error?.message ?? data?.message ?? 'Failed to create waiter' });
+        return;
+      }
+      const u = data.data;
+      const parts = (u.fullName ?? '').split(' ');
+      const idx = Math.floor(Math.random() * 900 + 100);
+      onAdd({
+        id: u.id ?? u.userUuid ?? `w${Date.now()}`,
+        firstName: parts[0] ?? form.firstName,
+        lastName: parts.slice(1).join(' ') || form.lastName,
+        phone: form.phone.trim(),
+        email: u.email ?? form.email,
+        username: u.email?.split('@')[0] ?? form.username,
+        employeeNo: form.employeeNo || `EMP-${idx}`,
+        status: 'Active' as Waiter['status'],
+        shift: form.shift,
+        onlineStatus: 'Offline' as const,
+        lastLogin: 'Never',
+        notes: form.notes,
+      });
+      setForm({ ...defaultWaiterForm, tempPwd: generatePassword() });
+      setErrors({});
+      onClose();
+    } catch {
+      setErrors({ api: 'Network error — please try again' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -214,8 +256,7 @@ const AddWaiterModal = ({ open, onClose, onAdd }: { open: boolean; onClose: () =
             <div><FL required>First Name</FL><SI value={form.firstName} onChange={e => set('firstName', e.target.value)} placeholder="Jane" error={errors.firstName} /></div>
             <div><FL required>Last Name</FL><SI value={form.lastName} onChange={e => set('lastName', e.target.value)} placeholder="Wanjiku" error={errors.lastName} /></div>
             <div><FL required>Phone Number</FL><SI type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+254 712 000 000" error={errors.phone} /></div>
-            <div><FL>Email <span className="text-slate-400 font-normal normal-case">(optional)</span></FL><SI type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="jane@club.co.ke" /></div>
-            <div><FL required>Username</FL><SI value={form.username} onChange={e => set('username', e.target.value)} placeholder="jane.wanjiku" error={errors.username} /></div>
+            <div><FL required>Email</FL><SI type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="jane@club.co.ke" error={errors.email} /></div>
             <div><FL>Employee No. <span className="text-slate-400 font-normal normal-case">(optional)</span></FL><SI value={form.employeeNo} onChange={e => set('employeeNo', e.target.value)} placeholder="EMP-006" /></div>
           </div>
         </div>
@@ -278,10 +319,16 @@ const AddWaiterModal = ({ open, onClose, onAdd }: { open: boolean; onClose: () =
           </div>
         </div>
 
+        {errors.api && (
+          <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2.5 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+            <p className="text-xs font-medium text-red-700">{errors.api}</p>
+          </div>
+        )}
         <div className="flex gap-3 pt-2 border-t" style={{ borderColor: '#E2E8F0' }}>
-          <button onClick={onClose} className="flex-1 rounded-xl border py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors" style={{ borderColor: '#E2E8F0' }}>Cancel</button>
-          <button onClick={handleSubmit} className="flex-1 rounded-xl py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>
-            <Users className="h-4 w-4 inline mr-1.5" /> Add Waiter
+          <button onClick={onClose} disabled={saving} className="flex-1 rounded-xl border py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50" style={{ borderColor: '#E2E8F0' }}>Cancel</button>
+          <button onClick={handleSubmit} disabled={saving} className="flex-1 rounded-xl py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity disabled:opacity-60" style={{ background: '#2563EB' }}>
+            {saving ? 'Creating…' : <><Users className="h-4 w-4 inline mr-1.5" />Add Waiter</>}
           </button>
         </div>
       </div>

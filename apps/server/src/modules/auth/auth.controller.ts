@@ -67,11 +67,21 @@ export class AuthController {
           });
           return;
         }
-        body.role = 'WAITER';
-        // Auto-assign the manager's club to the new waiter
-        if (callerClubUuid && !body.clubUuid) {
-          body.clubUuid = callerClubUuid;
+
+        // Guard: manager must have a club assigned in their token
+        if (!callerClubUuid) {
+          res.status(400).json({
+            success: false,
+            error: { code: 'NO_CLUB', message: 'Your account is not assigned to a club. Contact your administrator.' },
+          });
+          return;
         }
+
+        // ALWAYS force role=WAITER and clubUuid=manager's club.
+        // Ignore any clubUuid the client may have sent — a waiter must
+        // belong to exactly the same club as the manager who created them.
+        body.role = 'WAITER';
+        body.clubUuid = callerClubUuid;
       }
 
       const user = await this.authService.registerUser(body);

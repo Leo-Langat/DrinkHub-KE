@@ -5,7 +5,7 @@ WORKDIR /app
 
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages ./packages
-COPY apps/client ./apps/client
+COPY apps ./apps
 
 RUN npm ci
 RUN npm run build --workspace=packages/shared

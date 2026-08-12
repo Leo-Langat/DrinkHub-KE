@@ -6,13 +6,12 @@ RUN apk add --no-cache openssl
 WORKDIR /app
 
 ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/drinkhub?sslmode=disable"
-# Tell Prisma to generate for Linux Alpine (the builder's OS), not the host OS
 ENV PRISMA_CLI_BINARY_TARGETS="linux-musl-openssl-3.0.x"
 
 # Copy package manifests & source files
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages ./packages
-COPY apps/server ./apps/server
+COPY apps ./apps
 
 # Install ALL deps (including devDeps needed for tsc/prisma)
 RUN npm ci
@@ -38,8 +37,7 @@ ENV PRISMA_CLI_BINARY_TARGETS="linux-musl-openssl-3.0.x"
 
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages ./packages
-COPY apps/server/package.json ./apps/server/package.json
-COPY apps/server/prisma ./apps/server/prisma
+COPY apps ./apps
 
 RUN npm ci --omit=dev
 RUN npx prisma generate --schema=apps/server/prisma/schema.prisma

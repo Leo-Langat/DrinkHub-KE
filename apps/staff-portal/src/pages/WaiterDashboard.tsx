@@ -91,9 +91,18 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
   /* Completed count for this session */
   const [completedCount, setCompletedCount] = useState(0);
 
-  /* Read logged-in user from localStorage */
-  const user = (() => { try { return JSON.parse(localStorage.getItem('drinkhub_user') || '{}'); } catch { return {}; } })();
-  const displayName = user.firstName ? `${user.firstName} ${user.lastName?.charAt(0) ?? ''}.` : 'Waiter';
+  /* Read logged-in user & venue from localStorage */
+  const user = React.useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('drinkhub_user') || '{}'); }
+    catch { return {}; }
+  }, []);
+
+  const clubName = user.club?.name || 'DrinkHub Venue';
+  const fullName = user.fullName || 'Waiter';
+  const nameParts = fullName.trim().split(' ');
+  const firstName = nameParts[0] || 'Waiter';
+  const lastName = nameParts.slice(1).join(' ');
+  const displayName = `${firstName} ${lastName ? lastName.charAt(0) + '.' : ''}`;
 
   /* ── Fetch available orders ── */
   const fetchOrders = useCallback(async () => {
@@ -195,9 +204,9 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
             <Wine className="h-4 w-4 text-white" />
           </div>
           <div>
-            <span className="font-bold text-white text-sm">DrinkHub</span>
+            <span className="font-bold text-white text-sm">{clubName}</span>
             <span className="mx-2 text-blue-300 text-xs">|</span>
-            <span className="text-blue-200 text-xs">Waiter Dashboard</span>
+            <span className="text-blue-200 text-xs">{displayName} (Waiter Portal)</span>
           </div>
         </div>
 

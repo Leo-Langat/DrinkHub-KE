@@ -661,12 +661,14 @@ const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
         const d = await analyticsRes.json();
         const report = d.data?.report ?? d.data ?? {};
         const k = report.kpis ?? {};
-        setKpis({
-          revenue: k.totalRevenue != null ? `KES ${Number(k.totalRevenue).toLocaleString()}` : '-',
-          orders: k.totalOrdersCount != null ? String(k.totalOrdersCount) : '-',
-          waiters: k.activeWaitersCount != null ? String(k.activeWaitersCount) : '-',
-          avgOrder: k.averageOrderValue != null ? `KES ${Number(k.averageOrderValue).toLocaleString()}` : '-',
-        });
+        if (k.totalRevenue != null || k.totalOrdersCount != null) {
+          setKpis({
+            revenue: `KES ${Number(k.totalRevenue ?? 0).toLocaleString()}`,
+            orders: String(k.totalOrdersCount ?? 0),
+            waiters: String(k.activeWaitersCount ?? 0),
+            avgOrder: `KES ${Number(k.averageOrderValue ?? 0).toLocaleString()}`,
+          });
+        }
         const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
         if (report.dailyRevenue?.length) {
           setRevChart(report.dailyRevenue.map((d: any) => ({ day: d.day ?? d.date, rev: Number(d.revenue ?? d.rev ?? 0) })));
@@ -682,7 +684,20 @@ const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
       if (ordersRes.ok) {
         const od = await ordersRes.json();
         const raw: any[] = od.data?.orders ?? od.data ?? [];
-        setRecentOrders(raw.slice(0, 4).map((o: any) => ({
+        
+        const totalRev = raw.reduce((sum, o) => sum + (o.status === 'COMPLETED' || o.status === 'DELIVERED' ? Number(o.totalAmount || 0) : 0), 0);
+        const completedCount = raw.filter(o => o.status === 'COMPLETED' || o.status === 'DELIVERED').length;
+        const avgVal = completedCount > 0 ? Math.round(totalRev / completedCount) : 0;
+        const activeWaitersSet = new Set(raw.map(o => o.waiterId || o.waiter?.userUuid).filter(Boolean));
+
+        setKpis(prev => ({
+          revenue: totalRev > 0 ? `KES ${totalRev.toLocaleString()}` : (prev.revenue !== '-' ? prev.revenue : 'KES 0'),
+          orders: raw.length > 0 ? String(raw.length) : (prev.orders !== '-' ? prev.orders : '0'),
+          waiters: activeWaitersSet.size > 0 ? String(activeWaitersSet.size) : (prev.waiters !== '-' ? prev.waiters : '0'),
+          avgOrder: avgVal > 0 ? `KES ${avgVal.toLocaleString()}` : (prev.avgOrder !== '-' ? prev.avgOrder : 'KES 0'),
+        }));
+
+        setRecentOrders(raw.slice(0, 5).map((o: any) => ({
           id: o.orderNumber ?? o.uuid?.slice(0, 8).toUpperCase() ?? '-',
           table: o.table?.tableNumber ? `T-${String(o.table.tableNumber).padStart(2, '0')}` : '-',
           item: (o.items ?? o.orderItems ?? []).map((i: any) => `${i.product?.name ?? i.name}`).join(', ') || '-',
@@ -895,6 +910,28 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
   const [toast, setToast] = React.useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => setToast({ msg, type }), []);
 
+  /* Read logged-in manager & venue from localStorage */
+  const user = React.useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('drinkhub_user') || '{}'); }
+    catch { return {}; }
+  }, []);
+
+  const clubName = user.club?.name || 'Venue Portal';
+  const clubCity = user.club?.city || 'Nairobi';
+  const clubCounty = user.club?.county || 'Kenya';
+  const clubLocation = user.club ? `${clubCity}, ${clubCounty}` : 'Kenya';
+  const openingHours = user.club?.openingHours || '18:00';
+  const closingHours = user.club?.closingHours || '04:00';
+
+  const fullName = user.fullName || 'Manager';
+  const nameParts = fullName.trim().split(' ');
+  const firstName = nameParts[0] || 'Manager';
+  const lastName = nameParts.slice(1).join(' ');
+  const displayName = `${firstName} ${lastName ? lastName.charAt(0) + '.' : ''}`;
+  const initials = `${firstName[0] || 'M'}${lastName[0] ? lastName[0] : ''}`;
+  const userEmail = user.email || 'manager@drinkhub.co.ke';
+  const userRoleDisplay = user.role === 'CLUB_ADMIN' ? 'Club Manager' : 'Manager';
+
   /* Dropdowns */
   const [notifOpen, setNotifOpen] = React.useState(false);
   const [profileOpen, setProfileOpen] = React.useState(false);
@@ -934,7 +971,7 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
       <aside className="flex-shrink-0 flex flex-col sticky top-0 h-screen transition-all duration-200" style={{ width: collapsed ? '64px' : '210px', background: 'var(--bg-sidebar)', borderRight: '1px solid #1E293B' }}>
         <div className="flex items-center gap-3 p-4 border-b" style={{ borderColor: '#1E293B' }}>
           <button onClick={() => setCollapsed(v => !v)} className="h-8 w-8 rounded-lg bg-blue-600 flex-shrink-0 flex items-center justify-center hover:bg-blue-700 transition-colors"><Wine className="h-4 w-4 text-white" /></button>
-          {!collapsed && <div className="overflow-hidden"><div className="text-sm font-black text-white truncate">Quiver Lounge</div><div className="text-[10px] text-slate-500 truncate">Manager Portal</div></div>}
+          {!collapsed && <div className="overflow-hidden"><div className="text-sm font-black text-white truncate">{clubName}</div><div className="text-[10px] text-slate-500 truncate">Manager Portal</div></div>}
         </div>
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
           {NAV_ITEMS.map(item => (
@@ -957,12 +994,12 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
         <header className="border-b px-6 py-3 flex items-center justify-between sticky top-0 z-20" style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}>
           <div>
             <h1 className="text-base font-black" style={{ color: 'var(--text-primary)' }}>{PAGE_TITLES[page]}</h1>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Quiver Lounge Kilimani  | Tuesday 4 Aug 2026</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{clubName} ({clubLocation}) | {new Date().toLocaleDateString('en-KE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</p>
           </div>
 
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-700 font-semibold">
-              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Open  | 6PM   2AM
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Open | {openingHours} – {closingHours}
             </div>
             <ThemeToggle />
 
@@ -1027,8 +1064,8 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
                 className="flex items-center gap-2 rounded-lg border px-2.5 py-1.5 transition-colors"
                 style={{ borderColor: 'var(--border)', background: profileOpen ? 'var(--bg-muted)' : 'transparent' }}
               >
-                <div className="h-6 w-6 rounded-full bg-blue-600 flex items-center justify-center"><span className="text-[10px] font-black text-white">JM</span></div>
-                <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>James M.</span>
+                <div className="h-6 w-6 rounded-full bg-blue-600 flex items-center justify-center"><span className="text-[10px] font-black text-white">{initials}</span></div>
+                <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{displayName}</span>
                 <ChevronDown className="h-3.5 w-3.5 transition-transform" style={{ color: 'var(--text-muted)', transform: profileOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} />
               </button>
 
@@ -1037,11 +1074,11 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
                   {/* Identity */}
                   <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0"><span className="text-sm font-black text-white">JM</span></div>
+                      <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0"><span className="text-sm font-black text-white">{initials}</span></div>
                       <div className="min-w-0">
-                        <div className="text-sm font-black truncate" style={{ color: 'var(--text-primary)' }}>James Mwangi</div>
-                        <div className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>james@quiver.co.ke</div>
-                        <span className="inline-block mt-0.5 rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700">Manager</span>
+                        <div className="text-sm font-black truncate" style={{ color: 'var(--text-primary)' }}>{fullName}</div>
+                        <div className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{userEmail}</div>
+                        <span className="inline-block mt-0.5 rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700">{userRoleDisplay}</span>
                       </div>
                     </div>
                   </div>

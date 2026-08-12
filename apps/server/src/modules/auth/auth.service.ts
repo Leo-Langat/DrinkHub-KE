@@ -16,8 +16,19 @@ export interface AuthTokens {
     id: string;
     email: string;
     fullName: string;
+    phone?: string | null;
     role: string;
     clubUuid?: string | null;
+    club?: {
+      uuid: string;
+      name: string;
+      slug: string;
+      city?: string;
+      county?: string;
+      openingHours?: string;
+      closingHours?: string;
+      brandColor?: string;
+    } | null;
   };
 }
 
@@ -70,6 +81,7 @@ export class AuthService {
 
     await this.authRepository.createRefreshToken(session.sessionUuid, user.userUuid, tokenHash, expiresAt);
 
+    const rawClub = (user as any).club;
     return {
       accessToken,
       refreshToken,
@@ -79,8 +91,19 @@ export class AuthService {
         id: user.userUuid,
         email: user.email,
         fullName: user.fullName,
+        phone: user.phone,
         role: user.role,
         clubUuid: user.clubUuid,
+        club: rawClub ? {
+          uuid: rawClub.clubUuid,
+          name: rawClub.name,
+          slug: rawClub.slug,
+          city: rawClub.city,
+          county: rawClub.county,
+          openingHours: rawClub.openingHours,
+          closingHours: rawClub.closingHours,
+          brandColor: rawClub.brandColor,
+        } : null,
       },
     };
   }

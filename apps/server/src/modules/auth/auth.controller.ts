@@ -124,13 +124,23 @@ export class AuthController {
 
   listStaff = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const userRole = (req.user as any)?.role;
       const clubUuid = (req.user as any)?.clubUuid ?? (req.query.clubUuid as string);
       const { role } = req.query as { role?: string };
-      if (!clubUuid) {
-        res.status(400).json({ success: false, error: { code: 'MISSING_CLUB', message: 'Club UUID is required' } });
-        return;
+
+      let staff: any[];
+
+      if (userRole === 'PLATFORM_ADMIN' && !clubUuid) {
+        // Platform admin sees all staff across all clubs
+        staff = await this.authService.listAllStaff(role);
+      } else {
+        if (!clubUuid) {
+          res.status(400).json({ success: false, error: { code: 'MISSING_CLUB', message: 'Club UUID is required' } });
+          return;
+        }
+        staff = await this.authService.listStaff(clubUuid, role);
       }
-      const staff = await this.authService.listStaff(clubUuid, role);
+
       res.json({
         success: true,
         data: { staff },

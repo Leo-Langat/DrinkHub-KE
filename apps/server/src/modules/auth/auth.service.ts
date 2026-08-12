@@ -241,15 +241,33 @@ export class AuthService {
 
   async listStaff(clubUuid: string, role?: string) {
     const users = await (this.authRepository as any).listStaffByClub(clubUuid, role);
-    // Strip sensitive fields before returning
     return users.map((u: any) => ({
       uuid: u.userUuid,
+      userUuid: u.userUuid,
       fullName: u.fullName,
       email: u.email,
       phone: u.phone,
       role: u.role,
       isActive: u.isActive,
       createdAt: u.createdAt,
+      clubUuid: u.clubUuid,
+      club: u.club ? { name: u.club.name, uuid: u.club.uuid } : null,
+    }));
+  }
+
+  async listAllStaff(role?: string) {
+    const users = await (this.authRepository as any).listAllStaff(role);
+    return users.map((u: any) => ({
+      uuid: u.userUuid,
+      userUuid: u.userUuid,
+      fullName: u.fullName,
+      email: u.email,
+      phone: u.phone,
+      role: u.role,
+      isActive: u.isActive,
+      createdAt: u.createdAt,
+      clubUuid: u.clubUuid,
+      club: u.club ? { name: u.club.name, uuid: u.club.uuid } : null,
     }));
   }
 }

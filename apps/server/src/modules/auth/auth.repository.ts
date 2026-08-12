@@ -119,6 +119,18 @@ export class AuthRepository implements IAuthRepository {
         ...(role ? { role: role as UserRole } : {}),
       },
       orderBy: { createdAt: 'desc' },
+      include: { club: true } as any,
+    });
+  }
+
+  async listAllStaff(role?: string): Promise<User[]> {
+    return prisma.user.findMany({
+      where: {
+        deletedAt: null,
+        ...(role ? { role: role as UserRole } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      include: { club: true } as any,
     });
   }
 }

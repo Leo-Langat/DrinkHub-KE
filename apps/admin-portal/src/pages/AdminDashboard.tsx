@@ -844,7 +844,7 @@ const ClubsPage = ({ showToast }: { showToast: (m: string) => void }) => {
           const staffData = await staffRes.json();
           const rawStaff: any[] = staffData.data?.staff ?? staffData.data ?? [];
           const parsedMgrs: Manager[] = rawStaff.map(s => ({
-            id: s.userUuid,
+            id: s.uuid ?? s.userUuid,
             firstName: s.fullName ? s.fullName.split(' ')[0] : 'Manager',
             lastName: s.fullName ? s.fullName.split(' ').slice(1).join(' ') : '',
             email: s.email,
@@ -853,7 +853,7 @@ const ClubsPage = ({ showToast }: { showToast: (m: string) => void }) => {
             clubId: s.clubUuid ?? '',
             clubName: s.club?.name ?? 'Venue',
             status: s.isActive !== false ? 'Active' : 'Suspended',
-            lastLogin: 'Active',
+            lastLogin: s.lastLogin ?? 'Never',
           }));
           setManagers(parsedMgrs);
         }
@@ -866,7 +866,12 @@ const ClubsPage = ({ showToast }: { showToast: (m: string) => void }) => {
 
   if (view === 'create') return (
     <CreateClubStepper
-      onSuccess={(club, manager) => { setClubs(p => [...p, club]); setManagers(p => [...p, manager]); }}
+      onSuccess={(club, manager) => {
+        setClubs(p => [...p, club]);
+        setManagers(p => [...p, manager]);
+        setSelectedClub(club);
+        setView('details');
+      }}
       onCancel={() => setView('list')}
     />
   );
@@ -957,7 +962,7 @@ const ManagersPage = ({ showToast }: { showToast: (m: string) => void }) => {
         const data = await res.json();
         const rawStaff: any[] = data.data?.staff ?? data.data ?? [];
         const parsedMgrs: Manager[] = rawStaff.map(s => ({
-          id: s.userUuid,
+          id: s.uuid ?? s.userUuid,
           firstName: s.fullName ? s.fullName.split(' ')[0] : 'Manager',
           lastName: s.fullName ? s.fullName.split(' ').slice(1).join(' ') : '',
           email: s.email,
@@ -966,7 +971,7 @@ const ManagersPage = ({ showToast }: { showToast: (m: string) => void }) => {
           clubId: s.clubUuid ?? '',
           clubName: s.club?.name ?? 'Venue',
           status: s.isActive !== false ? 'Active' : 'Suspended',
-          lastLogin: 'Active',
+          lastLogin: s.lastLogin ?? 'Never',
         }));
         setManagers(parsedMgrs);
       } catch {

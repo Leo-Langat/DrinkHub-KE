@@ -169,6 +169,12 @@ export class AuthService {
       throw new BadRequestError('An account with that email already exists');
     }
 
+    // Enforce club membership: WAITER and MANAGER must always belong to a club.
+    const roleRequiresClub = !data.role || data.role === 'WAITER' || data.role === 'MANAGER';
+    if (roleRequiresClub && !data.clubUuid) {
+      throw new BadRequestError('A club must be assigned for WAITER and MANAGER accounts');
+    }
+
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
     const emailVerificationToken = crypto.randomBytes(32).toString('hex');
 

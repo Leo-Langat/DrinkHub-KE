@@ -1595,13 +1595,22 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
     showToast('Reset to default 10 tables');
   };
 
-  const handleDeleteTable = (id: number) => {
+  const handleDeleteTable = async (id: number) => {
     const next = tables.filter(t => t.id !== id);
     setTables(next);
     try {
       localStorage.setItem(storageKey, JSON.stringify(next));
     } catch {}
-    showToast(`Removed Table ${id}`);
+
+    // Synchronize deletion with backend in background
+    if (clubUuid) {
+      fetch(getApiUrl(`/tenants/${clubUuid}/tables/${id}`), {
+        method: 'DELETE',
+        headers: authHeaders(),
+      }).catch(() => {});
+    }
+
+    showToast(`Table ${id} deleted successfully`);
   };
 
   const copyToClipboard = (text: string, label: string) => {
@@ -1768,24 +1777,28 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
             return (
               <div
                 key={t.id}
-                className="qr-card-print rounded-2xl border p-5 flex flex-col items-center text-center transition-all hover:shadow-xl group relative"
+                className="qr-card-print rounded-2xl border p-5 flex flex-col items-center text-center transition-all hover:shadow-xl group"
                 style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}
               >
-                {/* Delete button */}
-                <button
-                  type="button"
-                  onClick={() => handleDeleteTable(t.id)}
-                  className="absolute top-3 right-3 p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 opacity-0 group-hover:opacity-100 transition-opacity no-print"
-                  title="Remove this table"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-
                 <div className="w-full flex items-center justify-between mb-3">
                   <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
                     {t.section}
                   </span>
-                  <span className="text-xs font-black text-slate-500 dark:text-slate-400">Table {t.id}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-black text-slate-600 dark:text-slate-300">Table {t.id}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteTable(t.id);
+                      }}
+                      className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/60 transition-colors no-print"
+                      title={`Delete Table ${t.id}`}
+                      aria-label={`Delete Table ${t.id}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* QR Image */}

@@ -135,4 +135,9 @@ export class TenantService {
     await this.getTenantById(clubUuid);
     return this.tenantRepository.generateTablesAndQrs(clubUuid, tableCount, sectionName, startFrom);
   }
+
+  async deleteTable(clubUuid: string, tableNumber: number) {
+    await this.getTenantById(clubUuid);
+    return this.tenantRepository.deleteTable(clubUuid, tableNumber);
+  }
 }

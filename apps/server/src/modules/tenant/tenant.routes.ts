@@ -261,3 +261,27 @@ tenantRouter.get('/:clubUuid/tables', authenticate, authorize(['PLATFORM_ADMIN',
  */
 tenantRouter.post('/:clubUuid/generate-qr', authenticate, authorize(['PLATFORM_ADMIN', 'SUPER_ADMIN', 'CLUB_ADMIN', 'MANAGER']), validateRequest(generateQrCodesSchema), tenantController.generateQrCodes);
 
+/**
+ * @openapi
+ * /tenants/{clubUuid}/tables/{tableNumber}:
+ *   delete:
+ *     summary: Delete / deactivate a specific table and its QR code
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: clubUuid
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: tableNumber
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Table deleted successfully
+ */
+tenantRouter.delete('/:clubUuid/tables/:tableNumber', authenticate, authorize(['PLATFORM_ADMIN', 'SUPER_ADMIN', 'CLUB_ADMIN', 'MANAGER']), tenantController.deleteTable);
+
+

@@ -171,4 +171,18 @@ export class TenantController {
       next(error);
     }
   };
+
+  deleteTable = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { clubUuid, tableNumber } = req.params;
+      await this.tenantService.deleteTable(clubUuid, parseInt(tableNumber, 10));
+      res.json({
+        success: true,
+        data: { message: `Table ${tableNumber} deleted successfully` },
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

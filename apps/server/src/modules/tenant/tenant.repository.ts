@@ -195,4 +195,25 @@ export class TenantRepository implements ITenantRepository {
 
     return { tables: createdTables, qrs: createdQrs };
   }
+
+  async deleteTable(clubUuid: string, tableNumber: number): Promise<boolean> {
+    const table = await prisma.venueTable.findFirst({
+      where: { clubUuid, tableNumber, deletedAt: null },
+    });
+
+    if (table) {
+      await prisma.$transaction([
+        prisma.venueTable.update({
+          where: { tableUuid: table.tableUuid },
+          data: { deletedAt: new Date(), isActive: false },
+        }),
+        prisma.qrCode.updateMany({
+          where: { tableUuid: table.tableUuid },
+          data: { isActive: false },
+        }),
+      ]);
+    }
+
+    return true;
+  }
 }

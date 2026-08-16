@@ -4,6 +4,7 @@ import {
   Plus, Minus, X, ChevronRight, Sparkles, CheckCircle2,
   Clock, AlertCircle, ShoppingCart, MapPin, Wifi, WifiOff,
   Smartphone, Banknote, CreditCard, ArrowLeft, Star, Loader2,
+  User, Check, RefreshCw,
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────
@@ -88,6 +89,39 @@ export const DigitalStorefrontPage: React.FC = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const heroRef = useRef<HTMLDivElement>(null);
   const [heroOpacity, setHeroOpacity] = useState(1);
+
+  // Active Order Live Tracking
+  const [activeOrderUuid, setActiveOrderUuid] = useState<string | null>(() => {
+    return localStorage.getItem('drinkhub_active_order_uuid') || null;
+  });
+  const [activeOrder, setActiveOrder] = useState<any | null>(null);
+
+  /* ── Live Poll Order Status (every 3s) ── */
+  useEffect(() => {
+    if (!activeOrderUuid) return;
+
+    let isMounted = true;
+    const pollOrderStatus = async () => {
+      try {
+        const res = await fetch(getApiUrl(`/orders/${activeOrderUuid}`));
+        if (!res.ok) return;
+        const data = await res.json();
+        const order = data.data?.order ?? data.data;
+        if (isMounted && order) {
+          setActiveOrder(order);
+        }
+      } catch {
+        /* keep previous order state */
+      }
+    };
+
+    pollOrderStatus();
+    const interval = setInterval(pollOrderStatus, 3000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [activeOrderUuid]);
 
   /* ── Fetch venue & menu on mount ─────────── */
   useEffect(() => {
@@ -264,6 +298,13 @@ export const DigitalStorefrontPage: React.FC = () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message || 'Failed to place order.');
+      
+      const placedOrder = data.data?.order ?? data.data;
+      const resolvedUuid = placedOrder.orderUuid ?? placedOrder.uuid ?? placedOrder.id;
+      setActiveOrderUuid(resolvedUuid);
+      setActiveOrder(placedOrder);
+      localStorage.setItem('drinkhub_active_order_uuid', resolvedUuid);
+      setCart({});
       setScreen('success');
     } catch (err: any) {
       setPlaceError(err.message || 'Failed to place order. Please try again.');
@@ -311,40 +352,181 @@ export const DigitalStorefrontPage: React.FC = () => {
     );
   }
 
-  /* ────── SUCCESS SCREEN ────── */
+  /* ────── SUCCESS / LIVE ORDER STATUS SCREEN ────── */
   if (screen === 'success') {
+    const currentStatus = activeOrder?.status || 'PENDING';
+    const stepIndex = 
+      currentStatus === 'CLAIMED' ? 1 :
+      currentStatus === 'PREPARING' ? 2 :
+      currentStatus === 'READY' ? 3 :
+      (currentStatus === 'DELIVERED' || currentStatus === 'COMPLETED') ? 4 : 0;
+
+    const orderItemsList = activeOrder?.orderItems ?? [];
+    const displayTable = activeOrder?.table?.tableNumber ?? table;
+
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6 text-center fade-up" style={{ background: 'var(--bg)' }}>
-        <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ background: `${brand.primary}20` }}>
-          <CheckCircle2 className="w-10 h-10" style={{ color: brand.primary }} />
-        </div>
-        <div>
-          <h2 className="text-2xl font-black text-white">Order Placed!</h2>
-          <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
-            Your order has been sent to the bar.<br />
-            {table ? <>Your waiter will bring it to <strong className="text-white">Table #{table}</strong>.</> : 'Your waiter will attend to you shortly.'}
-          </p>
-        </div>
-        <div className="w-full max-w-sm card p-5 text-left space-y-3">
-          <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Order Summary</p>
-          {Object.entries(cart).map(([id, qty]) => {
-            const item = menuItems.find((m) => m.id === id);
-            if (!item) return null;
-            return (
-              <div key={id} className="flex justify-between text-sm">
-                <span style={{ color: 'var(--text-secondary)' }}>{qty}× {item.name}</span>
-                <span className="font-bold text-white">KES {(item.price * qty).toLocaleString()}</span>
-              </div>
-            );
-          })}
-          <div className="flex justify-between pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
-            <span className="font-bold text-white">Total</span>
-            <span className="font-black" style={{ color: brand.accent }}>KES {cartTotal.toLocaleString()}</span>
+      <div className="min-h-screen flex flex-col justify-between py-6 px-4 fade-up" style={{ background: 'var(--bg)' }}>
+        <div className="max-w-md mx-auto w-full space-y-6">
+          
+          {/* Header */}
+          <div className="flex items-center justify-between pt-2">
+            <button
+              onClick={() => setScreen('menu')}
+              className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors"
+              style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+            >
+              <ArrowLeft className="w-3.5 h-3.5" /> Back to Menu
+            </button>
+            <div className="text-right">
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                Live Updates Active
+              </span>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          <Clock className="w-4 h-4 animate-spin" style={{ animationDuration: '3s' }} />
-          Estimated wait: 8–12 minutes
+
+          {/* ── 4-STEP TRACKER CARD (Exact Image Design) ── */}
+          <div className="card p-6 rounded-2xl border space-y-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            
+            {/* Status Pulse Banner */}
+            <div className="text-center space-y-1.5">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-black bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+                {currentStatus === 'PENDING' ? 'Order Placed · Awaiting Waiter' :
+                 currentStatus === 'CLAIMED' ? 'Order Claimed by Waiter' :
+                 currentStatus === 'PREPARING' ? 'Drinks & Food In Preparation' :
+                 currentStatus === 'READY' ? 'Order Ready for Delivery' :
+                 'Order Delivered · Cheers! 🥂'}
+              </div>
+              <h2 className="text-xl font-black text-white">
+                {activeOrder?.orderNumber ? `Order #${activeOrder.orderNumber}` : 'Order Status'}
+              </h2>
+              {displayTable && (
+                <p className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                  Table #{displayTable}
+                </p>
+              )}
+            </div>
+
+            {/* ── Exact 4-Step Stepper Component from Uploaded Image ── */}
+            <div className="py-4 px-2">
+              <div className="flex items-center justify-between relative">
+                {/* Background Line */}
+                <div className="absolute top-[22px] left-6 right-6 h-0.5 -translate-y-1/2 bg-slate-700/60 -z-0" />
+                
+                {/* Active Progress Fill Line */}
+                <div 
+                  className="absolute top-[22px] left-6 h-0.5 -translate-y-1/2 bg-blue-600 transition-all duration-700 -z-0"
+                  style={{
+                    width: stepIndex <= 1 ? '0%' : stepIndex === 2 ? '33%' : stepIndex === 3 ? '66%' : 'calc(100% - 48px)',
+                  }}
+                />
+
+                {[
+                  { num: 1, label: 'CLAIMED' },
+                  { num: 2, label: 'PREPARING' },
+                  { num: 3, label: 'READY' },
+                  { num: 4, label: 'DELIVERED' },
+                ].map(({ num, label }) => {
+                  const isReached = stepIndex >= num;
+                  const isCurrent = stepIndex === num;
+
+                  return (
+                    <div key={num} className="flex flex-col items-center gap-2 z-10">
+                      <div
+                        className={`h-11 w-11 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
+                          isReached
+                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                            : 'bg-slate-800 border-2 border-slate-700 text-slate-400'
+                        } ${isCurrent ? 'ring-4 ring-blue-500/30 scale-105' : ''}`}
+                      >
+                        {num}
+                      </div>
+                      <span
+                        className={`text-[10px] font-black tracking-wider transition-colors uppercase ${
+                          isReached ? 'text-blue-500' : 'text-slate-500'
+                        }`}
+                      >
+                        {label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Waiter Info if assigned */}
+            {activeOrder?.waiter && (
+              <div className="flex items-center gap-3 p-3 rounded-xl border bg-blue-500/5 border-blue-500/20 text-left">
+                <div className="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-sm">
+                  <User className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-blue-400">Assigned Waiter</p>
+                  <p className="text-xs font-bold text-white">{activeOrder.waiter.fullName}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Order Summary Card ── */}
+          <div className="card p-5 text-left space-y-3 rounded-2xl border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Ordered Items</p>
+            {orderItemsList.length > 0 ? (
+              orderItemsList.map((item: any, idx: number) => (
+                <div key={idx} className="flex justify-between items-center text-sm">
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    {item.quantity}× {item.product?.name ?? item.name ?? 'Drink / Food Item'}
+                  </span>
+                  <span className="font-bold text-white">
+                    KES {Number(item.subtotal ?? (item.unitPrice ? item.unitPrice * item.quantity : 0)).toLocaleString()}
+                  </span>
+                </div>
+              ))
+            ) : (
+              Object.entries(cart).map(([id, qty]) => {
+                const item = menuItems.find((m) => m.id === id);
+                if (!item) return null;
+                return (
+                  <div key={id} className="flex justify-between items-center text-sm">
+                    <span style={{ color: 'var(--text-secondary)' }}>{qty}× {item.name}</span>
+                    <span className="font-bold text-white">KES {(item.price * qty).toLocaleString()}</span>
+                  </div>
+                );
+              })
+            )}
+            <div className="flex justify-between pt-3 border-t font-bold" style={{ borderColor: 'var(--border)' }}>
+              <span className="text-white">Total Amount</span>
+              <span className="text-base font-black" style={{ color: brand.accent }}>
+                KES {Number(activeOrder?.totalAmount ?? cartTotal).toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="space-y-2.5 pt-2">
+            <button
+              onClick={() => setScreen('menu')}
+              className="btn-primary w-full py-3.5 text-sm font-bold flex items-center justify-center gap-2"
+              style={{ background: brand.primary }}
+            >
+              <Plus className="w-4 h-4" /> Browse Menu / Order More
+            </button>
+            {stepIndex === 4 && (
+              <button
+                onClick={() => {
+                  localStorage.removeItem('drinkhub_active_order_uuid');
+                  setActiveOrderUuid(null);
+                  setActiveOrder(null);
+                  setScreen('menu');
+                }}
+                className="w-full py-3 text-xs font-semibold rounded-xl border text-slate-300 hover:bg-slate-800 transition-colors"
+                style={{ borderColor: 'var(--border)' }}
+              >
+                Start a New Order
+              </button>
+            )}
+          </div>
+
         </div>
       </div>
     );
@@ -582,6 +764,47 @@ export const DigitalStorefrontPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* ── LIVE ACTIVE ORDER STATUS BANNER ── */}
+      {activeOrder && activeOrder.status !== 'CANCELLED' && (
+        <div className="px-4 pt-3 fade-up">
+          <div
+            onClick={() => setScreen('success')}
+            className="rounded-2xl p-3.5 flex items-center justify-between cursor-pointer transition-all hover:scale-[1.01] shadow-lg border"
+            style={{
+              background: 'linear-gradient(135deg, rgba(37,99,235,0.25) 0%, rgba(37,99,235,0.1) 100%)',
+              borderColor: 'rgba(37,99,235,0.4)',
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-blue-600/30 text-blue-400">
+                <Clock className="w-5 h-5 animate-spin" style={{ animationDuration: '4s' }} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-600 text-white">
+                    {activeOrder.status}
+                  </span>
+                  <p className="text-xs font-bold text-white">
+                    {activeOrder.orderNumber ? `Order #${activeOrder.orderNumber}` : 'Active Order'}
+                  </p>
+                </div>
+                <p className="text-[11px] mt-0.5 text-blue-200">
+                  {activeOrder.status === 'PENDING' ? 'Waiting for waiter to claim...' :
+                   activeOrder.status === 'CLAIMED' ? (activeOrder.waiter ? `Claimed by ${activeOrder.waiter.fullName}` : 'Claimed by waiter') :
+                   activeOrder.status === 'PREPARING' ? 'Preparing drinks & food...' :
+                   activeOrder.status === 'READY' ? 'Ready for pickup & delivery' :
+                   'Delivered to your table ✓'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 text-xs font-bold text-blue-400">
+              <span>View Tracker</span>
+              <ChevronRight className="w-4 h-4" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── ACTIVE OFFERS ─────────────────────── */}
       {offers.length > 0 && (

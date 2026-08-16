@@ -31,6 +31,7 @@ interface OrderItem {
 
 interface Order {
   id: string;          // uuid from API
+  orderNumber?: string;
   tableNumber: number | string;
   items: OrderItem[];
   totalAmount: number;
@@ -59,15 +60,16 @@ const statusFlow: Order['status'][] = ['CLAIMED', 'PREPARING', 'READY', 'DELIVER
 
 /* ─── Helper: map raw API order → Order ─── */
 const mapOrder = (o: any): Order => ({
-  id: o.uuid ?? o.id,
-  tableNumber: o.table?.tableNumber ?? o.tableNumber ?? '–',
+  id: o.orderUuid ?? o.uuid ?? o.id,
+  orderNumber: o.orderNumber ?? undefined,
+  tableNumber: o.table?.tableNumber ?? o.table?.name ?? o.tableNumber ?? (o.orderNumber ? o.orderNumber : '–'),
   items: (o.items ?? o.orderItems ?? []).map((i: any) => ({
     name: i.product?.name ?? i.name ?? 'Item',
     quantity: i.quantity ?? 1,
   })),
   totalAmount: Number(o.totalAmount ?? o.total ?? 0),
   status: o.status,
-  paymentMethod: (o.paymentMethod ?? 'CASH').toUpperCase() as Order['paymentMethod'],
+  paymentMethod: (o.paymentMethod ?? (o.payments?.[0]?.paymentMethod) ?? 'CASH').toUpperCase() as Order['paymentMethod'],
   customerNote: o.notes ?? o.customerNote ?? undefined,
   elapsedMinutes: o.createdAt
     ? Math.floor((Date.now() - new Date(o.createdAt).getTime()) / 60000)
@@ -317,7 +319,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                       <div className="space-y-2 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
-                            Table #{order.tableNumber}
+                            {String(order.tableNumber).startsWith('ORD') || String(order.tableNumber).startsWith('#') ? order.tableNumber : `Table #${order.tableNumber}`}
                           </span>
                           <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${statusColors[order.status] ?? ''}`}>
                             {order.status}
@@ -377,10 +379,10 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="text-lg font-black" style={{ color: 'var(--text-primary)' }}>
-                            Table #{myOrder.tableNumber}
+                            {String(myOrder.tableNumber).startsWith('ORD') || String(myOrder.tableNumber).startsWith('#') ? myOrder.tableNumber : `Table #${myOrder.tableNumber}`}
                           </h3>
                           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                            Order #{myOrder.id.slice(0, 8).toUpperCase()}
+                            Order #{myOrder.orderNumber || (myOrder.id ? myOrder.id.slice(0, 8).toUpperCase() : '')}
                           </p>
                         </div>
                         <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusColors[myOrder.status] ?? ''}`}>

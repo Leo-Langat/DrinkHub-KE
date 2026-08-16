@@ -131,7 +131,8 @@ export class TenantRepository implements ITenantRepository {
     clubUuid: string,
     tableCount: number,
     sectionName: string,
-  ): Promise<{ tables: VenueTable[]; qrs: QrCode[] }> {
+    startFrom?: number,
+  ): Promise<{ tables: VenueTable[]; qrs: QrCode[]; allTables: VenueTable[] }> {
     const club = await this.findById(clubUuid);
     if (!club) throw new Error('Club not found');
 
@@ -139,8 +140,19 @@ export class TenantRepository implements ITenantRepository {
     const createdQrs: QrCode[] = [];
     const effectiveSection = sectionName?.trim() || 'Main Lounge';
 
-    for (let i = 1; i <= tableCount; i++) {
-      const tableNum = i;
+    // If startFrom is not provided, determine it automatically:
+    // find the highest existing table number and start from next.
+    let firstNum = startFrom;
+    if (!firstNum) {
+      const highest = await prisma.venueTable.findFirst({
+        where: { clubUuid, deletedAt: null },
+        orderBy: { tableNumber: 'desc' },
+      });
+      firstNum = highest ? highest.tableNumber + 1 : 1;
+    }
+
+    for (let i = 0; i < tableCount; i++) {
+      const tableNum = firstNum + i;
       const table = await prisma.venueTable.upsert({
         where: {
           clubUuid_tableNumber: {
@@ -183,6 +195,13 @@ export class TenantRepository implements ITenantRepository {
       createdQrs.push(qr);
     }
 
-    return { tables: createdTables, qrs: createdQrs };
+    // Return all venue tables (full sorted list) so the UI can refresh in one shot
+    const allTables = await prisma.venueTable.findMany({
+      where: { clubUuid, deletedAt: null, isActive: true },
+      include: { qrCode: true },
+      orderBy: { tableNumber: 'asc' },
+    });
+
+    return { tables: createdTables, qrs: createdQrs, allTables };
   }
 }

@@ -160,8 +160,8 @@ export class TenantController {
   generateQrCodes = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { clubUuid } = req.params;
-      const { tableCount, sectionName } = req.body;
-      const result = await this.tenantService.generateQrCodes(clubUuid, tableCount, sectionName);
+      const { tableCount, sectionName, startFrom } = req.body;
+      const result = await this.tenantService.generateQrCodes(clubUuid, tableCount, sectionName, startFrom);
       res.json({
         success: true,
         data: result,

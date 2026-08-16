@@ -131,8 +131,8 @@ export class TenantService {
     return this.tenantRepository.getTables(clubUuid);
   }
 
-  async generateQrCodes(clubUuid: string, tableCount: number, sectionName: string) {
+  async generateQrCodes(clubUuid: string, tableCount: number, sectionName: string, startFrom?: number) {
     await this.getTenantById(clubUuid);
-    return this.tenantRepository.generateTablesAndQrs(clubUuid, tableCount, sectionName);
+    return this.tenantRepository.generateTablesAndQrs(clubUuid, tableCount, sectionName, startFrom);
   }
 }

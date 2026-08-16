@@ -82,5 +82,6 @@ export const generateQrCodesSchema = z.object({
   body: z.object({
     tableCount: z.number().int().min(1).max(200),
     sectionName: z.string().optional().default('Main Floor'),
+    startFrom: z.number().int().min(1).optional(),
   }),
 });

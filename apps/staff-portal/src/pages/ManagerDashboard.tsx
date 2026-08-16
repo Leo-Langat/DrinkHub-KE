@@ -1508,9 +1508,10 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
   const [section, setSection] = useState('Main Lounge');
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
-  const [tables, setTables] = useState<{ id: number; section: string; tableUuid?: string; qrUrl?: string }[]>(() =>
-    Array.from({ length: 10 }, (_, i) => ({ id: i + 1, section: 'Main Lounge' }))
-  );
+  const [tables, setTables] = useState<{ id: number; section: string; tableUuid?: string; qrUrl?: string }[]>([]);
+
+  // The next table number to be generated is always one after the highest existing table
+  const nextTableNum = tables.length > 0 ? Math.max(...tables.map(t => t.id)) + 1 : 1;
 
   // Load existing tables from backend on mount
   React.useEffect(() => {
@@ -1544,9 +1545,12 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
             setTables(parsed);
+            return;
           }
         } catch {}
       }
+      // No existing tables — start fresh (empty)
+      if (isMounted) setTables([]);
     };
 
     fetchExisting();
@@ -1571,42 +1575,48 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
           body: JSON.stringify({
             tableCount: Number(tableCount),
             sectionName: targetSection,
+            // Let the backend know where to start numbering
+            startFrom: nextTableNum,
           }),
         });
 
         if (res.ok) {
           const data = await res.json();
-          const dbTables = data.data?.tables || [];
-          if (dbTables.length > 0) {
-            const newTables = dbTables.map((t: any) => ({
+          // Prefer allTables (full sorted list) so the grid always shows everything
+          const rawAll: any[] = data.data?.allTables || data.data?.tables || [];
+          if (rawAll.length > 0) {
+            const allMapped = rawAll.map((t: any) => ({
               id: Number(t.tableNumber),
               section: t.sectionName || targetSection,
               tableUuid: t.tableUuid,
+              qrUrl: t.qrCode?.imageUrl || undefined,
             }));
-            setTables(newTables);
-            localStorage.setItem(`drinkhub_tables_${clubSlug}`, JSON.stringify(newTables));
-            showToast(`Generated ${tableCount} table QR codes for "${targetSection}"!`);
+            setTables(allMapped);
+            localStorage.setItem(`drinkhub_tables_${clubSlug}`, JSON.stringify(allMapped));
+            showToast(`Generated tables ${nextTableNum}–${nextTableNum + tableCount - 1} for "${targetSection}"!`);
             return;
           }
         }
       }
 
-      // Offline / client-side instant generation fallback
+      // Offline / client-side fallback — append to existing tables
       const generated = Array.from({ length: tableCount }, (_, i) => ({
-        id: i + 1,
+        id: nextTableNum + i,
         section: targetSection,
       }));
-      setTables(generated);
-      localStorage.setItem(`drinkhub_tables_${clubSlug}`, JSON.stringify(generated));
-      showToast(`Generated ${tableCount} table QR codes for "${targetSection}"!`);
+      const merged = [...tables, ...generated];
+      setTables(merged);
+      localStorage.setItem(`drinkhub_tables_${clubSlug}`, JSON.stringify(merged));
+      showToast(`Generated tables ${nextTableNum}–${nextTableNum + tableCount - 1} for "${targetSection}"!`);
     } catch {
       const generated = Array.from({ length: tableCount }, (_, i) => ({
-        id: i + 1,
+        id: nextTableNum + i,
         section: targetSection,
       }));
-      setTables(generated);
-      localStorage.setItem(`drinkhub_tables_${clubSlug}`, JSON.stringify(generated));
-      showToast(`Generated ${tableCount} table QR codes for "${targetSection}"!`);
+      const merged = [...tables, ...generated];
+      setTables(merged);
+      localStorage.setItem(`drinkhub_tables_${clubSlug}`, JSON.stringify(merged));
+      showToast(`Generated tables ${nextTableNum}–${nextTableNum + tableCount - 1} for "${targetSection}"!`);
     } finally {
       setIsGenerating(false);
     }
@@ -1679,7 +1689,12 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
 
       {/* Generator Controls */}
       <div className="rounded-2xl border p-6" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-        <h4 className="text-sm font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Batch Table QR Code Generator</h4>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h4 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Batch Table QR Code Generator</h4>
+          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+            Next batch starts at <strong>Table {nextTableNum}</strong>
+          </span>
+        </div>
         <form onSubmit={handleGenerate} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
           <div>
             <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-muted)' }}>Number of Tables</label>
@@ -1713,11 +1728,15 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
               </>
             ) : (
               <>
-                <QrCode className="h-3.5 w-3.5" /> Generate {tableCount} Table QR Codes
+                <QrCode className="h-3.5 w-3.5" />
+                {tables.length > 0
+                  ? `Add Tables ${nextTableNum}–${nextTableNum + tableCount - 1}`
+                  : `Generate ${tableCount} Table QR Codes`}
               </>
             )}
           </button>
         </form>
+
       </div>
 
       {/* QR Cards Grid */}

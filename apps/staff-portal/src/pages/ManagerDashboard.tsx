@@ -1665,6 +1665,33 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
     showToast(`Table ${id} deleted successfully`);
   };
 
+  const [qrSearchQuery, setQrSearchQuery] = useState<string>('');
+  const [selectedSectionFilter, setSelectedSectionFilter] = useState<string>('All');
+
+  const distinctSections = React.useMemo(() => {
+    const set = new Set<string>();
+    tables.forEach(t => {
+      if (t.section) set.add(t.section);
+    });
+    return Array.from(set);
+  }, [tables]);
+
+  const filteredTables = React.useMemo(() => {
+    let list = tables;
+    if (selectedSectionFilter !== 'All') {
+      list = list.filter(t => t.section.toLowerCase() === selectedSectionFilter.toLowerCase());
+    }
+    if (qrSearchQuery.trim()) {
+      const q = qrSearchQuery.toLowerCase().trim();
+      list = list.filter(t =>
+        String(t.id).includes(q) ||
+        `table ${t.id}`.toLowerCase().includes(q) ||
+        t.section.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [tables, selectedSectionFilter, qrSearchQuery]);
+
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     showToast(`${label} copied to clipboard!`);
@@ -1705,6 +1732,7 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
           aside, nav, header, .no-print { display: none !important; }
           .print-area { display: block !important; }
           .qr-card-print { break-inside: avoid; page-break-inside: avoid; border: 1px solid #e2e8f0 !important; color: black !important; background: white !important; }
+          .max-h-\[620px\], [class*="max-h-"] { max-height: none !important; overflow: visible !important; }
         }
       `}</style>
 
@@ -1814,93 +1842,166 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
         </form>
       </div>
 
-      {/* QR Cards Grid */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between px-1 no-print">
+      {/* Filter and Search Bar Row */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between no-print">
+        {/* Section Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
+          <button
+            type="button"
+            onClick={() => setSelectedSectionFilter('All')}
+            className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold border transition-all flex-shrink-0 ${selectedSectionFilter === 'All' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'hover:bg-slate-100'}`}
+            style={selectedSectionFilter === 'All' ? {} : { borderColor: 'var(--border)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
+          >
+            <span>All Tables</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedSectionFilter === 'All' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>{tables.length}</span>
+          </button>
+          {distinctSections.map(sec => (
+            <button
+              key={sec}
+              type="button"
+              onClick={() => setSelectedSectionFilter(sec)}
+              className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold border transition-all whitespace-nowrap flex-shrink-0 ${selectedSectionFilter === sec ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'hover:bg-slate-100'}`}
+              style={selectedSectionFilter === sec ? {} : { borderColor: 'var(--border)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
+            >
+              <span>{sec}</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedSectionFilter === sec ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>{tables.filter(t => t.section === sec).length}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Search Bar */}
+        <div className="relative w-full sm:w-72 flex-shrink-0">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            value={qrSearchQuery}
+            onChange={(e) => setQrSearchQuery(e.target.value)}
+            placeholder="Search table # or section..."
+            className="w-full pl-9 pr-8 py-2 rounded-xl text-xs font-medium border outline-none transition-all focus:ring-2 focus:ring-blue-500 shadow-sm"
+            style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+          />
+          {qrSearchQuery && (
+            <button
+              onClick={() => setQrSearchQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+              title="Clear search"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* QR Cards Scrollable Viewport */}
+      <div className="rounded-2xl border p-5 shadow-sm" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+        <div className="flex items-center justify-between px-1 mb-4 no-print">
           <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
-            Showing <span className="font-bold text-blue-600 dark:text-blue-400">{tables.length}</span> Active Table QR Codes
+            Showing <span className="font-bold text-blue-600 dark:text-blue-400">{filteredTables.length}</span> of {tables.length} Active Table QR Codes
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {tables.map(t => {
-            const tableUrl = `${fullBaseUrl}/t/${t.id}`;
-            const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(tableUrl)}`;
-            return (
-              <div
-                key={t.id}
-                className="qr-card-print rounded-2xl border p-5 flex flex-col items-center text-center transition-all hover:shadow-xl group"
-                style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}
-              >
-                <div className="w-full flex items-center justify-between mb-3">
-                  <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
-                    {t.section}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-black text-slate-600 dark:text-slate-300">Table {t.id}</span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteTable(t.id);
-                      }}
-                      className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/60 transition-colors no-print"
-                      title={`Delete Table ${t.id}`}
-                      aria-label={`Delete Table ${t.id}`}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+        <div className="max-h-[620px] overflow-y-auto pr-1">
+          {filteredTables.length === 0 ? (
+            <div className="text-center py-16 px-4 space-y-2">
+              <QrCode className="h-10 w-10 text-slate-300 dark:text-slate-600 mx-auto" />
+              <p className="font-semibold text-sm text-slate-700 dark:text-slate-200">
+                {qrSearchQuery ? `No table QR codes match "${qrSearchQuery}"` : 'No table QR codes available.'}
+              </p>
+              <p className="text-xs text-slate-400">
+                {qrSearchQuery ? 'Try searching a different table number or section name.' : 'Use the generator above to create table QR codes.'}
+              </p>
+              {qrSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setQrSearchQuery('')}
+                  className="mt-2 text-xs font-bold text-blue-600 hover:underline"
+                >
+                  Clear Search
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {filteredTables.map(t => {
+                const tableUrl = `${fullBaseUrl}/t/${t.id}`;
+                const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(tableUrl)}`;
+                return (
+                  <div
+                    key={t.id}
+                    className="qr-card-print rounded-2xl border p-5 flex flex-col items-center text-center transition-all hover:shadow-xl group"
+                    style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}
+                  >
+                    <div className="w-full flex items-center justify-between mb-3">
+                      <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+                        {t.section}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-black text-slate-600 dark:text-slate-300">Table {t.id}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteTable(t.id);
+                          }}
+                          className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/60 transition-colors no-print"
+                          title={`Delete Table ${t.id}`}
+                          aria-label={`Delete Table ${t.id}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* QR Image */}
+                    <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm mb-4 transition-transform group-hover:scale-105">
+                      <img
+                        src={qrImgUrl}
+                        alt={`QR Table ${t.id}`}
+                        className="w-36 h-36 object-contain"
+                        crossOrigin="anonymous"
+                      />
+                    </div>
+
+                    <div className="text-xs font-bold text-slate-800 dark:text-slate-100 mb-1">
+                      Scan to Order — Table {t.id}
+                    </div>
+                    <p className="text-[11px] font-mono text-slate-400 truncate w-full mb-4 px-2">
+                      /v/{clubSlug}/t/{t.id}
+                    </p>
+
+                    {/* Action Buttons */}
+                    <div className="grid grid-cols-3 gap-1.5 w-full no-print">
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(tableUrl, `Table ${t.id} QR link`)}
+                        className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                        title="Copy direct table order link"
+                      >
+                        <Copy className="h-3 w-3" /> Copy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => downloadQrImage(t.id, t.section)}
+                        className="flex items-center justify-center gap-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 py-1.5 text-[11px] font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                        title="Download high-resolution QR PNG"
+                      >
+                        <Download className="h-3 w-3" /> Save
+                      </button>
+                      <a
+                        href={tableUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center justify-center gap-1 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 py-1.5 text-[11px] font-semibold hover:bg-blue-100 transition-colors"
+                        title="Open customer digital menu for this table"
+                      >
+                        <ExternalLink className="h-3 w-3" /> Open
+                      </a>
+                    </div>
                   </div>
-                </div>
-
-                {/* QR Image */}
-                <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm mb-4 transition-transform group-hover:scale-105">
-                  <img
-                    src={qrImgUrl}
-                    alt={`QR Table ${t.id}`}
-                    className="w-36 h-36 object-contain"
-                    crossOrigin="anonymous"
-                  />
-                </div>
-
-                <div className="text-xs font-bold text-slate-800 dark:text-slate-100 mb-1">
-                  Scan to Order — Table {t.id}
-                </div>
-                <p className="text-[11px] font-mono text-slate-400 truncate w-full mb-4 px-2">
-                  /v/{clubSlug}/t/{t.id}
-                </p>
-
-                {/* Action Buttons */}
-                <div className="grid grid-cols-3 gap-1.5 w-full no-print">
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(tableUrl, `Table ${t.id} QR link`)}
-                    className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                    title="Copy direct table order link"
-                  >
-                    <Copy className="h-3 w-3" /> Copy
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => downloadQrImage(t.id, t.section)}
-                    className="flex items-center justify-center gap-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 py-1.5 text-[11px] font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                    title="Download high-resolution QR PNG"
-                  >
-                    <Download className="h-3 w-3" /> Save
-                  </button>
-                  <a
-                    href={tableUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center justify-center gap-1 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 py-1.5 text-[11px] font-semibold hover:bg-blue-100 transition-colors"
-                    title="Open customer digital menu for this table"
-                  >
-                    <ExternalLink className="h-3 w-3" /> Open
-                  </a>
-                </div>
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

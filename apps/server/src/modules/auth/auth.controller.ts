@@ -163,6 +163,21 @@ export class AuthController {
     }
   };
 
+  changePassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user?.userId;
+      const { currentPassword, newPassword } = req.body;
+      await this.authService.changePassword(userId!, currentPassword, newPassword);
+      res.json({
+        success: true,
+        data: { message: 'Password changed successfully' },
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   listStaff = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userRole = (req.user as any)?.role;

@@ -3,7 +3,7 @@ import {
   Wine, ClipboardList, CheckCircle2, Clock, Bell, LogOut,
   User, ChevronDown, Circle, AlertCircle, Package,
   Banknote, CreditCard, Smartphone, ArrowRight, LayoutDashboard, History,
-  Loader2, RefreshCcw, WifiOff,
+  Loader2, RefreshCcw, WifiOff, Lock, Key, Eye, EyeOff, X, Check,
 } from 'lucide-react';
 
 /* ─── API config ─── */
@@ -94,6 +94,16 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
   /* Completed count for this session */
   const [completedCount, setCompletedCount] = useState(0);
 
+  /* Change Password Modal State */
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwSuccess, setPwSuccess] = useState<string | null>(null);
+
   /* Read logged-in user & venue from localStorage */
   const user = React.useMemo(() => {
     try { return JSON.parse(localStorage.getItem('drinkhub_user') || '{}'); }
@@ -106,6 +116,52 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
   const firstName = nameParts[0] || 'Waiter';
   const lastName = nameParts.slice(1).join(' ');
   const displayName = `${firstName} ${lastName ? lastName.charAt(0) + '.' : ''}`;
+
+  /* ── Handle Password Change ── */
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwError(null);
+    setPwSuccess(null);
+
+    if (!pwForm.currentPassword) {
+      setPwError('Please enter your current password.');
+      return;
+    }
+    if (pwForm.newPassword.length < 6) {
+      setPwError('New password must be at least 6 characters.');
+      return;
+    }
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      setPwError('New passwords do not match.');
+      return;
+    }
+
+    setPwLoading(true);
+    try {
+      const res = await fetch(getApiUrl('/auth/change-password'), {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          currentPassword: pwForm.currentPassword,
+          newPassword: pwForm.newPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error?.message || 'Failed to update password.');
+      }
+      setPwSuccess('Password updated successfully!');
+      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => {
+        setShowPasswordModal(false);
+        setPwSuccess(null);
+      }, 1500);
+    } catch (err: any) {
+      setPwError(err.message || 'Error updating password.');
+    } finally {
+      setPwLoading(false);
+    }
+  };
 
   /* ── Fetch orders (Available + Active Claimed + History) ── */
   const fetchOrders = useCallback(async () => {
@@ -244,7 +300,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={fetchOrders}
             disabled={loadingOrders}
@@ -252,6 +308,15 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
             title="Refresh orders"
           >
             <RefreshCcw className={`h-4 w-4 ${loadingOrders ? 'animate-spin' : ''}`} />
+          </button>
+
+          <button
+            onClick={() => { setPwError(null); setPwSuccess(null); setShowPasswordModal(true); }}
+            className="flex items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition-colors"
+            title="Change Account Password"
+          >
+            <Key className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Change Password</span>
           </button>
 
           <div className="flex items-center gap-2 rounded-lg bg-white/10 px-2.5 py-1.5">
@@ -536,6 +601,146 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
           </div>
         </div>
       </div>
+
+      {/* ── CHANGE PASSWORD MODAL ── */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in" onClick={() => setShowPasswordModal(false)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: '#E2E8F0' }}>
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <Lock className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Change Password</h3>
+                  <p className="text-xs text-slate-500">Update your waiter login credentials</p>
+                </div>
+              </div>
+              <button onClick={() => setShowPasswordModal(false)} className="h-8 w-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {pwError && (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-3 flex items-center gap-2 text-xs font-semibold text-red-700">
+                <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                <span>{pwError}</span>
+              </div>
+            )}
+
+            {pwSuccess && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 flex items-center gap-2 text-xs font-semibold text-emerald-700">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+                <span>{pwSuccess}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              {/* Current Password */}
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                  Current Password <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showCurrentPw ? 'text' : 'password'}
+                    required
+                    value={pwForm.currentPassword}
+                    onChange={(e) => setPwForm((p) => ({ ...p, currentPassword: e.target.value }))}
+                    placeholder="Enter current password"
+                    className="w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-10"
+                    style={{ borderColor: '#CBD5E1' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPw(!showCurrentPw)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showCurrentPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* New Password */}
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                  New Password <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showNewPw ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    value={pwForm.newPassword}
+                    onChange={(e) => setPwForm((p) => ({ ...p, newPassword: e.target.value }))}
+                    placeholder="Min 6 characters"
+                    className="w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-10"
+                    style={{ borderColor: '#CBD5E1' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPw(!showNewPw)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirm New Password */}
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                  Confirm New Password <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPw ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    value={pwForm.confirmPassword}
+                    onChange={(e) => setPwForm((p) => ({ ...p, confirmPassword: e.target.value }))}
+                    placeholder="Re-type new password"
+                    className="w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-10"
+                    style={{ borderColor: '#CBD5E1' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPw(!showConfirmPw)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showConfirmPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  className="flex-1 rounded-xl border py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                  style={{ borderColor: '#CBD5E1' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={pwLoading}
+                  className="flex-1 rounded-xl py-2.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  style={{ background: '#2563EB' }}
+                >
+                  {pwLoading ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Updating…
+                    </>
+                  ) : (
+                    'Save New Password'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

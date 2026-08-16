@@ -271,6 +271,28 @@ export class AuthService {
     });
   }
 
+  async changePassword(userUuid: string, currentPassword: string, newPassword: string): Promise<void> {
+    const user = await this.authRepository.findById(userUuid);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isMatch) {
+      throw new UnauthorizedError('Current password is incorrect');
+    }
+
+    if (currentPassword === newPassword) {
+      throw new BadRequestError('New password must be different from your current password');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    await this.authRepository.updateUser(user.userUuid, {
+      passwordHash,
+      mustChangePassword: false,
+    });
+  }
+
   async listStaff(clubUuid: string, role?: string) {
     const users = await (this.authRepository as any).listStaffByClub(clubUuid, role);
     return users.map((u: any) => ({

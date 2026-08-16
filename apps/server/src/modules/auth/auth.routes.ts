@@ -12,6 +12,7 @@ import {
   resetPasswordSchema,
   verifyEmailSchema,
   firstLoginPasswordChangeSchema,
+  changePasswordSchema,
 } from './auth.schema';
 
 const authRepository = new AuthRepository();
@@ -206,6 +207,30 @@ authRouter.post('/reset-password', validateRequest(resetPasswordSchema), authCon
  *         description: Password changed successfully
  */
 authRouter.post('/change-first-password', authenticate, validateRequest(firstLoginPasswordChangeSchema), authController.changeFirstLoginPassword);
+
+/**
+ * @openapi
+ * /auth/change-password:
+ *   post:
+ *     summary: Change user password (authenticated)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [currentPassword, newPassword]
+ *             properties:
+ *               currentPassword: { type: string }
+ *               newPassword: { type: string }
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ */
+authRouter.post('/change-password', authenticate, validateRequest(changePasswordSchema), authController.changePassword);
 
 /**
  * @openapi

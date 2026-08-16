@@ -110,13 +110,14 @@ export const DigitalStorefrontPage: React.FC = () => {
         if (isMounted && order) {
           setActiveOrder(order);
 
-          // Auto-dismiss banner 5 seconds after delivery confirmation
-          if (order.status === 'DELIVERED') {
+          // Auto-dismiss and return user to menu 5 seconds after delivery confirmation
+          if (order.status === 'DELIVERED' || order.status === 'COMPLETED') {
             setTimeout(() => {
               if (isMounted) {
                 setActiveOrder(null);
                 setActiveOrderUuid(null);
                 localStorage.removeItem('drinkhub_active_order_uuid');
+                setScreen('menu');
               }
             }, 5000);
           }

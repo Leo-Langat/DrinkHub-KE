@@ -681,6 +681,7 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
   const [showAddCatModal, setShowAddCatModal] = React.useState(false);
   const [showEditCatModal, setShowEditCatModal] = React.useState(false);
   const [showEditItemModal, setShowEditItemModal] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState('');
 
   // Forms
   const [addForm, setAddForm] = React.useState({ name: '', category: '', price: '', imageUrl: '', description: '' });
@@ -939,9 +940,20 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
   }, [categories]);
 
   const filteredItems = React.useMemo(() => {
-    if (selectedCatFilter === 'All') return items;
-    return items.filter(i => i.category.toLowerCase() === selectedCatFilter.toLowerCase());
-  }, [items, selectedCatFilter]);
+    let list = items;
+    if (selectedCatFilter !== 'All') {
+      list = list.filter(i => i.category.toLowerCase() === selectedCatFilter.toLowerCase());
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(i =>
+        i.name.toLowerCase().includes(q) ||
+        i.category.toLowerCase().includes(q) ||
+        (i.description && i.description.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  }, [items, selectedCatFilter, searchQuery]);
 
   return (
     <div className="space-y-5">
@@ -956,90 +968,130 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
         </div>
       } />
 
-      {/* Category Pills Filter Bar */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        <button
-          onClick={() => setSelectedCatFilter('All')}
-          className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold border transition-all ${selectedCatFilter === 'All' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'hover:bg-slate-100'}`}
-          style={selectedCatFilter === 'All' ? {} : { borderColor: 'var(--border)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
-        >
-          <span>All Items</span>
-          <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedCatFilter === 'All' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>{items.length}</span>
-        </button>
-        {categories.map(cat => (
+      {/* Filter and Search Bar Row */}
+      <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
+        {/* Category Pills Filter Bar */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
           <button
-            key={cat.id}
-            onClick={() => setSelectedCatFilter(cat.name)}
-            className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold border transition-all whitespace-nowrap ${selectedCatFilter === cat.name ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'hover:bg-slate-100'}`}
-            style={selectedCatFilter === cat.name ? {} : { borderColor: 'var(--border)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
+            onClick={() => setSelectedCatFilter('All')}
+            className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold border transition-all flex-shrink-0 ${selectedCatFilter === 'All' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'hover:bg-slate-100'}`}
+            style={selectedCatFilter === 'All' ? {} : { borderColor: 'var(--border)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
           >
-            <span>{cat.name}</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedCatFilter === cat.name ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>{cat.count}</span>
+            <span>All Items</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedCatFilter === 'All' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>{items.length}</span>
           </button>
-        ))}
-        <button
-          onClick={() => { setNewCatForm({ name: '', description: '' }); setShowAddCatModal(true); }}
-          className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold text-blue-600 border border-dashed border-blue-300 hover:bg-blue-50 transition-colors whitespace-nowrap ml-1"
-        >
-          <Plus className="h-3 w-3" /> Add Category
-        </button>
+          {categories.map(cat => (
+            <button
+              key={cat.id}
+              onClick={() => setSelectedCatFilter(cat.name)}
+              className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold border transition-all whitespace-nowrap flex-shrink-0 ${selectedCatFilter === cat.name ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'hover:bg-slate-100'}`}
+              style={selectedCatFilter === cat.name ? {} : { borderColor: 'var(--border)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
+            >
+              <span>{cat.name}</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedCatFilter === cat.name ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>{cat.count}</span>
+            </button>
+          ))}
+          <button
+            onClick={() => { setNewCatForm({ name: '', description: '' }); setShowAddCatModal(true); }}
+            className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold text-blue-600 border border-dashed border-blue-300 hover:bg-blue-50 transition-colors whitespace-nowrap flex-shrink-0 ml-1"
+          >
+            <Plus className="h-3 w-3" /> Add Category
+          </button>
+        </div>
+
+        {/* Search Bar */}
+        <div className="relative w-full lg:w-72 flex-shrink-0">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search items, drinks, food..."
+            className="w-full pl-9 pr-8 py-2 rounded-xl text-xs font-medium border outline-none transition-all focus:ring-2 focus:ring-blue-500 shadow-sm"
+            style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+              title="Clear search"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Menu Items Table */}
-      <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-        <table className="w-full text-sm">
-          <thead><tr className="border-b" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-            {['Item', 'Category', 'Price', 'Status', 'Actions'].map(h => <th key={h} className="px-5 py-3 text-left text-xs font-bold" style={{ color: 'var(--text-muted)' }}>{h}</th>)}
-          </tr></thead>
-          <tbody>
-            {filteredItems.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-5 py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-                  No items found in {selectedCatFilter === 'All' ? 'this venue' : `"${selectedCatFilter}"`}. Click "+ Add Item" to add drinks or food with photos.
-                </td>
+      {/* Menu Items Scrollable Table */}
+      <div className="rounded-xl border overflow-hidden shadow-sm" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
+        <div className="max-h-[580px] overflow-y-auto overflow-x-auto relative">
+          <table className="w-full text-sm border-collapse">
+            <thead className="sticky top-0 z-10 shadow-sm">
+              <tr className="border-b" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+                {['Item', 'Category', 'Price', 'Status', 'Actions'].map(h => (
+                  <th key={h} className="px-5 py-3 text-left text-xs font-bold whitespace-nowrap bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm" style={{ color: 'var(--text-muted)' }}>
+                    {h}
+                  </th>
+                ))}
               </tr>
-            ) : (
-              filteredItems.map(item => (
-                <tr key={item.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-3">
-                      {item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.name} className="h-10 w-10 rounded-xl object-cover border border-slate-200 flex-shrink-0 shadow-sm" />
-                      ) : (
-                        <div className="h-10 w-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-base flex-shrink-0 text-slate-400">
-                          🍸
-                        </div>
-                      )}
-                      <div>
-                        <div className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{item.name}</div>
-                        {item.description && <div className="text-[11px] line-clamp-1" style={{ color: 'var(--text-muted)' }}>{item.description}</div>}
+            </thead>
+            <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>
+              {filteredItems.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-5 py-12 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
+                    {searchQuery ? (
+                      <div className="space-y-1">
+                        <p className="font-semibold text-slate-700 dark:text-slate-300">No items match "{searchQuery}"</p>
+                        <p className="text-xs text-slate-400">Try checking for typos or clear search.</p>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3.5 text-xs">
-                    <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-semibold text-[11px] bg-slate-100 text-slate-700">
-                      <Tag className="h-2.5 w-2.5 text-slate-500" /> {item.category}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5 font-bold text-xs text-emerald-600">KES {item.price.toLocaleString()}</td>
-                  <td className="px-5 py-3.5">
-                    <button onClick={() => toggle(item.id)} className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold border transition-all ${item.status === 'Available' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'}`}>
-                      <div className={`h-1.5 w-1.5 rounded-full ${item.status === 'Available' ? 'bg-emerald-500' : 'bg-red-500'}`} />{item.status}
-                    </button>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-1.5">
-                      <button onClick={() => { setEditItemForm({ id: item.id, name: item.name, category: item.category, price: String(item.price), imageUrl: item.imageUrl || '', description: item.description || '' }); setShowEditItemModal(true); }} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="Edit Item">
-                        <Edit2 className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} />
-                      </button>
-                      <button onClick={() => del(item.id)} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Delete Item"><Trash2 className="h-3.5 w-3.5 text-red-400" /></button>
-                    </div>
+                    ) : (
+                      `No items found in ${selectedCatFilter === 'All' ? 'this venue' : `"${selectedCatFilter}"`}. Click "+ Add Item" to add drinks or food with photos.`
+                    )}
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                filteredItems.map(item => (
+                  <tr key={item.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors" style={{ background: 'var(--bg-card)' }}>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        {item.imageUrl ? (
+                          <img src={item.imageUrl} alt={item.name} className="h-10 w-10 rounded-xl object-cover border border-slate-200 dark:border-slate-700 flex-shrink-0 shadow-sm" />
+                        ) : (
+                          <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-base flex-shrink-0 text-slate-400">
+                            🍸
+                          </div>
+                        )}
+                        <div>
+                          <div className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{item.name}</div>
+                          {item.description && <div className="text-[11px] line-clamp-1" style={{ color: 'var(--text-muted)' }}>{item.description}</div>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5 text-xs whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-semibold text-[11px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                        <Tag className="h-2.5 w-2.5 text-slate-500" /> {item.category}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 font-bold text-xs text-emerald-600 dark:text-emerald-400 whitespace-nowrap">KES {item.price.toLocaleString()}</td>
+                    <td className="px-5 py-3.5 whitespace-nowrap">
+                      <button onClick={() => toggle(item.id)} className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold border transition-all ${item.status === 'Available' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800 hover:bg-emerald-100' : 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800 hover:bg-red-100'}`}>
+                        <div className={`h-1.5 w-1.5 rounded-full ${item.status === 'Available' ? 'bg-emerald-500' : 'bg-red-500'}`} />{item.status}
+                      </button>
+                    </td>
+                    <td className="px-5 py-3.5 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => { setEditItemForm({ id: item.id, name: item.name, category: item.category, price: String(item.price), imageUrl: item.imageUrl || '', description: item.description || '' }); setShowEditItemModal(true); }} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Edit Item">
+                          <Edit2 className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} />
+                        </button>
+                        <button onClick={() => del(item.id)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors" title="Delete Item"><Trash2 className="h-3.5 w-3.5 text-red-400" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* ── Modal: Manage Categories ── */}

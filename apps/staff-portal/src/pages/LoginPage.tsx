@@ -57,6 +57,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       if (data.data?.accessToken) {
         localStorage.setItem('drinkhub_token', data.data.accessToken);
         localStorage.setItem('drinkhub_user', JSON.stringify(data.data.user));
+        localStorage.setItem('drinkhub_login_time', Date.now().toString());
       }
 
       const mustChange = data.data?.mustChangePassword || data.data?.user?.mustChangePassword;

@@ -15,8 +15,12 @@ export class OrderService {
     return order;
   }
 
-  async getOrdersForClub(clubUuid: string, status?: OrderStatus): Promise<Order[]> {
-    return this.orderRepository.findOrdersByClub(clubUuid, status);
+  async getOrdersForClub(clubUuid?: string, status?: OrderStatus, waiterUuid?: string): Promise<Order[]> {
+    return this.orderRepository.findOrdersByClub(clubUuid, status, waiterUuid);
+  }
+
+  async getActiveClaimedOrderByWaiter(waiterUuid: string): Promise<Order | null> {
+    return this.orderRepository.findActiveClaimedOrderByWaiter(waiterUuid);
   }
 
   async createOrder(clubUuid: string, data: any): Promise<Order> {

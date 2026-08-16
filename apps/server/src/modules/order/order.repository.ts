@@ -15,11 +15,12 @@ export class OrderRepository implements IOrderRepository {
     });
   }
 
-  async findOrdersByClub(clubUuid: string, status?: OrderStatus): Promise<Order[]> {
+  async findOrdersByClub(clubUuid?: string, status?: OrderStatus, waiterUuid?: string): Promise<Order[]> {
     return prisma.order.findMany({
       where: {
-        clubUuid,
+        ...(clubUuid ? { clubUuid } : {}),
         ...(status ? { status } : {}),
+        ...(waiterUuid ? { waiterUuid } : {}),
       },
       orderBy: { createdAt: 'desc' },
       include: {

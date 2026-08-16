@@ -30,6 +30,20 @@ orderRouter.get('/', orderController.getOrders);
 
 /**
  * @openapi
+ * /orders/my-active:
+ *   get:
+ *     summary: Fetch current active claimed order for the authenticated waiter
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Active claimed order or null
+ */
+orderRouter.get('/my-active', authenticate, orderController.getMyActiveOrder);
+
+/**
+ * @openapi
  * /orders/{orderUuid}:
  *   get:
  *     summary: Fetch single order by UUID

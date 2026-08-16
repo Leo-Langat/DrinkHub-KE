@@ -2,7 +2,7 @@ import { Order, OrderStatus } from '@prisma/client';
 
 export interface IOrderRepository {
   findById(orderUuid: string): Promise<Order | null>;
-  findOrdersByClub(clubUuid: string, status?: OrderStatus): Promise<Order[]>;
+  findOrdersByClub(clubUuid?: string, status?: OrderStatus, waiterUuid?: string): Promise<Order[]>;
   findActiveClaimedOrderByWaiter(waiterUuid: string): Promise<Order | null>;
   createOrder(clubUuid: string, data: any): Promise<Order>;
   claimOrder(orderUuid: string, waiterUuid: string): Promise<Order>;

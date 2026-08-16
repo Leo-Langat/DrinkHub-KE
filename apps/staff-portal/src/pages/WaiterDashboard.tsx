@@ -82,6 +82,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
 
   /* Available orders fetched from API */
   const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
+  const [historyOrders, setHistoryOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [ordersError, setOrdersError] = useState<string | null>(null);
 
@@ -106,35 +107,64 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
   const lastName = nameParts.slice(1).join(' ');
   const displayName = `${firstName} ${lastName ? lastName.charAt(0) + '.' : ''}`;
 
-  /* ── Fetch available orders ── */
+  /* ── Fetch orders (Available + Active Claimed + History) ── */
   const fetchOrders = useCallback(async () => {
     setLoadingOrders(true);
     setOrdersError(null);
     try {
-      const res = await fetch(getApiUrl('/orders?status=PENDING'), { headers: authHeaders() });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error?.message || 'Failed to load orders.');
+      // 1. Fetch available pending orders
+      const resPending = await fetch(getApiUrl('/orders?status=PENDING'), { headers: authHeaders() });
+      if (resPending.ok) {
+        const data = await resPending.json();
+        const raw: any[] = data.data?.orders ?? data.data ?? data ?? [];
+        setAvailableOrders(raw.map(mapOrder));
       }
-      const data = await res.json();
-      const raw: any[] = data.data?.orders ?? data.data ?? data ?? [];
-      setAvailableOrders(raw.map(mapOrder));
+
+      // 2. Fetch my current active claimed order
+      const resActive = await fetch(getApiUrl('/orders/my-active'), { headers: authHeaders() });
+      if (resActive.ok) {
+        const dataActive = await resActive.json();
+        const activeRaw = dataActive.data;
+        if (activeRaw && (activeRaw.orderUuid || activeRaw.id)) {
+          setMyOrder(mapOrder(activeRaw));
+        } else {
+          setMyOrder(null);
+        }
+      }
+
+      // 3. Fetch waiter's delivered history orders
+      const waiterId = user.id || user.userUuid;
+      const historyUrl = waiterId
+        ? getApiUrl(`/orders?waiterUuid=${waiterId}&status=DELIVERED`)
+        : getApiUrl('/orders?status=DELIVERED');
+      const resHistory = await fetch(historyUrl, { headers: authHeaders() });
+      if (resHistory.ok) {
+        const dataHistory = await resHistory.json();
+        const rawHistory: any[] = dataHistory.data?.orders ?? dataHistory.data ?? [];
+        const mapped = rawHistory.map(mapOrder);
+        setHistoryOrders(mapped);
+        setCompletedCount(mapped.length);
+      }
     } catch (err: any) {
       setOrdersError(err.message || 'Could not load orders.');
     } finally {
       setLoadingOrders(false);
     }
-  }, []);
+  }, [user.id, user.userUuid]);
 
-  /* Initial fetch + polling every 30s */
+  /* Initial fetch + polling every 15s */
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 30_000);
+    const interval = setInterval(fetchOrders, 15_000);
     return () => clearInterval(interval);
   }, [fetchOrders]);
 
   /* ── Claim an order ── */
   const claimOrder = async (order: Order) => {
+    if (!order.id || order.id === 'undefined') {
+      setActionError('Invalid order ID.');
+      return;
+    }
     if (myOrder) {
       alert('You already have an active order. Complete it before claiming another.');
       return;
@@ -155,6 +185,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
       setActiveTab('my-order');
     } catch (err: any) {
       setActionError(err.message || 'Failed to claim order.');
+      fetchOrders();
     } finally {
       setActionLoading(false);
     }
@@ -180,6 +211,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
         setMyOrder(null);
         setCompletedCount((c) => c + 1);
         setActiveTab('history');
+        fetchOrders();
       } else {
         setMyOrder((prev) => prev ? { ...prev, status: nextStatus } : null);
       }
@@ -193,7 +225,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
   const tabs = [
     { key: 'available', label: 'Available Orders', icon: <Package className="h-4 w-4" />, count: availableOrders.length },
     { key: 'my-order', label: 'My Order', icon: <ClipboardList className="h-4 w-4" />, count: myOrder ? 1 : 0 },
-    { key: 'history', label: 'History', icon: <History className="h-4 w-4" /> },
+    { key: 'history', label: 'History', icon: <History className="h-4 w-4" />, count: historyOrders.length },
   ] as const;
 
   return (
@@ -450,12 +482,55 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
 
             {/* ── HISTORY TAB ── */}
             {activeTab === 'history' && (
-              <div className="text-center py-16 space-y-2">
-                <History className="h-12 w-12 mx-auto" style={{ color: 'var(--text-muted)' }} />
-                <p className="font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                  {completedCount} order{completedCount !== 1 ? 's' : ''} completed this session
-                </p>
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Full order history is available in the Manager portal.</p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'var(--border)' }}>
+                  <div>
+                    <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Delivered Orders</h3>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Orders delivered by you during your shift</p>
+                  </div>
+                  <span className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 text-xs font-bold">
+                    {historyOrders.length} Completed
+                  </span>
+                </div>
+
+                {historyOrders.length === 0 ? (
+                  <div className="text-center py-16 space-y-2">
+                    <History className="h-12 w-12 mx-auto" style={{ color: 'var(--text-muted)' }} />
+                    <p className="font-semibold" style={{ color: 'var(--text-secondary)' }}>No delivered orders yet</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>When you complete and deliver orders, they will appear here.</p>
+                  </div>
+                ) : (
+                  historyOrders.map((order) => (
+                    <div key={order.id} className="rounded-xl border p-4 flex items-start justify-between gap-4"
+                      style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}>
+                      <div className="space-y-2 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
+                            {String(order.tableNumber).startsWith('ORD') || String(order.tableNumber).startsWith('#') ? order.tableNumber : `Table #${order.tableNumber}`}
+                          </span>
+                          <span className="rounded-full border px-2 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-700 border-slate-200">
+                            Order #{order.orderNumber || (order.id ? order.id.slice(0, 8).toUpperCase() : '')}
+                          </span>
+                          <span className="rounded-full border px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-700 border-emerald-200">
+                            DELIVERED ✓
+                          </span>
+                          <span className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                            {paymentIcons[order.paymentMethod]}
+                            {order.paymentMethod}
+                          </span>
+                        </div>
+                        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                          {order.items.map((i) => `${i.quantity}× ${i.name}`).join(', ')}
+                        </p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <span className="font-black text-sm text-emerald-600 block">
+                          KES {order.totalAmount.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             )}
           </div>

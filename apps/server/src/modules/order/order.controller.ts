@@ -6,12 +6,35 @@ export class OrderController {
 
   getOrders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const clubUuid = (req.headers['x-tenant-id'] as string) || (req.query.clubUuid as string);
+      const clubUuid = (req.headers['x-tenant-id'] as string) || (req.query.clubUuid as string) || req.user?.tenantId;
       const status = req.query.status as any;
-      const orders = await this.orderService.getOrdersForClub(clubUuid, status);
+      const waiterUuid = req.query.waiterUuid as string;
+      const orders = await this.orderService.getOrdersForClub(clubUuid, status, waiterUuid);
       res.json({
         success: true,
         data: orders,
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getMyActiveOrder = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const waiterUuid = req.user?.userId;
+      if (!waiterUuid) {
+        res.json({
+          success: true,
+          data: null,
+          meta: { timestamp: new Date().toISOString(), version: 'v1' },
+        });
+        return;
+      }
+      const order = await this.orderService.getActiveClaimedOrderByWaiter(waiterUuid);
+      res.json({
+        success: true,
+        data: order,
         meta: { timestamp: new Date().toISOString(), version: 'v1' },
       });
     } catch (error) {

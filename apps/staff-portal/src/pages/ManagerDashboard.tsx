@@ -620,31 +620,33 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
   const [items, setItems] = React.useState<MenuItem[]>([]);
   const [showAdd, setShowAdd] = React.useState(false);
   const [addForm, setAddForm] = React.useState({ name: '', category: 'Beer', price: '' });
+  const [loading, setLoading] = React.useState(false);
 
-  React.useEffect(() => {
-    const fetchMenu = async () => {
-      try {
-        const res = await fetch(getApiUrl('/menu'), { headers: authHeaders() });
-        if (!res.ok) return;
-        const data = await res.json();
-        const rawCats: any[] = (data.data ?? data).categories ?? [];
-        const flat: MenuItem[] = [];
-        rawCats.forEach((cat: any) => {
-          (cat.products ?? []).forEach((p: any) => {
-            flat.push({
-              id: p.uuid,
-              name: p.name,
-              category: cat.name,
-              price: Number(p.price),
-              status: p.isAvailable !== false ? 'Available' : 'Out of Stock',
-            });
+  const fetchMenu = React.useCallback(async () => {
+    try {
+      const res = await fetch(getApiUrl('/menu'), { headers: authHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      const rawCats: any[] = (data.data ?? data).categories ?? [];
+      const flat: MenuItem[] = [];
+      rawCats.forEach((cat: any) => {
+        (cat.products ?? []).forEach((p: any) => {
+          flat.push({
+            id: p.productUuid ?? p.uuid ?? p.id,
+            name: p.name,
+            category: cat.name,
+            price: Number(p.price),
+            status: p.isAvailable !== false ? 'Available' : 'Out of Stock',
           });
         });
-        setItems(flat);
-      } catch { /* keep empty on error */ }
-    };
-    fetchMenu();
+      });
+      setItems(flat);
+    } catch { /* keep empty on error */ }
   }, []);
+
+  React.useEffect(() => {
+    fetchMenu();
+  }, [fetchMenu]);
 
   const toggle = (id: string) => {
     setItems(prev => prev.map(i => {
@@ -655,11 +657,50 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
       return { ...i, status: next };
     }));
   };
-  const del = (id: string) => { const item = items.find(i => i.id === id); setItems(p => p.filter(i => i.id !== id)); if (item) showToast(`${item.name} removed`); };
+
+  const del = async (id: string) => {
+    const item = items.find(i => i.id === id);
+    setItems(p => p.filter(i => i.id !== id));
+    try {
+      await fetch(getApiUrl(`/menu/products/${id}`), {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
+      if (item) showToast(`${item.name} removed from menu`);
+    } catch {
+      if (item) showToast(`Removed ${item.name}`);
+    }
+  };
+
+  const handleAddItem = async () => {
+    if (!addForm.name || !addForm.price) return;
+    setLoading(true);
+    try {
+      const res = await fetch(getApiUrl('/menu/products'), {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          name: addForm.name,
+          categoryName: addForm.category,
+          price: Number(addForm.price),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || 'Failed to add menu item');
+      showToast(`${addForm.name} added to menu database`);
+      setShowAdd(false);
+      setAddForm({ name: '', category: 'Beer', price: '' });
+      fetchMenu();
+    } catch (err: any) {
+      showToast(err.message || 'Error adding menu item');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-5">
-      <SectionHeader title="Menu Management" subtitle="Manage your club's menu items and availability" action={
+      <SectionHeader title="Menu Management" subtitle="Manage your club's menu items and categories in real-time" action={
         <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold text-white hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>
           <Plus className="h-3.5 w-3.5" /> Add Item
         </button>
@@ -681,8 +722,7 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
               </td>
               <td className="px-5 py-3.5">
                 <div className="flex items-center gap-1.5">
-                  <button onClick={() => showToast('Menu editor coming soon')} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"><Edit2 className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} /></button>
-                  <button onClick={() => del(item.id)} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"><Trash2 className="h-3.5 w-3.5 text-red-400" /></button>
+                  <button onClick={() => del(item.id)} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Delete Item"><Trash2 className="h-3.5 w-3.5 text-red-400" /></button>
                 </div>
               </td>
             </tr>
@@ -692,11 +732,13 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add Menu Item">
         <div className="space-y-4">
           <div><FL required>Item Name</FL><SI value={addForm.name} onChange={e => setAddForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Whisky Sour" /></div>
-          <div><FL>Category</FL><SS value={addForm.category} onChange={e => setAddForm(p => ({ ...p, category: e.target.value }))} options={['Beer', 'Spirits', 'Wine', 'Cocktails', 'Mocktails', 'Cognac', 'Mixers', 'Snacks'].map(c => ({ v: c, l: c }))} /></div>
+          <div><FL>Category</FL><SS value={addForm.category} onChange={e => setAddForm(p => ({ ...p, category: e.target.value }))} options={['Beer', 'Spirits', 'Wine', 'Cocktails', 'Mocktails', 'Cognac', 'Mixers', 'Snacks', 'Food & Grills'].map(c => ({ v: c, l: c }))} /></div>
           <div><FL required>Price (KES)</FL><SI type="number" value={addForm.price} onChange={e => setAddForm(p => ({ ...p, price: e.target.value }))} placeholder="0" min="0" /></div>
           <div className="flex gap-3 pt-1">
             <button onClick={() => setShowAdd(false)} className="flex-1 rounded-xl border py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors" style={{ borderColor: '#E2E8F0' }}>Cancel</button>
-            <button onClick={() => { if (!addForm.name || !addForm.price) return; setItems(p => [...p, { id: `mi${Date.now()}`, name: addForm.name, category: addForm.category, price: parseInt(addForm.price), status: 'Available' }]); showToast(`${addForm.name} added to menu`); setShowAdd(false); setAddForm({ name: '', category: 'Beer', price: '' }); }} className="flex-1 rounded-xl py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>Add Item</button>
+            <button disabled={loading} onClick={handleAddItem} className="flex-1 rounded-xl py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>
+              {loading ? 'Adding...' : 'Add Item'}
+            </button>
           </div>
         </div>
       </Modal>

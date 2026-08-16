@@ -21,7 +21,9 @@ export const updateCategoryOrderSchema = z.object({
 
 export const createProductSchema = z.object({
   body: z.object({
-    categoryUuid: z.string().uuid('Category UUID is required'),
+    categoryUuid: z.string().uuid('Invalid Category UUID').optional(),
+    categoryName: z.string().optional(),
+    category: z.string().optional(),
     name: z.string().min(2, 'Product name is required'),
     description: z.string().optional(),
     price: z.number().positive('Price must be greater than 0'),

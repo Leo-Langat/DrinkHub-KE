@@ -1,6 +1,7 @@
 import { MenuCategory, Product, Offer } from '@prisma/client';
 import { IMenuRepository } from './menu.interface';
 import { NotFoundError, BadRequestError } from '../../common/errors/app-error';
+import { prisma } from '../../config/prisma';
 
 export class MenuService {
   constructor(private menuRepository: IMenuRepository) {}
@@ -23,11 +24,54 @@ export class MenuService {
     return this.menuRepository.updateCategoryOrders(clubUuid, orders);
   }
 
-  async createProduct(clubUuid: string, data: Partial<Product>): Promise<Product> {
-    if (!data.name || !data.categoryUuid || data.price === undefined) {
-      throw new BadRequestError('Product name, category, and price are required');
+  async createProduct(clubUuid: string, data: any): Promise<Product> {
+    if (!data.name || data.price === undefined) {
+      throw new BadRequestError('Product name and price are required');
     }
-    return this.menuRepository.createProduct(clubUuid, data);
+
+    let categoryUuid = data.categoryUuid;
+    const categoryName = data.categoryName || data.category;
+
+    if (!categoryUuid && categoryName) {
+      const trimmedCatName = String(categoryName).trim();
+      let category = await prisma.menuCategory.findFirst({
+        where: {
+          clubUuid,
+          name: { equals: trimmedCatName, mode: 'insensitive' },
+          deletedAt: null,
+        },
+      });
+
+      if (!category) {
+        category = await prisma.menuCategory.create({
+          data: {
+            clubUuid,
+            name: trimmedCatName,
+            displayOrder: 0,
+          },
+        });
+      }
+
+      categoryUuid = category.categoryUuid;
+    }
+
+    if (!categoryUuid) {
+      let defaultCat = await prisma.menuCategory.findFirst({
+        where: { clubUuid, name: 'General', deletedAt: null },
+      });
+      if (!defaultCat) {
+        defaultCat = await prisma.menuCategory.create({
+          data: { clubUuid, name: 'General', displayOrder: 99 },
+        });
+      }
+      categoryUuid = defaultCat.categoryUuid;
+    }
+
+    return this.menuRepository.createProduct(clubUuid, {
+      ...data,
+      categoryUuid,
+      price: Number(data.price),
+    });
   }
 
   async updateProduct(productUuid: string, data: Partial<Product>): Promise<Product> {

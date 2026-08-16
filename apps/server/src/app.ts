@@ -47,8 +47,8 @@ export const createApp = (): Application => {
     }),
   );
 
-  app.use(express.json({ limit: '10kb' }));           // reject giant payloads
-  app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+  app.use(express.json({ limit: '20mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '20mb' }));
   app.use('/uploads', express.static('uploads'));
 
   // ── Global rate limiter (all routes) ─────────────────────────────────────

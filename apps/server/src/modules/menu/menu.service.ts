@@ -41,6 +41,9 @@ export class MenuService {
   }
 
   async createProduct(clubUuid: string, data: any): Promise<Product> {
+    if (!clubUuid) {
+      throw new BadRequestError('Venue context is required to add menu items');
+    }
     if (!data.name || data.price === undefined) {
       throw new BadRequestError('Product name and price are required');
     }

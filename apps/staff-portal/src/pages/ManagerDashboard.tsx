@@ -154,7 +154,19 @@ const getApiUrl = (path: string): string => {
 
 const authHeaders = (): Record<string, string> => {
   const token = localStorage.getItem('drinkhub_token');
-  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const userStr = localStorage.getItem('drinkhub_user');
+  let clubUuid = '';
+  if (userStr) {
+    try {
+      const u = JSON.parse(userStr);
+      clubUuid = u.clubUuid || u.tenantId || u.club?.clubUuid || '';
+    } catch {}
+  }
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(clubUuid ? { 'X-Tenant-Id': clubUuid } : {}),
+  };
 };
 
 /* --- Data types --- */

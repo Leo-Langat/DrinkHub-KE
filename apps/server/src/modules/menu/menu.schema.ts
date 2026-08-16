@@ -8,6 +8,17 @@ export const createCategorySchema = z.object({
   }),
 });
 
+export const updateCategorySchema = z.object({
+  params: z.object({
+    categoryUuid: z.string().uuid('Invalid Category UUID'),
+  }),
+  body: z.object({
+    name: z.string().min(2, 'Category name required').optional(),
+    description: z.string().optional(),
+    displayOrder: z.number().int().optional(),
+  }),
+});
+
 export const updateCategoryOrderSchema = z.object({
   body: z.object({
     orders: z.array(

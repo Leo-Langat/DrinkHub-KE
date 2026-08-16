@@ -20,6 +20,22 @@ export class MenuService {
     return this.menuRepository.createCategory(clubUuid, data);
   }
 
+  async updateCategory(categoryUuid: string, data: Partial<MenuCategory>): Promise<MenuCategory> {
+    const category = await this.menuRepository.findCategoryById(categoryUuid);
+    if (!category) {
+      throw new NotFoundError('Category not found');
+    }
+    return this.menuRepository.updateCategory(categoryUuid, data);
+  }
+
+  async archiveCategory(categoryUuid: string): Promise<boolean> {
+    const category = await this.menuRepository.findCategoryById(categoryUuid);
+    if (!category) {
+      throw new NotFoundError('Category not found');
+    }
+    return this.menuRepository.archiveCategory(categoryUuid);
+  }
+
   async updateCategoryOrders(clubUuid: string, orders: { categoryUuid: string; displayOrder: number }[]): Promise<void> {
     return this.menuRepository.updateCategoryOrders(clubUuid, orders);
   }

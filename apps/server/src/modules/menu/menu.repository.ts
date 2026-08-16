@@ -13,6 +13,12 @@ export class MenuRepository implements IMenuRepository {
     });
   }
 
+  async findCategoryById(categoryUuid: string): Promise<MenuCategory | null> {
+    return prisma.menuCategory.findFirst({
+      where: { categoryUuid, deletedAt: null },
+    });
+  }
+
   async createCategory(clubUuid: string, data: Partial<MenuCategory>): Promise<MenuCategory> {
     return prisma.menuCategory.create({
       data: {
@@ -22,6 +28,26 @@ export class MenuRepository implements IMenuRepository {
         displayOrder: data.displayOrder || 0,
       },
     });
+  }
+
+  async updateCategory(categoryUuid: string, data: Partial<MenuCategory>): Promise<MenuCategory> {
+    return prisma.menuCategory.update({
+      where: { categoryUuid },
+      data: {
+        ...(data.name ? { name: data.name } : {}),
+        ...(data.description !== undefined ? { description: data.description } : {}),
+        ...(data.displayOrder !== undefined ? { displayOrder: data.displayOrder } : {}),
+        ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
+      },
+    });
+  }
+
+  async archiveCategory(categoryUuid: string): Promise<boolean> {
+    await prisma.menuCategory.update({
+      where: { categoryUuid },
+      data: { deletedAt: new Date(), isActive: false },
+    });
+    return true;
   }
 
   async updateCategoryOrders(

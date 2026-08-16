@@ -7,6 +7,7 @@ import { authenticate, authorize } from '../../common/middlewares/auth.middlewar
 import { uploadImage } from '../../common/middlewares/upload.middleware';
 import {
   createCategorySchema,
+  updateCategorySchema,
   updateCategoryOrderSchema,
   createProductSchema,
   updateProductSchema,
@@ -54,6 +55,44 @@ menuRouter.get('/', menuController.getMenu);
  *         description: Category created
  */
 menuRouter.post('/categories', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PLATFORM_ADMIN']), validateRequest(createCategorySchema), menuController.createCategory);
+
+/**
+ * @openapi
+ * /menu/categories/{categoryUuid}:
+ *   put:
+ *     summary: Update/Edit a menu category name or description
+ *     tags: [Menu]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: categoryUuid
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Category updated
+ */
+menuRouter.put('/categories/:categoryUuid', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PLATFORM_ADMIN']), validateRequest(updateCategorySchema), menuController.updateCategory);
+
+/**
+ * @openapi
+ * /menu/categories/{categoryUuid}:
+ *   delete:
+ *     summary: Delete/Archive a menu category
+ *     tags: [Menu]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: categoryUuid
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Category archived
+ */
+menuRouter.delete('/categories/:categoryUuid', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PLATFORM_ADMIN']), menuController.archiveCategory);
 
 /**
  * @openapi

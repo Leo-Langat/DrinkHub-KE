@@ -6,6 +6,7 @@ import {
   Eye, EyeOff, Trash2, Edit2, CheckCircle2, X, RefreshCcw, Filter,
   AlertCircle, ArrowUpRight, RotateCcw, Key, UserX, UserCheck,
   Phone, Mail, Hash, Lock, Clock, Briefcase, Shield, QrCode, Copy, ExternalLink,
+  Tag, Layers, FolderPlus,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis,
@@ -616,10 +617,31 @@ const OrdersPage = ({ showToast }: { showToast: (m: string) => void }) => {
 };
 
 /* --- MENU PAGE --- */
+interface CategoryItem {
+  id: string;
+  name: string;
+  description?: string;
+  count: number;
+}
+
 const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
   const [items, setItems] = React.useState<MenuItem[]>([]);
+  const [categories, setCategories] = React.useState<CategoryItem[]>([]);
+  const [selectedCatFilter, setSelectedCatFilter] = React.useState<string>('All');
+  
+  // Modals
   const [showAdd, setShowAdd] = React.useState(false);
-  const [addForm, setAddForm] = React.useState({ name: '', category: 'Beer', price: '' });
+  const [showCategoriesModal, setShowCategoriesModal] = React.useState(false);
+  const [showAddCatModal, setShowAddCatModal] = React.useState(false);
+  const [showEditCatModal, setShowEditCatModal] = React.useState(false);
+  const [showEditItemModal, setShowEditItemModal] = React.useState(false);
+
+  // Forms
+  const [addForm, setAddForm] = React.useState({ name: '', category: '', price: '' });
+  const [newCatForm, setNewCatForm] = React.useState({ name: '', description: '' });
+  const [editCatForm, setEditCatForm] = React.useState({ id: '', name: '', description: '' });
+  const [editItemForm, setEditItemForm] = React.useState({ id: '', name: '', category: '', price: '' });
+
   const [loading, setLoading] = React.useState(false);
 
   const fetchMenu = React.useCallback(async () => {
@@ -628,6 +650,19 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
       if (!res.ok) return;
       const data = await res.json();
       const rawCats: any[] = (data.data ?? data).categories ?? [];
+      
+      const parsedCats: CategoryItem[] = rawCats.map((cat: any) => ({
+        id: cat.categoryUuid ?? cat.uuid ?? cat.id,
+        name: cat.name,
+        description: cat.description,
+        count: (cat.products ?? []).length,
+      }));
+      setCategories(parsedCats);
+
+      if (!addForm.category && parsedCats.length > 0) {
+        setAddForm(p => ({ ...p, category: parsedCats[0].name }));
+      }
+
       const flat: MenuItem[] = [];
       rawCats.forEach((cat: any) => {
         (cat.products ?? []).forEach((p: any) => {
@@ -642,7 +677,7 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
       });
       setItems(flat);
     } catch { /* keep empty on error */ }
-  }, []);
+  }, [addForm.category]);
 
   React.useEffect(() => {
     fetchMenu();
@@ -674,6 +709,7 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
 
   const handleAddItem = async () => {
     if (!addForm.name || !addForm.price) return;
+    const categoryToUse = addForm.category || (categories[0]?.name ?? 'General');
     setLoading(true);
     try {
       const res = await fetch(getApiUrl('/menu/products'), {
@@ -681,15 +717,15 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
         headers: authHeaders(),
         body: JSON.stringify({
           name: addForm.name,
-          categoryName: addForm.category,
+          categoryName: categoryToUse,
           price: Number(addForm.price),
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message || 'Failed to add menu item');
-      showToast(`${addForm.name} added to menu database`);
+      showToast(`${addForm.name} added to menu`);
       setShowAdd(false);
-      setAddForm({ name: '', category: 'Beer', price: '' });
+      setAddForm({ name: '', category: categoryToUse, price: '' });
       fetchMenu();
     } catch (err: any) {
       showToast(err.message || 'Error adding menu item');
@@ -698,46 +734,318 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
     }
   };
 
+  const handleCreateCategory = async () => {
+    if (!newCatForm.name.trim()) return;
+    setLoading(true);
+    try {
+      const res = await fetch(getApiUrl('/menu/categories'), {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          name: newCatForm.name.trim(),
+          description: newCatForm.description.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || 'Failed to create category');
+      showToast(`Category "${newCatForm.name}" created successfully`);
+      setNewCatForm({ name: '', description: '' });
+      setShowAddCatModal(false);
+      fetchMenu();
+    } catch (err: any) {
+      showToast(err.message || 'Error creating category');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateCategory = async () => {
+    if (!editCatForm.id || !editCatForm.name.trim()) return;
+    setLoading(true);
+    try {
+      const res = await fetch(getApiUrl(`/menu/categories/${editCatForm.id}`), {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          name: editCatForm.name.trim(),
+          description: editCatForm.description.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || 'Failed to update category');
+      showToast(`Category renamed to "${editCatForm.name}"`);
+      setShowEditCatModal(false);
+      fetchMenu();
+    } catch (err: any) {
+      showToast(err.message || 'Error updating category');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteCategory = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete category "${name}"?`)) return;
+    try {
+      const res = await fetch(getApiUrl(`/menu/categories/${id}`), {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error?.message || 'Failed to delete category');
+      }
+      showToast(`Category "${name}" deleted`);
+      fetchMenu();
+    } catch (err: any) {
+      showToast(err.message || 'Error deleting category');
+    }
+  };
+
+  const handleUpdateItem = async () => {
+    if (!editItemForm.id || !editItemForm.name.trim() || !editItemForm.price) return;
+    setLoading(true);
+    try {
+      const res = await fetch(getApiUrl(`/menu/products/${editItemForm.id}`), {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          name: editItemForm.name.trim(),
+          price: Number(editItemForm.price),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || 'Failed to update menu item');
+      showToast(`Item "${editItemForm.name}" updated`);
+      setShowEditItemModal(false);
+      fetchMenu();
+    } catch (err: any) {
+      showToast(err.message || 'Error updating item');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const categoryOptions = React.useMemo(() => {
+    if (categories.length > 0) {
+      return categories.map(c => ({ v: c.name, l: c.name }));
+    }
+    return ['Beer', 'Spirits', 'Wine', 'Cocktails', 'Mocktails', 'Cognac', 'Mixers', 'Snacks', 'Food & Grills'].map(c => ({ v: c, l: c }));
+  }, [categories]);
+
+  const filteredItems = React.useMemo(() => {
+    if (selectedCatFilter === 'All') return items;
+    return items.filter(i => i.category.toLowerCase() === selectedCatFilter.toLowerCase());
+  }, [items, selectedCatFilter]);
+
   return (
     <div className="space-y-5">
-      <SectionHeader title="Menu Management" subtitle="Manage your club's menu items and categories in real-time" action={
-        <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold text-white hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>
-          <Plus className="h-3.5 w-3.5" /> Add Item
-        </button>
+      <SectionHeader title="Menu Management" subtitle="Manage your venue's categories, food, and drink items in real-time" action={
+        <div className="flex items-center gap-2.5">
+          <button onClick={() => setShowCategoriesModal(true)} className="flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-bold transition-colors hover:bg-slate-50" style={{ borderColor: 'var(--border)', color: 'var(--text-primary)', background: 'var(--bg-card)' }}>
+            <Layers className="h-3.5 w-3.5 text-blue-600" /> Manage Categories ({categories.length})
+          </button>
+          <button onClick={() => { setAddForm({ name: '', category: categories[0]?.name || 'Beer', price: '' }); setShowAdd(true); }} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold text-white hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>
+            <Plus className="h-3.5 w-3.5" /> Add Item
+          </button>
+        </div>
       } />
+
+      {/* Category Pills Filter Bar */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        <button
+          onClick={() => setSelectedCatFilter('All')}
+          className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold border transition-all ${selectedCatFilter === 'All' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'hover:bg-slate-100'}`}
+          style={selectedCatFilter === 'All' ? {} : { borderColor: 'var(--border)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
+        >
+          <span>All Items</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedCatFilter === 'All' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>{items.length}</span>
+        </button>
+        {categories.map(cat => (
+          <button
+            key={cat.id}
+            onClick={() => setSelectedCatFilter(cat.name)}
+            className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold border transition-all whitespace-nowrap ${selectedCatFilter === cat.name ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'hover:bg-slate-100'}`}
+            style={selectedCatFilter === cat.name ? {} : { borderColor: 'var(--border)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
+          >
+            <span>{cat.name}</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedCatFilter === cat.name ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>{cat.count}</span>
+          </button>
+        ))}
+        <button
+          onClick={() => { setNewCatForm({ name: '', description: '' }); setShowAddCatModal(true); }}
+          className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold text-blue-600 border border-dashed border-blue-300 hover:bg-blue-50 transition-colors whitespace-nowrap ml-1"
+        >
+          <Plus className="h-3 w-3" /> Add Category
+        </button>
+      </div>
+
+      {/* Menu Items Table */}
       <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
         <table className="w-full text-sm">
           <thead><tr className="border-b" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
             {['Item', 'Category', 'Price', 'Status', 'Actions'].map(h => <th key={h} className="px-5 py-3 text-left text-xs font-bold" style={{ color: 'var(--text-muted)' }}>{h}</th>)}
           </tr></thead>
-          <tbody>{items.map(item => (
-            <tr key={item.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
-              <td className="px-5 py-3.5 font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{item.name}</td>
-              <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{item.category}</td>
-              <td className="px-5 py-3.5 font-bold text-xs text-emerald-600">KES {item.price.toLocaleString()}</td>
-              <td className="px-5 py-3.5">
-                <button onClick={() => toggle(item.id)} className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold border transition-all ${item.status === 'Available' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'}`}>
-                  <div className={`h-1.5 w-1.5 rounded-full ${item.status === 'Available' ? 'bg-emerald-500' : 'bg-red-500'}`} />{item.status}
-                </button>
-              </td>
-              <td className="px-5 py-3.5">
-                <div className="flex items-center gap-1.5">
-                  <button onClick={() => del(item.id)} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Delete Item"><Trash2 className="h-3.5 w-3.5 text-red-400" /></button>
-                </div>
-              </td>
-            </tr>
-          ))}</tbody>
+          <tbody>
+            {filteredItems.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-5 py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
+                  No items found in {selectedCatFilter === 'All' ? 'this venue' : `"${selectedCatFilter}"`}. Click "+ Add Item" to add drinks or food.
+                </td>
+              </tr>
+            ) : (
+              filteredItems.map(item => (
+                <tr key={item.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
+                  <td className="px-5 py-3.5 font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{item.name}</td>
+                  <td className="px-5 py-3.5 text-xs">
+                    <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-semibold text-[11px] bg-slate-100 text-slate-700">
+                      <Tag className="h-2.5 w-2.5 text-slate-500" /> {item.category}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5 font-bold text-xs text-emerald-600">KES {item.price.toLocaleString()}</td>
+                  <td className="px-5 py-3.5">
+                    <button onClick={() => toggle(item.id)} className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold border transition-all ${item.status === 'Available' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'}`}>
+                      <div className={`h-1.5 w-1.5 rounded-full ${item.status === 'Available' ? 'bg-emerald-500' : 'bg-red-500'}`} />{item.status}
+                    </button>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => { setEditItemForm({ id: item.id, name: item.name, category: item.category, price: String(item.price) }); setShowEditItemModal(true); }} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="Edit Item">
+                        <Edit2 className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} />
+                      </button>
+                      <button onClick={() => del(item.id)} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Delete Item"><Trash2 className="h-3.5 w-3.5 text-red-400" /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
         </table>
       </div>
+
+      {/* ── Modal: Manage Categories ── */}
+      <Modal open={showCategoriesModal} onClose={() => setShowCategoriesModal(false)} title="Manage Menu Categories" size="md">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'var(--border)' }}>
+            <p className="text-xs text-slate-500">Edit or reorganize categories that appear when building menus.</p>
+            <button
+              onClick={() => { setNewCatForm({ name: '', description: '' }); setShowAddCatModal(true); }}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-white hover:opacity-90 transition-opacity"
+              style={{ background: '#2563EB' }}
+            >
+              <Plus className="h-3 w-3" /> New Category
+            </button>
+          </div>
+
+          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+            {categories.length === 0 ? (
+              <p className="text-center py-6 text-xs text-slate-400">No categories created yet. Click "+ New Category" to create one.</p>
+            ) : (
+              categories.map(cat => (
+                <div key={cat.id} className="flex items-center justify-between p-3 rounded-xl border bg-slate-50/50 hover:bg-slate-100/50 transition-colors" style={{ borderColor: 'var(--border)' }}>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                      {cat.name}
+                      <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">{cat.count} items</span>
+                    </h4>
+                    {cat.description && <p className="text-xs text-slate-500 mt-0.5">{cat.description}</p>}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => { setEditCatForm({ id: cat.id, name: cat.name, description: cat.description || '' }); setShowEditCatModal(true); }}
+                      className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 transition-colors"
+                      title="Edit / Rename Category"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                      className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
+                      title="Delete Category"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="pt-2 flex justify-end">
+            <button onClick={() => setShowCategoriesModal(false)} className="rounded-xl border px-5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors" style={{ borderColor: '#E2E8F0' }}>
+              Close
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Modal: Add Category ── */}
+      <Modal open={showAddCatModal} onClose={() => setShowAddCatModal(false)} title="Create New Category" size="sm">
+        <div className="space-y-4">
+          <div><FL required>Category Name</FL><SI value={newCatForm.name} onChange={e => setNewCatForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Cocktails, Food & Grills, Wines" /></div>
+          <div><FL>Description (Optional)</FL><SI value={newCatForm.description} onChange={e => setNewCatForm(p => ({ ...p, description: e.target.value }))} placeholder="e.g. Signature house mixes and craft specials" /></div>
+          <div className="flex gap-3 pt-1">
+            <button onClick={() => setShowAddCatModal(false)} className="flex-1 rounded-xl border py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors" style={{ borderColor: '#E2E8F0' }}>Cancel</button>
+            <button disabled={loading || !newCatForm.name.trim()} onClick={handleCreateCategory} className="flex-1 rounded-xl py-2.5 text-xs font-bold text-white hover:opacity-90 transition-opacity disabled:opacity-50" style={{ background: '#2563EB' }}>
+              {loading ? 'Creating...' : 'Create Category'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Modal: Edit Category ── */}
+      <Modal open={showEditCatModal} onClose={() => setShowEditCatModal(false)} title="Edit Category" size="sm">
+        <div className="space-y-4">
+          <div><FL required>Category Name</FL><SI value={editCatForm.name} onChange={e => setEditCatForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Cocktails" /></div>
+          <div><FL>Description (Optional)</FL><SI value={editCatForm.description} onChange={e => setEditCatForm(p => ({ ...p, description: e.target.value }))} placeholder="Short category description" /></div>
+          <div className="flex gap-3 pt-1">
+            <button onClick={() => setShowEditCatModal(false)} className="flex-1 rounded-xl border py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors" style={{ borderColor: '#E2E8F0' }}>Cancel</button>
+            <button disabled={loading || !editCatForm.name.trim()} onClick={handleUpdateCategory} className="flex-1 rounded-xl py-2.5 text-xs font-bold text-white hover:opacity-90 transition-opacity disabled:opacity-50" style={{ background: '#2563EB' }}>
+              {loading ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Modal: Add Menu Item ── */}
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add Menu Item">
         <div className="space-y-4">
           <div><FL required>Item Name</FL><SI value={addForm.name} onChange={e => setAddForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Whisky Sour" /></div>
-          <div><FL>Category</FL><SS value={addForm.category} onChange={e => setAddForm(p => ({ ...p, category: e.target.value }))} options={['Beer', 'Spirits', 'Wine', 'Cocktails', 'Mocktails', 'Cognac', 'Mixers', 'Snacks', 'Food & Grills'].map(c => ({ v: c, l: c }))} /></div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <FL required>Category</FL>
+              <button
+                type="button"
+                onClick={() => { setNewCatForm({ name: '', description: '' }); setShowAddCatModal(true); }}
+                className="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1"
+              >
+                <Plus className="h-3 w-3" /> New Category
+              </button>
+            </div>
+            <SS value={addForm.category} onChange={e => setAddForm(p => ({ ...p, category: e.target.value }))} options={categoryOptions} />
+          </div>
           <div><FL required>Price (KES)</FL><SI type="number" value={addForm.price} onChange={e => setAddForm(p => ({ ...p, price: e.target.value }))} placeholder="0" min="0" /></div>
           <div className="flex gap-3 pt-1">
             <button onClick={() => setShowAdd(false)} className="flex-1 rounded-xl border py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors" style={{ borderColor: '#E2E8F0' }}>Cancel</button>
             <button disabled={loading} onClick={handleAddItem} className="flex-1 rounded-xl py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>
               {loading ? 'Adding...' : 'Add Item'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Modal: Edit Menu Item ── */}
+      <Modal open={showEditItemModal} onClose={() => setShowEditItemModal(false)} title="Edit Menu Item">
+        <div className="space-y-4">
+          <div><FL required>Item Name</FL><SI value={editItemForm.name} onChange={e => setEditItemForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Whisky Sour" /></div>
+          <div>
+            <FL>Category</FL>
+            <SI value={editItemForm.category} disabled placeholder="Category" />
+          </div>
+          <div><FL required>Price (KES)</FL><SI type="number" value={editItemForm.price} onChange={e => setEditItemForm(p => ({ ...p, price: e.target.value }))} placeholder="0" min="0" /></div>
+          <div className="flex gap-3 pt-1">
+            <button onClick={() => setShowEditItemModal(false)} className="flex-1 rounded-xl border py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors" style={{ borderColor: '#E2E8F0' }}>Cancel</button>
+            <button disabled={loading} onClick={handleUpdateItem} className="flex-1 rounded-xl py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>
+              {loading ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </div>

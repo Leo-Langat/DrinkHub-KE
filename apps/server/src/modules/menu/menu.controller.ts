@@ -32,6 +32,34 @@ export class MenuController {
     }
   };
 
+  updateCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { categoryUuid } = req.params;
+      const category = await this.menuService.updateCategory(categoryUuid, req.body);
+      res.json({
+        success: true,
+        data: category,
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  archiveCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { categoryUuid } = req.params;
+      await this.menuService.archiveCategory(categoryUuid);
+      res.json({
+        success: true,
+        data: { message: 'Category deleted successfully' },
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   updateCategoryOrders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const clubUuid = req.user?.tenantId || (req.headers['x-tenant-id'] as string);

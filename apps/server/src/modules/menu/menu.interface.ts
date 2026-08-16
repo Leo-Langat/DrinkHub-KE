@@ -2,7 +2,10 @@ import { MenuCategory, Product, Offer } from '@prisma/client';
 
 export interface IMenuRepository {
   findCategoriesByClub(clubUuid: string): Promise<MenuCategory[]>;
+  findCategoryById(categoryUuid: string): Promise<MenuCategory | null>;
   createCategory(clubUuid: string, data: Partial<MenuCategory>): Promise<MenuCategory>;
+  updateCategory(categoryUuid: string, data: Partial<MenuCategory>): Promise<MenuCategory>;
+  archiveCategory(categoryUuid: string): Promise<boolean>;
   updateCategoryOrders(clubUuid: string, orders: { categoryUuid: string; displayOrder: number }[]): Promise<void>;
   
   findProductsByClub(clubUuid: string): Promise<Product[]>;

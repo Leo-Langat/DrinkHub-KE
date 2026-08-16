@@ -109,6 +109,17 @@ export const DigitalStorefrontPage: React.FC = () => {
         const order = data.data?.order ?? data.data;
         if (isMounted && order) {
           setActiveOrder(order);
+
+          // Auto-dismiss banner 5 seconds after delivery confirmation
+          if (order.status === 'DELIVERED') {
+            setTimeout(() => {
+              if (isMounted) {
+                setActiveOrder(null);
+                setActiveOrderUuid(null);
+                localStorage.removeItem('drinkhub_active_order_uuid');
+              }
+            }, 5000);
+          }
         }
       } catch {
         /* keep previous order state */
@@ -799,8 +810,12 @@ export const DigitalStorefrontPage: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-1 text-xs font-bold text-blue-400">
-              <span>View Tracker</span>
-              <ChevronRight className="w-4 h-4" />
+              {activeOrder.status !== 'DELIVERED' && (
+                <>
+                  <span>View Tracker</span>
+                  <ChevronRight className="w-4 h-4" />
+                </>
+              )}
             </div>
           </div>
         </div>

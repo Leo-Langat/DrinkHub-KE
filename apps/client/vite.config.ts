@@ -8,6 +8,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@drinkhub/shared': path.resolve(__dirname, '../../packages/shared/src/index.ts'),
+      '@drinkhub/ui': path.resolve(__dirname, '../../packages/ui/src/index.ts'),
     },
   },
   build: {

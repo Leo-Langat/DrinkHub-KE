@@ -15,7 +15,9 @@
     "noUnusedParameters": false,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@drinkhub/shared": ["../../packages/shared/src/index.ts"],
+      "@drinkhub/ui": ["../../packages/ui/src/index.ts"]
     }
   },
   "include": ["src"]

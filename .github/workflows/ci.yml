@@ -32,9 +32,6 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/drinkhub_test?sslmode=disable
         run: npx prisma generate --schema=apps/server/prisma/schema.prisma
 
-      - name: Build Shared Package
-        run: npm run build --workspace=packages/shared
-
       - name: Run TypeScript Type Check
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/drinkhub_test?sslmode=disable

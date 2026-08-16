@@ -7,9 +7,11 @@ export class MenuService {
   constructor(private menuRepository: IMenuRepository) {}
 
   async getMenuForClub(clubUuid: string) {
-    const categories = await this.menuRepository.findCategoriesByClub(clubUuid);
-    const products = await this.menuRepository.findProductsByClub(clubUuid);
-    const offers = await this.menuRepository.findOffersByClub(clubUuid);
+    const [categories, products, offers] = await Promise.all([
+      this.menuRepository.findCategoriesByClub(clubUuid),
+      this.menuRepository.findProductsByClub(clubUuid),
+      this.menuRepository.findOffersByClub(clubUuid),
+    ]);
     return { categories, products, offers };
   }
 

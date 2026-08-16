@@ -670,9 +670,13 @@ interface CategoryItem {
   count: number;
 }
 
+/* Module-level cache — survives re-renders and tab navigation */
+let _menuCache: { categories: CategoryItem[]; items: MenuItem[] } | null = null;
+
 const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
-  const [items, setItems] = React.useState<MenuItem[]>([]);
-  const [categories, setCategories] = React.useState<CategoryItem[]>([]);
+  // Seed from cache immediately so the tab appears instant on revisit
+  const [items, setItems] = React.useState<MenuItem[]>(_menuCache?.items ?? []);
+  const [categories, setCategories] = React.useState<CategoryItem[]>(_menuCache?.categories ?? []);
   const [selectedCatFilter, setSelectedCatFilter] = React.useState<string>('All');
   
   // Modals
@@ -690,6 +694,8 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
   const [editItemForm, setEditItemForm] = React.useState({ id: '', name: '', category: '', price: '', imageUrl: '', description: '' });
 
   const [loading, setLoading] = React.useState(false);
+  // True only on first load when there's no cached data yet
+  const [fetching, setFetching] = React.useState(_menuCache === null);
 
   /* ── Image Upload & Canvas Compression ── */
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
@@ -760,9 +766,10 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
       }));
       setCategories(parsedCats);
 
-      if (!addForm.category && parsedCats.length > 0) {
-        setAddForm(p => ({ ...p, category: parsedCats[0].name }));
-      }
+      setAddForm(p => ({
+        ...p,
+        category: p.category || parsedCats[0]?.name || '',
+      }));
 
       const flat: MenuItem[] = [];
       rawCats.forEach((cat: any) => {
@@ -779,8 +786,16 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
         });
       });
       setItems(flat);
-    } catch { /* keep empty on error */ }
-  }, [addForm.category]);
+
+      // Populate module-level cache for instant revisits
+      _menuCache = { categories: parsedCats, items: flat };
+    } catch { /* keep previous state on error */ }
+    finally {
+      setFetching(false);
+    }
+  // No dependency on addForm.category — prevents re-fetching on every form change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   React.useEffect(() => {
     fetchMenu();
@@ -954,6 +969,50 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
     }
     return list;
   }, [items, selectedCatFilter, searchQuery]);
+
+  if (fetching) {
+    return (
+      <div className="space-y-5 animate-pulse">
+        {/* Header skeleton */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-5 w-44 rounded-lg bg-slate-200 dark:bg-slate-700" />
+            <div className="h-3 w-72 rounded-lg bg-slate-100 dark:bg-slate-800" />
+          </div>
+          <div className="flex gap-2">
+            <div className="h-8 w-36 rounded-lg bg-slate-200 dark:bg-slate-700" />
+            <div className="h-8 w-24 rounded-lg bg-blue-200 dark:bg-blue-900" />
+          </div>
+        </div>
+        {/* Pills skeleton */}
+        <div className="flex gap-2">
+          {[80, 70, 90, 75, 85].map((w, i) => (
+            <div key={i} className="h-7 rounded-full bg-slate-200 dark:bg-slate-700" style={{ width: w }} />
+          ))}
+        </div>
+        {/* Table skeleton */}
+        <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+          <div className="h-10 bg-slate-100 dark:bg-slate-800" />
+          {[1, 2, 3, 4, 5, 6].map(n => (
+            <div key={n} className="flex items-center gap-4 px-5 py-3.5 border-b" style={{ borderColor: 'var(--border)' }}>
+              <div className="h-10 w-10 rounded-xl bg-slate-200 dark:bg-slate-700 flex-shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-3.5 w-36 rounded bg-slate-200 dark:bg-slate-700" />
+                <div className="h-2.5 w-56 rounded bg-slate-100 dark:bg-slate-800" />
+              </div>
+              <div className="h-5 w-20 rounded-md bg-slate-200 dark:bg-slate-700" />
+              <div className="h-4 w-20 rounded bg-slate-200 dark:bg-slate-700" />
+              <div className="h-5 w-16 rounded-full bg-slate-200 dark:bg-slate-700" />
+              <div className="flex gap-2">
+                <div className="h-6 w-6 rounded-lg bg-slate-200 dark:bg-slate-700" />
+                <div className="h-6 w-6 rounded-lg bg-slate-200 dark:bg-slate-700" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

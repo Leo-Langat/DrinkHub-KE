@@ -116,6 +116,30 @@ export class AuthRepository implements IAuthRepository {
     });
   }
 
+  async touchUserSession(userUuid: string): Promise<void> {
+    await prisma.userSession.updateMany({
+      where: {
+        userUuid,
+        isValid: true,
+        expiresAt: { gt: new Date() },
+      },
+      data: {
+        updatedAt: new Date(),
+      },
+    });
+  }
+
+  async deleteUser(userUuid: string): Promise<void> {
+    await prisma.user.update({
+      where: { userUuid },
+      data: { deletedAt: new Date(), isActive: false },
+    });
+    await prisma.userSession.updateMany({
+      where: { userUuid },
+      data: { isValid: false },
+    });
+  }
+
   async listStaffByClub(clubUuid: string, role?: string): Promise<User[]> {
     // Build role filter: no special grouping needed — each role maps to itself
     const roleFilter = role ? { equals: role as UserRole } : undefined;
@@ -127,10 +151,19 @@ export class AuthRepository implements IAuthRepository {
         ...(roleFilter ? { role: roleFilter } : {}),
       },
       orderBy: { createdAt: 'desc' },
-      include: { club: true } as any,
+      include: {
+        club: true,
+        sessions: {
+          where: {
+            isValid: true,
+            expiresAt: { gt: new Date() },
+          },
+          orderBy: { updatedAt: 'desc' },
+          take: 1,
+        },
+      } as any,
     });
   }
-
 
   async listAllStaff(role?: string): Promise<User[]> {
     const roleFilter = (role === 'CLUB_ADMIN' || role === 'MANAGER')
@@ -143,7 +176,17 @@ export class AuthRepository implements IAuthRepository {
         ...(roleFilter ? { role: roleFilter } : {}),
       },
       orderBy: { createdAt: 'desc' },
-      include: { club: true } as any,
+      include: {
+        club: true,
+        sessions: {
+          where: {
+            isValid: true,
+            expiresAt: { gt: new Date() },
+          },
+          orderBy: { updatedAt: 'desc' },
+          take: 1,
+        },
+      } as any,
     });
   }
 }

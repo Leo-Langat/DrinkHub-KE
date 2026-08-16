@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { UnauthorizedError, ForbiddenError } from '../errors/app-error';
 import { verifyAccessToken, JwtPayload } from '../utils/jwt';
+import { prisma } from '../../config/prisma';
 
 declare global {
   namespace Express {
@@ -20,6 +21,21 @@ export const authenticate = (req: Request, _res: Response, next: NextFunction): 
   try {
     const payload = verifyAccessToken(token);
     req.user = payload;
+
+    // Asynchronously touch user's active session to keep online status fresh
+    if (payload.userId) {
+      prisma.userSession.updateMany({
+        where: {
+          userUuid: payload.userId,
+          isValid: true,
+          expiresAt: { gt: new Date() },
+        },
+        data: {
+          updatedAt: new Date(),
+        },
+      }).catch(() => {});
+    }
+
     next();
   } catch (_err) {
     throw new UnauthorizedError('Invalid or expired token');

@@ -295,34 +295,74 @@ export class AuthService {
 
   async listStaff(clubUuid: string, role?: string) {
     const users = await (this.authRepository as any).listStaffByClub(clubUuid, role);
-    return users.map((u: any) => ({
-      uuid: u.userUuid,
-      userUuid: u.userUuid,
-      fullName: u.fullName,
-      email: u.email,
-      phone: u.phone,
-      role: u.role,
-      isActive: u.isActive,
-      createdAt: u.createdAt,
-      clubUuid: u.clubUuid,
-      club: u.club ? { name: u.club.name, uuid: u.club.uuid } : null,
-    }));
+    const now = Date.now();
+    const FIVE_MINUTES_MS = 5 * 60 * 1000;
+
+    return users.map((u: any) => {
+      const activeSession = u.sessions?.[0];
+      const isRecentlyActive = activeSession
+        ? (now - new Date(activeSession.updatedAt).getTime()) < FIVE_MINUTES_MS
+        : false;
+      const isOnline = Boolean(activeSession && isRecentlyActive);
+
+      return {
+        uuid: u.userUuid,
+        userUuid: u.userUuid,
+        fullName: u.fullName,
+        email: u.email,
+        phone: u.phone,
+        role: u.role,
+        isActive: u.isActive,
+        isOnline,
+        onlineStatus: isOnline ? 'Online' : 'Offline',
+        lastLogin: activeSession?.createdAt ?? u.createdAt,
+        lastSeenAt: activeSession?.updatedAt ?? null,
+        createdAt: u.createdAt,
+        clubUuid: u.clubUuid,
+        club: u.club ? { name: u.club.name, uuid: u.club.uuid } : null,
+      };
+    });
   }
 
   async listAllStaff(role?: string) {
     const users = await (this.authRepository as any).listAllStaff(role);
-    return users.map((u: any) => ({
-      uuid: u.userUuid,
-      userUuid: u.userUuid,
-      fullName: u.fullName,
-      email: u.email,
-      phone: u.phone,
-      role: u.role,
-      isActive: u.isActive,
-      createdAt: u.createdAt,
-      clubUuid: u.clubUuid,
-      club: u.club ? { name: u.club.name, uuid: u.club.uuid } : null,
-    }));
+    const now = Date.now();
+    const FIVE_MINUTES_MS = 5 * 60 * 1000;
+
+    return users.map((u: any) => {
+      const activeSession = u.sessions?.[0];
+      const isRecentlyActive = activeSession
+        ? (now - new Date(activeSession.updatedAt).getTime()) < FIVE_MINUTES_MS
+        : false;
+      const isOnline = Boolean(activeSession && isRecentlyActive);
+
+      return {
+        uuid: u.userUuid,
+        userUuid: u.userUuid,
+        fullName: u.fullName,
+        email: u.email,
+        phone: u.phone,
+        role: u.role,
+        isActive: u.isActive,
+        isOnline,
+        onlineStatus: isOnline ? 'Online' : 'Offline',
+        lastLogin: activeSession?.createdAt ?? u.createdAt,
+        lastSeenAt: activeSession?.updatedAt ?? null,
+        createdAt: u.createdAt,
+        clubUuid: u.clubUuid,
+        club: u.club ? { name: u.club.name, uuid: u.club.uuid } : null,
+      };
+    });
+  }
+
+  async recordHeartbeat(userUuid: string): Promise<void> {
+    await (this.authRepository as any).touchUserSession(userUuid);
+  }
+
+  async deleteUser(userUuid: string): Promise<void> {
+    const user = await this.authRepository.findById(userUuid);
+    if (!user) throw new NotFoundError('User not found');
+    await (this.authRepository as any).deleteUser(userUuid);
   }
 
   async getUserById(userUuid: string) {

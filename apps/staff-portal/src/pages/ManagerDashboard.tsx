@@ -364,41 +364,46 @@ const StaffManagementPage = ({ showToast }: { showToast: (m: string) => void }) 
   const [statusFilter, setStatusFilter] = React.useState('All');
   const [showAdd, setShowAdd] = React.useState(false);
 
-  /* Fetch staff from API */
-  React.useEffect(() => {
-    const fetchStaff = async () => {
-      setLoadingWaiters(true);
-      try {
-        const res = await fetch(getApiUrl('/auth/staff?role=WAITER'), { headers: authHeaders() });
-        if (!res.ok) throw new Error('Failed to load staff');
-        const data = await res.json();
-        const raw: any[] = data.data?.staff ?? data.data ?? [];
-        setWaiters(raw.map((u: any, i: number) => {
-          const parts = (u.fullName ?? '').split(' ');
-          return {
-            id: u.uuid,
-            firstName: parts[0] ?? '',
-            lastName: parts.slice(1).join(' ') ?? '',
-            phone: u.phone ?? '',
-            email: u.email ?? '',
-            username: u.email?.split('@')[0] ?? `staff-${i + 1}`,
-            employeeNo: `EMP-${String(i + 1).padStart(3, '0')}`,
-            status: u.isActive ? 'Active' : 'Inactive' as Waiter['status'],
-            shift: '',
-            onlineStatus: 'Offline' as const,
-            lastLogin: u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-KE') : 'Never',
-            notes: '',
-          };
-        }));
-      } catch {
-        // On error, keep empty state - do not fall back to hardcoded data
-        setWaiters([]);
-      } finally {
-        setLoadingWaiters(false);
-      }
-    };
-    fetchStaff();
+  /* Fetch staff from API with live polling */
+  const fetchStaff = React.useCallback(async (showLoading = false) => {
+    if (showLoading) setLoadingWaiters(true);
+    try {
+      const res = await fetch(getApiUrl('/auth/staff?role=WAITER'), { headers: authHeaders() });
+      if (!res.ok) throw new Error('Failed to load staff');
+      const data = await res.json();
+      const raw: any[] = data.data?.staff ?? data.data ?? [];
+      setWaiters(raw.map((u: any, i: number) => {
+        const parts = (u.fullName ?? '').split(' ');
+        const isOnline = Boolean(u.isOnline || u.onlineStatus === 'Online');
+        return {
+          id: u.uuid ?? u.userUuid ?? u.id,
+          firstName: parts[0] ?? '',
+          lastName: parts.slice(1).join(' ') ?? '',
+          phone: u.phone ?? '',
+          email: u.email ?? '',
+          username: u.email?.split('@')[0] ?? `staff-${i + 1}`,
+          employeeNo: `EMP-${String(i + 1).padStart(3, '0')}`,
+          status: (u.isActive ? 'Active' : 'Inactive') as Waiter['status'],
+          shift: '',
+          onlineStatus: (isOnline ? 'Online' : 'Offline') as 'Online' | 'Offline',
+          lastLogin: u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('en-KE') : (u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-KE') : 'Never'),
+          notes: '',
+        };
+      }));
+    } catch {
+      setWaiters([]);
+    } finally {
+      if (showLoading) setLoadingWaiters(false);
+    }
   }, []);
+
+  React.useEffect(() => {
+    fetchStaff(true);
+    const interval = setInterval(() => {
+      fetchStaff(false);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [fetchStaff]);
 
   const filtered = waiters.filter(w => {
     const matchSearch = `${w.firstName} ${w.lastName} ${w.username} ${w.phone}`.toLowerCase().includes(search.toLowerCase());
@@ -409,25 +414,44 @@ const StaffManagementPage = ({ showToast }: { showToast: (m: string) => void }) 
   const online = waiters.filter(w => w.onlineStatus === 'Online').length;
   const onLeave = waiters.filter(w => w.status === 'On Leave').length;
 
-  const toggleStatus = (id: string) => {
-    setWaiters(prev => prev.map(w => {
-      if (w.id !== id) return w;
-      const next = w.status === 'Active' ? 'Inactive' : 'Active';
-      showToast(`${w.firstName}'s account ${next === 'Active' ? 'activated' : 'deactivated'}`);
-      return { ...w, status: next as Waiter['status'] };
-    }));
+  const toggleStatus = async (id: string) => {
+    const target = waiters.find(w => w.id === id);
+    if (!target) return;
+    const nextActive = target.status !== 'Active';
+    try {
+      const res = await fetch(getApiUrl(`/auth/users/${id}/status`), {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ isActive: nextActive }),
+      });
+      if (!res.ok) throw new Error('Failed to update status');
+      setWaiters(prev => prev.map(w => w.id === id ? { ...w, status: nextActive ? 'Active' : 'Inactive' } : w));
+      showToast(`${target.firstName}'s account ${nextActive ? 'activated' : 'deactivated'}`);
+    } catch (err: any) {
+      showToast(err.message || 'Error updating account status');
+    }
   };
 
-  const deleteWaiter = (id: string) => {
-    const w = waiters.find(x => x.id === id);
-    setWaiters(prev => prev.filter(x => x.id !== id));
-    if (w) showToast(`${w.firstName} ${w.lastName} removed`);
+  const deleteWaiter = async (id: string) => {
+    const target = waiters.find(w => w.id === id);
+    if (!target) return;
+    if (!confirm(`Are you sure you want to remove ${target.firstName} ${target.lastName}?`)) return;
+    try {
+      const res = await fetch(getApiUrl(`/auth/users/${id}`), {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
+      if (!res.ok) throw new Error('Failed to delete staff member');
+      setWaiters(prev => prev.filter(w => w.id !== id));
+      showToast(`${target.firstName} ${target.lastName} removed`);
+    } catch (err: any) {
+      showToast(err.message || 'Error removing staff member');
+    }
   };
-
 
   return (
     <div className="space-y-5">
-      <SectionHeader title="Staff Management" subtitle="Manage waiters for your venue     only managers can create staff" action={
+      <SectionHeader title="Staff Management" subtitle="Manage waiters for your venue — only managers can create staff" action={
         <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold text-white hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>
           <Plus className="h-3.5 w-3.5" /> Add Waiter
         </button>
@@ -445,7 +469,7 @@ const StaffManagementPage = ({ showToast }: { showToast: (m: string) => void }) 
       <div className="flex items-center gap-3">
         <div className="flex-1 flex items-center gap-2 rounded-lg border px-3.5 py-2" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
           <Search className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, username or phone   " className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--text-primary)' }} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, username or phone…" className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--text-primary)' }} />
         </div>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="rounded-lg border px-3.5 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
           {['All', 'Active', 'Inactive', 'On Leave'].map(s => <option key={s}>{s}</option>)}
@@ -486,12 +510,14 @@ const StaffManagementPage = ({ showToast }: { showToast: (m: string) => void }) 
                 <td className="px-4 py-3.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{w.phone}</td>
                 <td className="px-4 py-3.5"><StatusBadge status={w.status} /></td>
                 <td className="px-4 py-3.5">
-                  <div className="flex items-center gap-1.5">
-                    <div className={`h-2 w-2 rounded-full ${w.onlineStatus === 'Online' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                    <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{w.onlineStatus}</span>
+                  <div className="flex items-center gap-2">
+                    <div className={`h-2.5 w-2.5 rounded-full ${w.onlineStatus === 'Online' ? 'bg-emerald-500 ring-4 ring-emerald-500/20 animate-pulse' : 'bg-slate-300'}`} />
+                    <span className={`text-xs ${w.onlineStatus === 'Online' ? 'text-emerald-600 font-bold' : 'text-slate-400'}`}>
+                      {w.onlineStatus}
+                    </span>
                   </div>
                 </td>
-                <td className="px-4 py-3.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{w.shift || '   '}</td>
+                <td className="px-4 py-3.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{w.shift || '—'}</td>
                 <td className="px-4 py-3.5 text-xs" style={{ color: 'var(--text-muted)' }}>{w.lastLogin}</td>
                 <td className="px-4 py-3.5">
                   <div className="flex items-center gap-1.5">

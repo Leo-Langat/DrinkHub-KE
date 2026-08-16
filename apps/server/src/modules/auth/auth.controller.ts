@@ -228,4 +228,34 @@ export class AuthController {
       next(error);
     }
   };
+
+  heartbeat = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user?.userId;
+      if (userId) {
+        await (this.authService as any).recordHeartbeat(userId);
+      }
+      res.json({
+        success: true,
+        data: { online: true },
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  deleteUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { uuid } = req.params;
+      await (this.authService as any).deleteUser(uuid);
+      res.json({
+        success: true,
+        data: { message: 'User deleted successfully' },
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

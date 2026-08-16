@@ -277,3 +277,36 @@ authRouter.get('/staff', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PLAT
  *         description: User status updated
  */
 authRouter.patch('/users/:uuid/status', authenticate, authorize(['PLATFORM_ADMIN', 'CLUB_ADMIN', 'MANAGER']), authController.toggleUserStatus);
+
+/**
+ * @openapi
+ * /auth/users/{uuid}:
+ *   delete:
+ *     summary: Delete a staff user account
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: uuid
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: User deleted
+ */
+authRouter.delete('/users/:uuid', authenticate, authorize(['PLATFORM_ADMIN', 'CLUB_ADMIN', 'MANAGER']), authController.deleteUser);
+
+/**
+ * @openapi
+ * /auth/heartbeat:
+ *   post:
+ *     summary: Record heartbeat to keep user online status active
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Heartbeat recorded
+ */
+authRouter.post('/heartbeat', authenticate, authController.heartbeat);

@@ -215,6 +215,37 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
     return () => clearInterval(interval);
   }, [fetchOrders]);
 
+  /* Periodic heartbeat every 30s to keep online status active in manager portal */
+  useEffect(() => {
+    const sendHeartbeat = () => {
+      fetch(getApiUrl('/auth/heartbeat'), {
+        method: 'POST',
+        headers: authHeaders(),
+      }).catch(() => {});
+    };
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 30_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  /* ── Logout Handler ── */
+  const handleLogout = async () => {
+    try {
+      const refreshToken = localStorage.getItem('drinkhub_refresh_token');
+      if (refreshToken) {
+        await fetch(getApiUrl('/auth/logout'), {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({ refreshToken }),
+        });
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      onLogout();
+    }
+  };
+
   /* ── Claim an order ── */
   const claimOrder = async (order: Order) => {
     if (!order.id || order.id === 'undefined') {
@@ -326,7 +357,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
             <span className="text-xs font-medium text-white">{displayName}</span>
           </div>
 
-          <button onClick={onLogout} className="h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors" title="Sign Out">
+          <button onClick={handleLogout} className="h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors" title="Sign Out">
             <LogOut className="h-4 w-4" />
           </button>
         </div>

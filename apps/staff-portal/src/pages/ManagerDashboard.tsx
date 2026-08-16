@@ -6,7 +6,7 @@ import {
   Eye, EyeOff, Trash2, Edit2, CheckCircle2, X, RefreshCcw, Filter,
   AlertCircle, ArrowUpRight, RotateCcw, Key, UserX, UserCheck,
   Phone, Mail, Hash, Lock, Clock, Briefcase, Shield, QrCode, Copy, ExternalLink,
-  Tag, Layers, FolderPlus, Camera, Image, Upload, Printer, Check,
+  Tag, Layers, FolderPlus, Camera, Image, Upload, Printer, Sparkles,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis,
@@ -1499,170 +1499,156 @@ const ManagerSettingsPage = ({ showToast }: { showToast: (m: string) => void }) 
 
 /* --- QR Codes Page --- */
 const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, type?: 'success' | 'error') => void }) => {
-  const clubUuid = user.clubUuid || user.club?.clubUuid || user.club?.id || user.tenantId || '';
-  const clubSlug = user.club?.slug || (user.club?.name ? user.club.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'venue');
+  const clubSlug = user.club?.slug || user.clubSlug || user.tenantSlug || (user.club?.name ? user.club.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'g-place');
   const clubName = user.club?.name || 'Your Venue';
+  const clubUuid = user.club?.clubUuid || user.clubUuid || user.tenantId || '';
   const fullBaseUrl = `https://drink-hub-ke-customer-pwa.vercel.app/v/${clubSlug}`;
 
-  const [tableCount, setTableCount] = useState(1);
-  const [section, setSection] = useState('Main Lounge');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [copiedId, setCopiedId] = useState<number | null>(null);
-  const [tables, setTables] = useState<{ id: number; section: string; tableUuid?: string; qrUrl?: string }[]>([]);
+  const storageKey = `drinkhub_qr_tables_${clubSlug}`;
 
-  // The next table number to be generated is always one after the highest existing table
-  const nextTableNum = tables.length > 0 ? Math.max(...tables.map(t => t.id)) + 1 : 1;
+  const [tableCount, setTableCount] = useState<string>('10');
+  const [startTable, setStartTable] = useState<string>('1');
+  const [section, setSection] = useState<string>('Main Lounge');
+  const [genMode, setGenMode] = useState<'replace' | 'append'>('replace');
 
-  // Keep the "Number of Tables" field in sync: it should show nextTableNum
-  // so the manager sees the correct starting point immediately
-  React.useEffect(() => {
-    setTableCount(nextTableNum);
-  }, [nextTableNum]);
-
-  // Load existing tables from backend on mount
-  React.useEffect(() => {
-    let isMounted = true;
-    const fetchExisting = async () => {
-      try {
-        if (clubUuid) {
-          const res = await fetch(getApiUrl(`/tenants/${clubUuid}/tables`), { headers: authHeaders() });
-          if (res.ok) {
-            const data = await res.json();
-            const rawTables: any[] = data.data || [];
-            if (rawTables.length > 0 && isMounted) {
-              const loaded = rawTables.map(t => ({
-                id: Number(t.tableNumber),
-                section: t.sectionName || 'Main Lounge',
-                tableUuid: t.tableUuid,
-                qrUrl: t.qrCode?.imageUrl || undefined,
-              }));
-              setTables(loaded);
-              return;
-            }
-          }
-        }
-      } catch {
-        /* Fallback to local storage if API call fails */
-      }
-
-      const saved = localStorage.getItem(`drinkhub_tables_${clubSlug}`);
-      if (saved && isMounted) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setTables(parsed);
-            return;
-          }
-        } catch {}
-      }
-      // No existing tables — start fresh (empty)
-      if (isMounted) setTables([]);
-    };
-
-    fetchExisting();
-    return () => { isMounted = false; };
-  }, [clubUuid, clubSlug]);
-
-  const handleGenerate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (tableCount < 1 || tableCount > 200) {
-      showToast('Please enter a valid table count between 1 and 200', 'error');
-      return;
-    }
-
-    setIsGenerating(true);
-    const targetSection = section.trim() || 'Main Lounge';
-
+  const [tables, setTables] = useState<{ id: number; section: string }[]>(() => {
     try {
-      if (clubUuid) {
-        const res = await fetch(getApiUrl(`/tenants/${clubUuid}/generate-qr`), {
-          method: 'POST',
-          headers: authHeaders(),
-          body: JSON.stringify({
-            tableCount: Number(tableCount),
-            sectionName: targetSection,
-            // Let the backend know where to start numbering
-            startFrom: nextTableNum,
-          }),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          // Prefer allTables (full sorted list) so the grid always shows everything
-          const rawAll: any[] = data.data?.allTables || data.data?.tables || [];
-          if (rawAll.length > 0) {
-            const allMapped = rawAll.map((t: any) => ({
-              id: Number(t.tableNumber),
-              section: t.sectionName || targetSection,
-              tableUuid: t.tableUuid,
-              qrUrl: t.qrCode?.imageUrl || undefined,
-            }));
-            setTables(allMapped);
-            localStorage.setItem(`drinkhub_tables_${clubSlug}`, JSON.stringify(allMapped));
-            showToast(`Added Table ${nextTableNum} to "${targetSection}"!`);
-            return;
-          }
-        }
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
+    } catch {}
+    return Array.from({ length: 10 }, (_, i) => ({ id: i + 1, section: 'Main Lounge' }));
+  });
 
-      // Offline / client-side fallback — append to existing tables
-      const generated = Array.from({ length: tableCount }, (_, i) => ({
-        id: nextTableNum + i,
-        section: targetSection,
-      }));
-      const merged = [...tables, ...generated];
-      setTables(merged);
-      localStorage.setItem(`drinkhub_tables_${clubSlug}`, JSON.stringify(merged));
-      showToast(`Added Table ${nextTableNum} to "${targetSection}"!`);
-    } catch {
-      const generated = Array.from({ length: tableCount }, (_, i) => ({
-        id: nextTableNum + i,
-        section: targetSection,
-      }));
-      const merged = [...tables, ...generated];
-      setTables(merged);
-      localStorage.setItem(`drinkhub_tables_${clubSlug}`, JSON.stringify(merged));
-      showToast(`Added Table ${nextTableNum} to "${targetSection}"!`);
-    } finally {
-      setIsGenerating(false);
+  // Initial load from backend API if available
+  React.useEffect(() => {
+    if (!clubUuid) return;
+    fetch(getApiUrl(`/tenants/${clubUuid}/tables`), { headers: authHeaders() })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        const raw = data?.data;
+        if (Array.isArray(raw) && raw.length > 0) {
+          const apiTables = raw.map((t: any) => ({
+            id: Number(t.tableNumber),
+            section: t.sectionName || 'Main Lounge',
+          })).sort((a: any, b: any) => a.id - b.id);
+          setTables(apiTables);
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(apiTables));
+          } catch {}
+        }
+      })
+      .catch(() => {});
+  }, [clubUuid, storageKey]);
+
+  const handleGenerate = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const count = Math.min(Math.max(parseInt(tableCount) || 1, 1), 100);
+    const start = Math.max(parseInt(startTable) || 1, 1);
+    const sectionName = section.trim() || 'Main Lounge';
+
+    const generated = Array.from({ length: count }, (_, i) => ({
+      id: start + i,
+      section: sectionName,
+    }));
+
+    let updated: { id: number; section: string }[];
+    if (genMode === 'append') {
+      const existingWithoutOverlap = tables.filter(t => !generated.some(g => g.id === t.id));
+      updated = [...existingWithoutOverlap, ...generated].sort((a, b) => a.id - b.id);
+    } else {
+      updated = generated;
     }
+
+    setTables(updated);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    } catch {}
+
+    // Synchronize with backend in background
+    if (clubUuid) {
+      fetch(getApiUrl(`/tenants/${clubUuid}/generate-qr`), {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          tableCount: count,
+          sectionName: sectionName,
+          startFrom: start,
+        }),
+      }).catch(() => {});
+    }
+
+    showToast(`Generated ${count} QR codes for ${sectionName} (Tables ${start}–${start + count - 1})`);
   };
 
-  const copyToClipboard = (text: string, label: string, tableId?: number) => {
+  const handleReset = () => {
+    const defaults = Array.from({ length: 10 }, (_, i) => ({ id: i + 1, section: 'Main Lounge' }));
+    setTables(defaults);
+    setTableCount('10');
+    setStartTable('1');
+    setSection('Main Lounge');
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(defaults));
+    } catch {}
+    showToast('Reset to default 10 tables');
+  };
+
+  const handleDeleteTable = (id: number) => {
+    const next = tables.filter(t => t.id !== id);
+    setTables(next);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(next));
+    } catch {}
+    showToast(`Removed Table ${id}`);
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
-    if (tableId !== undefined) {
-      setCopiedId(tableId);
-      setTimeout(() => setCopiedId(null), 2000);
-    }
     showToast(`${label} copied to clipboard!`);
   };
 
-  const downloadQr = async (qrImgUrl: string, tableName: string) => {
+  const downloadQrImage = async (tableId: number, sectionName: string) => {
+    const tableUrl = `${fullBaseUrl}/t/${tableId}`;
+    const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(tableUrl)}`;
     try {
       const res = await fetch(qrImgUrl);
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = blobUrl;
-      a.download = `${clubSlug}-${tableName.toLowerCase().replace(/\s+/g, '-')}-qr.png`;
+      a.download = `${clubSlug}-Table-${tableId}-${sectionName.replace(/\s+/g, '_')}-QR.png`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
-      showToast(`Downloaded QR for ${tableName}`);
+      showToast(`Downloaded QR code for Table ${tableId}`);
     } catch {
       window.open(qrImgUrl, '_blank');
     }
   };
 
-  const handlePrintAll = () => {
+  const handlePrint = () => {
     window.print();
   };
 
+  const parsedCount = Math.min(Math.max(parseInt(tableCount) || 1, 1), 100);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 print:m-0 print:p-0">
+      {/* Print Styles */}
+      <style>{`
+        @media print {
+          body { background: white !important; color: black !important; }
+          aside, nav, header, .no-print { display: none !important; }
+          .print-area { display: block !important; }
+          .qr-card-print { break-inside: avoid; page-break-inside: avoid; border: 1px solid #e2e8f0 !important; color: black !important; background: white !important; }
+        }
+      `}</style>
+
       {/* Top Banner / Venue Overview */}
-      <div className="rounded-2xl border p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+      <div className="rounded-2xl border p-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 no-print" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
         <div>
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -1675,18 +1661,16 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
             <span>{fullBaseUrl}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2.5 flex-shrink-0">
+        <div className="flex items-center gap-2.5 flex-wrap">
           <button
-            type="button"
-            onClick={handlePrintAll}
-            className="flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-bold transition-all hover:bg-slate-50 dark:hover:bg-slate-800"
-            style={{ borderColor: 'var(--border)', color: 'var(--text-primary)', background: 'var(--bg-card)' }}
+            onClick={handlePrint}
+            className="flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-4 py-2.5 text-xs font-bold transition-all hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm"
           >
-            <Printer className="h-4 w-4 text-slate-500" /> Print Table Stands
+            <Printer className="h-4 w-4 text-blue-600 dark:text-blue-400" /> Print QR Sheet
           </button>
           <button
             onClick={() => copyToClipboard(fullBaseUrl, 'Venue Menu URL')}
-            className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-xs font-bold transition-all shadow-md hover:shadow-lg"
+            className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 text-xs font-bold transition-all shadow-md hover:shadow-lg flex-shrink-0"
           >
             <Copy className="h-4 w-4" /> Copy Venue Link
           </button>
@@ -1694,25 +1678,58 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
       </div>
 
       {/* Generator Controls */}
-      <div className="rounded-2xl border p-6" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+      <div className="rounded-2xl border p-6 no-print" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h4 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Batch Table QR Code Generator</h4>
-          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-            Next batch starts at <strong>Table {nextTableNum}</strong>
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setGenMode('replace')}
+              className={`text-[11px] font-bold px-3 py-1 rounded-lg border transition-all ${genMode === 'replace' ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent'}`}
+            >
+              Replace Existing
+            </button>
+            <button
+              type="button"
+              onClick={() => setGenMode('append')}
+              className={`text-[11px] font-bold px-3 py-1 rounded-lg border transition-all ${genMode === 'append' ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent'}`}
+            >
+              + Add to Existing
+            </button>
+            <button
+              type="button"
+              onClick={handleReset}
+              className="text-[11px] font-bold px-2.5 py-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+              title="Reset tables to default"
+            >
+              Reset
+            </button>
+          </div>
         </div>
-        <form onSubmit={handleGenerate} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+
+        <form onSubmit={handleGenerate} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
           <div>
-            <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-muted)' }}>
-              Next Table Number
-            </label>
+            <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-muted)' }}>Number of Tables</label>
             <input
               type="number"
               min={1}
-              max={200}
+              max={100}
               value={tableCount}
-              onChange={e => setTableCount(parseInt(e.target.value) || 1)}
-              className="w-full rounded-xl border px-3.5 py-2 text-sm outline-none font-semibold text-slate-900 bg-white border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all"
+              onChange={e => setTableCount(e.target.value)}
+              placeholder="e.g. 10"
+              className="w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none font-semibold text-slate-900 bg-white border-slate-200 focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-muted)' }}>Starting Table #</label>
+            <input
+              type="number"
+              min={1}
+              max={500}
+              value={startTable}
+              onChange={e => setStartTable(e.target.value)}
+              placeholder="e.g. 1"
+              className="w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none font-semibold text-slate-900 bg-white border-slate-200 focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div>
@@ -1722,91 +1739,104 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
               value={section}
               onChange={e => setSection(e.target.value)}
               placeholder="e.g. Main Lounge, VIP, Terrace"
-              className="w-full rounded-xl border px-3.5 py-2 text-sm outline-none font-semibold text-slate-900 bg-white border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all"
+              className="w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none font-semibold text-slate-900 bg-white border-slate-200 focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <button
             type="submit"
-            disabled={isGenerating}
-            className="rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-5 py-2.5 text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow"
+            onClick={() => handleGenerate()}
+            className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white px-4 py-2.5 text-xs font-bold transition-all shadow-md hover:shadow-lg h-[42px] flex items-center justify-center gap-2"
           >
-            {isGenerating ? (
-              <>
-                <RefreshCcw className="h-3.5 w-3.5 animate-spin" /> Generating...
-              </>
-            ) : (
-              <>
-                <QrCode className="h-3.5 w-3.5" />
-                {tables.length > 0
-                  ? `Add Table ${nextTableNum}`
-                  : `Generate Table QR Code`}
-              </>
-            )}
+            <Sparkles className="h-3.5 w-3.5" />
+            Generate {parsedCount} Table QR Codes
           </button>
         </form>
-
       </div>
 
       {/* QR Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-        {tables.map(t => {
-          const tableUrl = `${fullBaseUrl}/t/${t.id}`;
-          const qrImgUrl = t.qrUrl || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(tableUrl)}`;
-          const isCopied = copiedId === t.id;
+      <div className="space-y-3">
+        <div className="flex items-center justify-between px-1 no-print">
+          <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+            Showing <span className="font-bold text-blue-600 dark:text-blue-400">{tables.length}</span> Active Table QR Codes
+          </p>
+        </div>
 
-          return (
-            <div key={t.id} className="rounded-2xl border p-5 flex flex-col items-center text-center transition-all hover:shadow-xl group" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              <div className="w-full flex items-center justify-between mb-3">
-                <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
-                  {t.section}
-                </span>
-                <span className="text-xs font-black text-slate-500">Table {t.id}</span>
-              </div>
-
-              {/* QR Image */}
-              <div className="p-3.5 bg-white rounded-2xl border border-slate-100 shadow-inner mb-4 transition-transform group-hover:scale-105">
-                <img src={qrImgUrl} alt={`QR Table ${t.id}`} className="w-36 h-36 object-contain" />
-              </div>
-
-              <div className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">
-                Scan to Order — Table {t.id}
-              </div>
-              <p className="text-[11px] font-mono text-slate-400 truncate w-full mb-4 px-2">
-                /v/{clubSlug}/t/{t.id}
-              </p>
-
-              {/* Action Buttons */}
-              <div className="grid grid-cols-3 gap-1.5 w-full">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          {tables.map(t => {
+            const tableUrl = `${fullBaseUrl}/t/${t.id}`;
+            const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(tableUrl)}`;
+            return (
+              <div
+                key={t.id}
+                className="qr-card-print rounded-2xl border p-5 flex flex-col items-center text-center transition-all hover:shadow-xl group relative"
+                style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}
+              >
+                {/* Delete button */}
                 <button
                   type="button"
-                  onClick={() => copyToClipboard(tableUrl, `Table ${t.id} QR link`, t.id)}
-                  className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                  title="Copy direct ordering URL"
+                  onClick={() => handleDeleteTable(t.id)}
+                  className="absolute top-3 right-3 p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 opacity-0 group-hover:opacity-100 transition-opacity no-print"
+                  title="Remove this table"
                 >
-                  {isCopied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-                  {isCopied ? 'Copied' : 'Copy'}
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => downloadQr(qrImgUrl, `Table ${t.id}`)}
-                  className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                  title="Download PNG for print"
-                >
-                  <Download className="h-3 w-3" /> PNG
-                </button>
-                <a
-                  href={tableUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-center gap-1 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 py-1.5 text-[11px] font-semibold hover:bg-blue-100 transition-colors"
-                  title="Open customer order page"
-                >
-                  <ExternalLink className="h-3 w-3" /> Test
-                </a>
+
+                <div className="w-full flex items-center justify-between mb-3">
+                  <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+                    {t.section}
+                  </span>
+                  <span className="text-xs font-black text-slate-500 dark:text-slate-400">Table {t.id}</span>
+                </div>
+
+                {/* QR Image */}
+                <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm mb-4 transition-transform group-hover:scale-105">
+                  <img
+                    src={qrImgUrl}
+                    alt={`QR Table ${t.id}`}
+                    className="w-36 h-36 object-contain"
+                    crossOrigin="anonymous"
+                  />
+                </div>
+
+                <div className="text-xs font-bold text-slate-800 dark:text-slate-100 mb-1">
+                  Scan to Order — Table {t.id}
+                </div>
+                <p className="text-[11px] font-mono text-slate-400 truncate w-full mb-4 px-2">
+                  /v/{clubSlug}/t/{t.id}
+                </p>
+
+                {/* Action Buttons */}
+                <div className="grid grid-cols-3 gap-1.5 w-full no-print">
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(tableUrl, `Table ${t.id} QR link`)}
+                    className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                    title="Copy direct table order link"
+                  >
+                    <Copy className="h-3 w-3" /> Copy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => downloadQrImage(t.id, t.section)}
+                    className="flex items-center justify-center gap-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 py-1.5 text-[11px] font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    title="Download high-resolution QR PNG"
+                  >
+                    <Download className="h-3 w-3" /> Save
+                  </button>
+                  <a
+                    href={tableUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center justify-center gap-1 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 py-1.5 text-[11px] font-semibold hover:bg-blue-100 transition-colors"
+                    title="Open customer digital menu for this table"
+                  >
+                    <ExternalLink className="h-3 w-3" /> Open
+                  </a>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

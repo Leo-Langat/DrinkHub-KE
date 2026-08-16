@@ -216,7 +216,7 @@ tenantRouter.post('/:clubUuid/assign-manager', authenticate, authorize(['PLATFOR
  * @openapi
  * /tenants/{clubUuid}/tables:
  *   get:
- *     summary: List all tables and their QR codes for a venue
+ *     summary: List all tables and QR codes for a venue
  *     tags: [Tenants]
  *     security:
  *       - bearerAuth: []
@@ -254,8 +254,10 @@ tenantRouter.get('/:clubUuid/tables', authenticate, authorize(['PLATFORM_ADMIN',
  *             properties:
  *               tableCount: { type: number }
  *               sectionName: { type: string }
+ *               startFrom: { type: number }
  *     responses:
  *       200:
  *         description: Tables and QR codes generated
  */
 tenantRouter.post('/:clubUuid/generate-qr', authenticate, authorize(['PLATFORM_ADMIN', 'SUPER_ADMIN', 'CLUB_ADMIN', 'MANAGER']), validateRequest(generateQrCodesSchema), tenantController.generateQrCodes);
+

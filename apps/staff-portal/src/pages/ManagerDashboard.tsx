@@ -1504,7 +1504,7 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
   const clubName = user.club?.name || 'Your Venue';
   const fullBaseUrl = `https://drink-hub-ke-customer-pwa.vercel.app/v/${clubSlug}`;
 
-  const [tableCount, setTableCount] = useState(10);
+  const [tableCount, setTableCount] = useState(1);
   const [section, setSection] = useState('Main Lounge');
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
@@ -1512,6 +1512,12 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
 
   // The next table number to be generated is always one after the highest existing table
   const nextTableNum = tables.length > 0 ? Math.max(...tables.map(t => t.id)) + 1 : 1;
+
+  // Keep the "Number of Tables" field in sync: it should show nextTableNum
+  // so the manager sees the correct starting point immediately
+  React.useEffect(() => {
+    setTableCount(nextTableNum);
+  }, [nextTableNum]);
 
   // Load existing tables from backend on mount
   React.useEffect(() => {
@@ -1697,7 +1703,9 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
         </div>
         <form onSubmit={handleGenerate} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
           <div>
-            <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-muted)' }}>Number of Tables</label>
+            <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-muted)' }}>
+              Next Table Number
+            </label>
             <input
               type="number"
               min={1}

@@ -52,11 +52,14 @@ export const createApp = (): Application => {
   app.use('/uploads', express.static('uploads'));
 
   // ── Global rate limiter (all routes) ─────────────────────────────────────
+  // Dashboards (waiter, manager, customer) poll frequently — allow 2000 req/15min
+  // GET read-only polling is completely exempted to avoid false positives
   const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,   // 15 min
-    max: 200,
+    max: 2000,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => req.method === 'GET', // exempt all GET polling from rate limit
     message: { success: false, error: { code: 'TOO_MANY_REQUESTS', message: 'Too many requests, please try again later.' } },
   });
   app.use(globalLimiter);

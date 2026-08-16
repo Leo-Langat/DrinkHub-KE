@@ -1599,7 +1599,7 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
             }));
             setTables(allMapped);
             localStorage.setItem(`drinkhub_tables_${clubSlug}`, JSON.stringify(allMapped));
-            showToast(`Generated tables ${nextTableNum}–${nextTableNum + tableCount - 1} for "${targetSection}"!`);
+            showToast(`Added Table ${nextTableNum} to "${targetSection}"!`);
             return;
           }
         }
@@ -1613,7 +1613,7 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
       const merged = [...tables, ...generated];
       setTables(merged);
       localStorage.setItem(`drinkhub_tables_${clubSlug}`, JSON.stringify(merged));
-      showToast(`Generated tables ${nextTableNum}–${nextTableNum + tableCount - 1} for "${targetSection}"!`);
+      showToast(`Added Table ${nextTableNum} to "${targetSection}"!`);
     } catch {
       const generated = Array.from({ length: tableCount }, (_, i) => ({
         id: nextTableNum + i,
@@ -1622,7 +1622,7 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
       const merged = [...tables, ...generated];
       setTables(merged);
       localStorage.setItem(`drinkhub_tables_${clubSlug}`, JSON.stringify(merged));
-      showToast(`Generated tables ${nextTableNum}–${nextTableNum + tableCount - 1} for "${targetSection}"!`);
+      showToast(`Added Table ${nextTableNum} to "${targetSection}"!`);
     } finally {
       setIsGenerating(false);
     }
@@ -1738,8 +1738,8 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
               <>
                 <QrCode className="h-3.5 w-3.5" />
                 {tables.length > 0
-                  ? `Add Tables ${nextTableNum}–${nextTableNum + tableCount - 1}`
-                  : `Generate ${tableCount} Table QR Codes`}
+                  ? `Add Table ${nextTableNum}`
+                  : `Generate Table QR Code`}
               </>
             )}
           </button>

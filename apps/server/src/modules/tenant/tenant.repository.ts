@@ -6,6 +6,10 @@ export class TenantRepository implements ITenantRepository {
   async findBySlug(slug: string): Promise<Club | null> {
     return prisma.club.findFirst({
       where: { slug, deletedAt: null },
+      include: {
+        users: { where: { role: { in: [UserRole.CLUB_ADMIN, UserRole.MANAGER] } } },
+        venueTables: { include: { qrCode: true } },
+      },
     });
   }
 

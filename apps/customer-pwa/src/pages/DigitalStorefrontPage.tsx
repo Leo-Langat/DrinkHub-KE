@@ -73,6 +73,7 @@ export const DigitalStorefrontPage: React.FC = () => {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [categories, setCategories] = useState<string[]>(['All']);
   const [tableUuid, setTableUuid] = useState<string | null>(null);
+  const [clubUuid, setClubUuid] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -109,28 +110,33 @@ export const DigitalStorefrontPage: React.FC = () => {
         }
         const tenantData = await tenantRes.json();
         const club = tenantData.data?.club ?? tenantData.data ?? tenantData;
+        const resolvedClubUuid = club.clubUuid ?? club.uuid ?? club.id ?? null;
+        setClubUuid(resolvedClubUuid);
 
         setBrand({
           name: club.name ?? 'DrinkHub Venue',
           tagline: club.tagline ?? club.county ?? 'Kenya',
           logoUrl: club.logoUrl ?? null,
           bannerUrl: club.bannerUrl ?? null,
-          primary: club.brandColor ?? '#DC2626',
-          primaryDark: adjustColor(club.brandColor ?? '#DC2626', -20),
+          primary: club.brandColor ?? club.themeColor ?? '#DC2626',
+          primaryDark: adjustColor(club.brandColor ?? club.themeColor ?? '#DC2626', -20),
           accent: '#F59E0B',
         });
 
-        // Resolve table UUID from slug if table number provided
-        if (table && club.tables) {
-          const match = (club.tables as any[]).find(
+        // Resolve table UUID from venueTables/tables array
+        const tablesList: any[] = club.venueTables ?? club.tables ?? [];
+        if (table && tablesList.length > 0) {
+          const match = tablesList.find(
             (t: any) => String(t.tableNumber) === String(table)
           );
-          if (match) setTableUuid(match.uuid);
+          if (match) setTableUuid(match.tableUuid ?? match.uuid ?? match.id ?? null);
         }
 
-        // 2. Fetch menu (tenant context from slug in header)
+        // 2. Fetch menu with X-Tenant-Id header
         const menuRes = await fetch(getApiUrl('/menu'), {
-          headers: { 'X-Tenant-Id': club.uuid ?? '' },
+          headers: {
+            ...(resolvedClubUuid ? { 'X-Tenant-Id': resolvedClubUuid } : {}),
+          },
         });
         if (!menuRes.ok) throw new Error('Failed to load the menu. Please try again.');
         const menuData = await menuRes.json();
@@ -148,7 +154,7 @@ export const DigitalStorefrontPage: React.FC = () => {
           if (cat.name && !cats.includes(cat.name)) cats.push(cat.name);
           (cat.products ?? []).forEach((p: any) => {
             items.push({
-              id: p.uuid,
+              id: p.productUuid ?? p.uuid ?? p.id,
               name: p.name,
               category: cat.name,
               price: Number(p.price),
@@ -162,7 +168,7 @@ export const DigitalStorefrontPage: React.FC = () => {
 
         rawOfferList.forEach((o: any) => {
           rawOffers.push({
-            id: o.uuid,
+            id: o.offerUuid ?? o.uuid ?? o.id,
             title: o.title,
             description: o.description ?? null,
             promoCode: o.promoCode ?? null,
@@ -228,17 +234,32 @@ export const DigitalStorefrontPage: React.FC = () => {
     setPlaceError(null);
     try {
       const items = Object.entries(cart).map(([productUuid, quantity]) => ({ productUuid, quantity }));
+      
+      let formattedPhone: string | undefined = undefined;
+      if (payment === 'mpesa' && phone) {
+        const cleanDigits = phone.replace(/\D/g, '');
+        formattedPhone = cleanDigits.startsWith('254')
+          ? `+${cleanDigits}`
+          : cleanDigits.startsWith('0')
+            ? `+254${cleanDigits.slice(1)}`
+            : `+254${cleanDigits}`;
+      }
+
       const body: Record<string, any> = {
+        ...(clubUuid ? { clubUuid } : {}),
         ageVerified: true,
         items,
         paymentMethod: payment.toUpperCase(),
       };
       if (tableUuid) body.tableUuid = tableUuid;
-      if (payment === 'mpesa' && phone) body.phoneNumber = `+254${phone}`;
+      if (formattedPhone) body.phoneNumber = formattedPhone;
 
       const res = await fetch(getApiUrl('/orders'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(clubUuid ? { 'X-Tenant-Id': clubUuid } : {}),
+        },
         body: JSON.stringify(body),
       });
       const data = await res.json();

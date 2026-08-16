@@ -6,7 +6,7 @@ import {
   Eye, EyeOff, Trash2, Edit2, CheckCircle2, X, RefreshCcw, Filter,
   AlertCircle, ArrowUpRight, RotateCcw, Key, UserX, UserCheck,
   Phone, Mail, Hash, Lock, Clock, Briefcase, Shield, QrCode, Copy, ExternalLink,
-  Tag, Layers, FolderPlus,
+  Tag, Layers, FolderPlus, Camera, Image, Upload,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis,
@@ -167,7 +167,15 @@ interface Waiter {
 /* Empty initial arrays - data is loaded from the API in each section */
 const initWaiters: Waiter[] = [];
 type OrderRow = { id: string; table: string; item: string; waiter: string; amount: number; status: string; time: string };
-type MenuItem = { id: string; name: string; category: string; price: number; status: string };
+type MenuItem = {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  status: string;
+  imageUrl?: string | null;
+  description?: string | null;
+};
 
 const orderData: OrderRow[] = [];
 const menuItems: MenuItem[] = [];
@@ -663,12 +671,66 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
   const [showEditItemModal, setShowEditItemModal] = React.useState(false);
 
   // Forms
-  const [addForm, setAddForm] = React.useState({ name: '', category: '', price: '' });
+  const [addForm, setAddForm] = React.useState({ name: '', category: '', price: '', imageUrl: '', description: '' });
   const [newCatForm, setNewCatForm] = React.useState({ name: '', description: '' });
   const [editCatForm, setEditCatForm] = React.useState({ id: '', name: '', description: '' });
-  const [editItemForm, setEditItemForm] = React.useState({ id: '', name: '', category: '', price: '' });
+  const [editItemForm, setEditItemForm] = React.useState({ id: '', name: '', category: '', price: '', imageUrl: '', description: '' });
 
   const [loading, setLoading] = React.useState(false);
+
+  /* ── Image Upload & Canvas Compression ── */
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Please select a valid image file (PNG, JPG, WebP)');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('Image file size must be less than 10MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 600;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          if (isEdit) {
+            setEditItemForm(p => ({ ...p, imageUrl: compressedDataUrl }));
+          } else {
+            setAddForm(p => ({ ...p, imageUrl: compressedDataUrl }));
+          }
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
 
   const fetchMenu = React.useCallback(async () => {
     try {
@@ -698,6 +760,8 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
             category: cat.name,
             price: Number(p.price),
             status: p.isAvailable !== false ? 'Available' : 'Out of Stock',
+            imageUrl: p.imageUrl ?? null,
+            description: p.description ?? null,
           });
         });
       });
@@ -745,13 +809,15 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
           name: addForm.name,
           categoryName: categoryToUse,
           price: Number(addForm.price),
+          imageUrl: addForm.imageUrl || undefined,
+          description: addForm.description.trim() || undefined,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message || 'Failed to add menu item');
       showToast(`${addForm.name} added to menu`);
       setShowAdd(false);
-      setAddForm({ name: '', category: categoryToUse, price: '' });
+      setAddForm({ name: '', category: categoryToUse, price: '', imageUrl: '', description: '' });
       fetchMenu();
     } catch (err: any) {
       showToast(err.message || 'Error adding menu item');
@@ -837,6 +903,8 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
         body: JSON.stringify({
           name: editItemForm.name.trim(),
           price: Number(editItemForm.price),
+          imageUrl: editItemForm.imageUrl || null,
+          description: editItemForm.description.trim() || undefined,
         }),
       });
       const data = await res.json();
@@ -870,7 +938,7 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
           <button onClick={() => setShowCategoriesModal(true)} className="flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-bold transition-colors hover:bg-slate-50" style={{ borderColor: 'var(--border)', color: 'var(--text-primary)', background: 'var(--bg-card)' }}>
             <Layers className="h-3.5 w-3.5 text-blue-600" /> Manage Categories ({categories.length})
           </button>
-          <button onClick={() => { setAddForm({ name: '', category: categories[0]?.name || 'Beer', price: '' }); setShowAdd(true); }} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold text-white hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>
+          <button onClick={() => { setAddForm({ name: '', category: categories[0]?.name || 'Beer', price: '', imageUrl: '', description: '' }); setShowAdd(true); }} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold text-white hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>
             <Plus className="h-3.5 w-3.5" /> Add Item
           </button>
         </div>
@@ -915,13 +983,27 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
             {filteredItems.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-5 py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-                  No items found in {selectedCatFilter === 'All' ? 'this venue' : `"${selectedCatFilter}"`}. Click "+ Add Item" to add drinks or food.
+                  No items found in {selectedCatFilter === 'All' ? 'this venue' : `"${selectedCatFilter}"`}. Click "+ Add Item" to add drinks or food with photos.
                 </td>
               </tr>
             ) : (
               filteredItems.map(item => (
                 <tr key={item.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
-                  <td className="px-5 py-3.5 font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{item.name}</td>
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} className="h-10 w-10 rounded-xl object-cover border border-slate-200 flex-shrink-0 shadow-sm" />
+                      ) : (
+                        <div className="h-10 w-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-base flex-shrink-0 text-slate-400">
+                          🍸
+                        </div>
+                      )}
+                      <div>
+                        <div className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{item.name}</div>
+                        {item.description && <div className="text-[11px] line-clamp-1" style={{ color: 'var(--text-muted)' }}>{item.description}</div>}
+                      </div>
+                    </div>
+                  </td>
                   <td className="px-5 py-3.5 text-xs">
                     <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-semibold text-[11px] bg-slate-100 text-slate-700">
                       <Tag className="h-2.5 w-2.5 text-slate-500" /> {item.category}
@@ -935,7 +1017,7 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
                   </td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-1.5">
-                      <button onClick={() => { setEditItemForm({ id: item.id, name: item.name, category: item.category, price: String(item.price) }); setShowEditItemModal(true); }} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="Edit Item">
+                      <button onClick={() => { setEditItemForm({ id: item.id, name: item.name, category: item.category, price: String(item.price), imageUrl: item.imageUrl || '', description: item.description || '' }); setShowEditItemModal(true); }} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="Edit Item">
                         <Edit2 className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} />
                       </button>
                       <button onClick={() => del(item.id)} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Delete Item"><Trash2 className="h-3.5 w-3.5 text-red-400" /></button>
@@ -1035,7 +1117,43 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
       {/* ── Modal: Add Menu Item ── */}
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add Menu Item">
         <div className="space-y-4">
-          <div><FL required>Item Name</FL><SI value={addForm.name} onChange={e => setAddForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Whisky Sour" /></div>
+          {/* Item Photo Upload */}
+          <div>
+            <FL>Item Photo (Optional)</FL>
+            {addForm.imageUrl ? (
+              <div className="relative rounded-xl border p-2.5 flex items-center gap-3 bg-slate-50" style={{ borderColor: '#CBD5E1' }}>
+                <img src={addForm.imageUrl} alt="Preview" className="h-16 w-16 rounded-lg object-cover border border-slate-200 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-slate-700 truncate">Photo selected</p>
+                  <p className="text-[11px] text-slate-400">Ready to save with menu item</p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <label className="cursor-pointer text-xs font-bold text-blue-600 hover:underline">
+                      Change Photo
+                      <input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, false)} />
+                    </label>
+                    <span className="text-slate-300">|</span>
+                    <button type="button" onClick={() => setAddForm(p => ({ ...p, imageUrl: '' }))} className="text-xs font-bold text-red-500 hover:underline">
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 p-4 cursor-pointer hover:border-blue-500 hover:bg-blue-50/50 transition-all text-center">
+                <div className="h-9 w-9 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                  <Camera className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-700">Click or tap to upload item photo</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">PNG, JPG, WebP up to 10MB</p>
+                </div>
+                <input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, false)} />
+              </label>
+            )}
+          </div>
+
+          <div><FL required>Item Name</FL><SI value={addForm.name} onChange={e => setAddForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Whisky Sour, Grilled Ribeye" /></div>
+          
           <div>
             <div className="flex items-center justify-between mb-1">
               <FL required>Category</FL>
@@ -1049,7 +1167,11 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
             </div>
             <SS value={addForm.category} onChange={e => setAddForm(p => ({ ...p, category: e.target.value }))} options={categoryOptions} />
           </div>
+
           <div><FL required>Price (KES)</FL><SI type="number" value={addForm.price} onChange={e => setAddForm(p => ({ ...p, price: e.target.value }))} placeholder="0" min="0" /></div>
+          
+          <div><FL>Description (Optional)</FL><SI value={addForm.description} onChange={e => setAddForm(p => ({ ...p, description: e.target.value }))} placeholder="e.g. Craft bourbon, fresh lemon juice, sugar & egg white" /></div>
+
           <div className="flex gap-3 pt-1">
             <button onClick={() => setShowAdd(false)} className="flex-1 rounded-xl border py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors" style={{ borderColor: '#E2E8F0' }}>Cancel</button>
             <button disabled={loading} onClick={handleAddItem} className="flex-1 rounded-xl py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>
@@ -1062,12 +1184,48 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
       {/* ── Modal: Edit Menu Item ── */}
       <Modal open={showEditItemModal} onClose={() => setShowEditItemModal(false)} title="Edit Menu Item">
         <div className="space-y-4">
+          {/* Item Photo Upload */}
+          <div>
+            <FL>Item Photo (Optional)</FL>
+            {editItemForm.imageUrl ? (
+              <div className="relative rounded-xl border p-2.5 flex items-center gap-3 bg-slate-50" style={{ borderColor: '#CBD5E1' }}>
+                <img src={editItemForm.imageUrl} alt="Preview" className="h-16 w-16 rounded-lg object-cover border border-slate-200 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-slate-700 truncate">Item photo</p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <label className="cursor-pointer text-xs font-bold text-blue-600 hover:underline">
+                      Replace Photo
+                      <input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, true)} />
+                    </label>
+                    <span className="text-slate-300">|</span>
+                    <button type="button" onClick={() => setEditItemForm(p => ({ ...p, imageUrl: '' }))} className="text-xs font-bold text-red-500 hover:underline">
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 p-4 cursor-pointer hover:border-blue-500 hover:bg-blue-50/50 transition-all text-center">
+                <div className="h-9 w-9 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                  <Camera className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-700">Click or tap to upload photo</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">PNG, JPG, WebP up to 10MB</p>
+                </div>
+                <input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, true)} />
+              </label>
+            )}
+          </div>
+
           <div><FL required>Item Name</FL><SI value={editItemForm.name} onChange={e => setEditItemForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Whisky Sour" /></div>
           <div>
             <FL>Category</FL>
             <SI value={editItemForm.category} disabled placeholder="Category" />
           </div>
           <div><FL required>Price (KES)</FL><SI type="number" value={editItemForm.price} onChange={e => setEditItemForm(p => ({ ...p, price: e.target.value }))} placeholder="0" min="0" /></div>
+          <div><FL>Description (Optional)</FL><SI value={editItemForm.description} onChange={e => setEditItemForm(p => ({ ...p, description: e.target.value }))} placeholder="Short item description" /></div>
+
           <div className="flex gap-3 pt-1">
             <button onClick={() => setShowEditItemModal(false)} className="flex-1 rounded-xl border py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors" style={{ borderColor: '#E2E8F0' }}>Cancel</button>
             <button disabled={loading} onClick={handleUpdateItem} className="flex-1 rounded-xl py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>

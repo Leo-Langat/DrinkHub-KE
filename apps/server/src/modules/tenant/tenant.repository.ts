@@ -119,6 +119,14 @@ export class TenantRepository implements ITenantRepository {
     });
   }
 
+  async getTables(clubUuid: string): Promise<VenueTable[]> {
+    return prisma.venueTable.findMany({
+      where: { clubUuid, deletedAt: null },
+      include: { qrCode: true },
+      orderBy: { tableNumber: 'asc' },
+    });
+  }
+
   async generateTablesAndQrs(
     clubUuid: string,
     tableCount: number,
@@ -129,33 +137,45 @@ export class TenantRepository implements ITenantRepository {
 
     const createdTables: VenueTable[] = [];
     const createdQrs: QrCode[] = [];
+    const effectiveSection = sectionName?.trim() || 'Main Lounge';
 
-    // Find existing max table number
-    const maxTable = await prisma.venueTable.findFirst({
-      where: { clubUuid },
-      orderBy: { tableNumber: 'desc' },
-    });
-
-    const startNum = (maxTable?.tableNumber || 0) + 1;
-
-    for (let i = 0; i < tableCount; i++) {
-      const tableNum = startNum + i;
-      const table = await prisma.venueTable.create({
-        data: {
+    for (let i = 1; i <= tableCount; i++) {
+      const tableNum = i;
+      const table = await prisma.venueTable.upsert({
+        where: {
+          clubUuid_tableNumber: {
+            clubUuid,
+            tableNumber: tableNum,
+          },
+        },
+        update: {
+          sectionName: effectiveSection,
+          deletedAt: null,
+          isActive: true,
+        },
+        create: {
           clubUuid,
           tableNumber: tableNum,
-          sectionName,
+          sectionName: effectiveSection,
           seatingCapacity: 4,
         },
       });
 
-      const qrPayload = `https://drinkhub.co.ke/v/${club.slug}/t/${tableNum}`;
-      const qr = await prisma.qrCode.create({
-        data: {
+      const qrPayload = `https://drink-hub-ke-customer-pwa.vercel.app/v/${club.slug}/t/${tableNum}`;
+      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrPayload)}`;
+
+      const qr = await prisma.qrCode.upsert({
+        where: { tableUuid: table.tableUuid },
+        update: {
+          qrCodePayload: qrPayload,
+          imageUrl: qrImageUrl,
+          isActive: true,
+        },
+        create: {
           clubUuid,
           tableUuid: table.tableUuid,
           qrCodePayload: qrPayload,
-          imageUrl: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrPayload)}`,
+          imageUrl: qrImageUrl,
         },
       });
 

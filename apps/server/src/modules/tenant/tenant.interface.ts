@@ -35,5 +35,6 @@ export interface ITenantRepository {
   update(clubUuid: string, data: Partial<Club>): Promise<Club>;
   delete(clubUuid: string): Promise<boolean>;
   assignManager(clubUuid: string, userUuid: string): Promise<User>;
+  getTables(clubUuid: string): Promise<VenueTable[]>;
   generateTablesAndQrs(clubUuid: string, tableCount: number, sectionName: string): Promise<{ tables: VenueTable[]; qrs: QrCode[] }>;
 }

@@ -6,7 +6,7 @@ import {
   Eye, EyeOff, Trash2, Edit2, CheckCircle2, X, RefreshCcw, Filter,
   AlertCircle, ArrowUpRight, RotateCcw, Key, UserX, UserCheck,
   Phone, Mail, Hash, Lock, Clock, Briefcase, Shield, QrCode, Copy, ExternalLink,
-  Tag, Layers, FolderPlus, Camera, Image, Upload,
+  Tag, Layers, FolderPlus, Camera, Image, Upload, Printer, Check,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis,
@@ -1499,30 +1499,148 @@ const ManagerSettingsPage = ({ showToast }: { showToast: (m: string) => void }) 
 
 /* --- QR Codes Page --- */
 const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, type?: 'success' | 'error') => void }) => {
-  const clubSlug = user.club?.slug || 'skylounge';
+  const clubUuid = user.clubUuid || user.club?.clubUuid || user.club?.id || user.tenantId || '';
+  const clubSlug = user.club?.slug || (user.club?.name ? user.club.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'venue');
   const clubName = user.club?.name || 'Your Venue';
   const fullBaseUrl = `https://drink-hub-ke-customer-pwa.vercel.app/v/${clubSlug}`;
 
   const [tableCount, setTableCount] = useState(10);
   const [section, setSection] = useState('Main Lounge');
-  const [tables, setTables] = useState<{ id: number; section: string }[]>(() =>
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [tables, setTables] = useState<{ id: number; section: string; tableUuid?: string; qrUrl?: string }[]>(() =>
     Array.from({ length: 10 }, (_, i) => ({ id: i + 1, section: 'Main Lounge' }))
   );
 
-  const handleGenerate = (e: React.FormEvent) => {
+  // Load existing tables from backend on mount
+  React.useEffect(() => {
+    let isMounted = true;
+    const fetchExisting = async () => {
+      try {
+        if (clubUuid) {
+          const res = await fetch(getApiUrl(`/tenants/${clubUuid}/tables`), { headers: authHeaders() });
+          if (res.ok) {
+            const data = await res.json();
+            const rawTables: any[] = data.data || [];
+            if (rawTables.length > 0 && isMounted) {
+              const loaded = rawTables.map(t => ({
+                id: Number(t.tableNumber),
+                section: t.sectionName || 'Main Lounge',
+                tableUuid: t.tableUuid,
+                qrUrl: t.qrCode?.imageUrl || undefined,
+              }));
+              setTables(loaded);
+              return;
+            }
+          }
+        }
+      } catch {
+        /* Fallback to local storage if API call fails */
+      }
+
+      const saved = localStorage.getItem(`drinkhub_tables_${clubSlug}`);
+      if (saved && isMounted) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setTables(parsed);
+          }
+        } catch {}
+      }
+    };
+
+    fetchExisting();
+    return () => { isMounted = false; };
+  }, [clubUuid, clubSlug]);
+
+  const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (tableCount < 1 || tableCount > 100) return;
-    const newTables = Array.from({ length: tableCount }, (_, i) => ({
-      id: i + 1,
-      section: section.trim() || 'Main Lounge',
-    }));
-    setTables(newTables);
-    showToast(`Generated QR codes for ${tableCount} tables in ${section}`);
+    if (tableCount < 1 || tableCount > 200) {
+      showToast('Please enter a valid table count between 1 and 200', 'error');
+      return;
+    }
+
+    setIsGenerating(true);
+    const targetSection = section.trim() || 'Main Lounge';
+
+    try {
+      if (clubUuid) {
+        const res = await fetch(getApiUrl(`/tenants/${clubUuid}/generate-qr`), {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({
+            tableCount: Number(tableCount),
+            sectionName: targetSection,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const dbTables = data.data?.tables || [];
+          if (dbTables.length > 0) {
+            const newTables = dbTables.map((t: any) => ({
+              id: Number(t.tableNumber),
+              section: t.sectionName || targetSection,
+              tableUuid: t.tableUuid,
+            }));
+            setTables(newTables);
+            localStorage.setItem(`drinkhub_tables_${clubSlug}`, JSON.stringify(newTables));
+            showToast(`Generated ${tableCount} table QR codes for "${targetSection}"!`);
+            return;
+          }
+        }
+      }
+
+      // Offline / client-side instant generation fallback
+      const generated = Array.from({ length: tableCount }, (_, i) => ({
+        id: i + 1,
+        section: targetSection,
+      }));
+      setTables(generated);
+      localStorage.setItem(`drinkhub_tables_${clubSlug}`, JSON.stringify(generated));
+      showToast(`Generated ${tableCount} table QR codes for "${targetSection}"!`);
+    } catch {
+      const generated = Array.from({ length: tableCount }, (_, i) => ({
+        id: i + 1,
+        section: targetSection,
+      }));
+      setTables(generated);
+      localStorage.setItem(`drinkhub_tables_${clubSlug}`, JSON.stringify(generated));
+      showToast(`Generated ${tableCount} table QR codes for "${targetSection}"!`);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  const copyToClipboard = (text: string, label: string) => {
+  const copyToClipboard = (text: string, label: string, tableId?: number) => {
     navigator.clipboard.writeText(text);
+    if (tableId !== undefined) {
+      setCopiedId(tableId);
+      setTimeout(() => setCopiedId(null), 2000);
+    }
     showToast(`${label} copied to clipboard!`);
+  };
+
+  const downloadQr = async (qrImgUrl: string, tableName: string) => {
+    try {
+      const res = await fetch(qrImgUrl);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `${clubSlug}-${tableName.toLowerCase().replace(/\s+/g, '-')}-qr.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+      showToast(`Downloaded QR for ${tableName}`);
+    } catch {
+      window.open(qrImgUrl, '_blank');
+    }
+  };
+
+  const handlePrintAll = () => {
+    window.print();
   };
 
   return (
@@ -1541,12 +1659,22 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
             <span>{fullBaseUrl}</span>
           </div>
         </div>
-        <button
-          onClick={() => copyToClipboard(fullBaseUrl, 'Venue Menu URL')}
-          className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 text-xs font-bold transition-all shadow-md hover:shadow-lg flex-shrink-0"
-        >
-          <Copy className="h-4 w-4" /> Copy Venue Link
-        </button>
+        <div className="flex items-center gap-2.5 flex-shrink-0">
+          <button
+            type="button"
+            onClick={handlePrintAll}
+            className="flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-bold transition-all hover:bg-slate-50 dark:hover:bg-slate-800"
+            style={{ borderColor: 'var(--border)', color: 'var(--text-primary)', background: 'var(--bg-card)' }}
+          >
+            <Printer className="h-4 w-4 text-slate-500" /> Print Table Stands
+          </button>
+          <button
+            onClick={() => copyToClipboard(fullBaseUrl, 'Venue Menu URL')}
+            className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-xs font-bold transition-all shadow-md hover:shadow-lg"
+          >
+            <Copy className="h-4 w-4" /> Copy Venue Link
+          </button>
+        </div>
       </div>
 
       {/* Generator Controls */}
@@ -1558,10 +1686,10 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
             <input
               type="number"
               min={1}
-              max={100}
+              max={200}
               value={tableCount}
               onChange={e => setTableCount(parseInt(e.target.value) || 1)}
-              className="w-full rounded-xl border px-3.5 py-2 text-sm outline-none font-semibold text-slate-900 bg-white border-slate-200 focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-xl border px-3.5 py-2 text-sm outline-none font-semibold text-slate-900 bg-white border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all"
             />
           </div>
           <div>
@@ -1571,14 +1699,23 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
               value={section}
               onChange={e => setSection(e.target.value)}
               placeholder="e.g. Main Lounge, VIP, Terrace"
-              className="w-full rounded-xl border px-3.5 py-2 text-sm outline-none font-semibold text-slate-900 bg-white border-slate-200 focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-xl border px-3.5 py-2 text-sm outline-none font-semibold text-slate-900 bg-white border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all"
             />
           </div>
           <button
             type="submit"
-            className="rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white px-4 py-2.5 text-xs font-bold transition-all"
+            disabled={isGenerating}
+            className="rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-5 py-2.5 text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow"
           >
-            Generate {tableCount} Table QR Codes
+            {isGenerating ? (
+              <>
+                <RefreshCcw className="h-3.5 w-3.5 animate-spin" /> Generating...
+              </>
+            ) : (
+              <>
+                <QrCode className="h-3.5 w-3.5" /> Generate {tableCount} Table QR Codes
+              </>
+            )}
           </button>
         </form>
       </div>
@@ -1587,7 +1724,9 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
         {tables.map(t => {
           const tableUrl = `${fullBaseUrl}/t/${t.id}`;
-          const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(tableUrl)}`;
+          const qrImgUrl = t.qrUrl || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(tableUrl)}`;
+          const isCopied = copiedId === t.id;
+
           return (
             <div key={t.id} className="rounded-2xl border p-5 flex flex-col items-center text-center transition-all hover:shadow-xl group" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
               <div className="w-full flex items-center justify-between mb-3">
@@ -1598,7 +1737,7 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
               </div>
 
               {/* QR Image */}
-              <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-inner mb-4 transition-transform group-hover:scale-105">
+              <div className="p-3.5 bg-white rounded-2xl border border-slate-100 shadow-inner mb-4 transition-transform group-hover:scale-105">
                 <img src={qrImgUrl} alt={`QR Table ${t.id}`} className="w-36 h-36 object-contain" />
               </div>
 
@@ -1610,20 +1749,32 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
               </p>
 
               {/* Action Buttons */}
-              <div className="grid grid-cols-2 gap-2 w-full">
+              <div className="grid grid-cols-3 gap-1.5 w-full">
                 <button
-                  onClick={() => copyToClipboard(tableUrl, `Table ${t.id} QR link`)}
-                  className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  type="button"
+                  onClick={() => copyToClipboard(tableUrl, `Table ${t.id} QR link`, t.id)}
+                  className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  title="Copy direct ordering URL"
                 >
-                  <Copy className="h-3.5 w-3.5" /> Copy Link
+                  {isCopied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                  {isCopied ? 'Copied' : 'Copy'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadQr(qrImgUrl, `Table ${t.id}`)}
+                  className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  title="Download PNG for print"
+                >
+                  <Download className="h-3 w-3" /> PNG
                 </button>
                 <a
                   href={tableUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-center gap-1.5 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 py-1.5 text-xs font-semibold hover:bg-blue-100 transition-colors"
+                  className="flex items-center justify-center gap-1 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 py-1.5 text-[11px] font-semibold hover:bg-blue-100 transition-colors"
+                  title="Open customer order page"
                 >
-                  <ExternalLink className="h-3.5 w-3.5" /> Open
+                  <ExternalLink className="h-3 w-3" /> Test
                 </a>
               </div>
             </div>

@@ -143,6 +143,20 @@ export class TenantController {
     }
   };
 
+  getTables = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { clubUuid } = req.params;
+      const tables = await this.tenantService.getTables(clubUuid);
+      res.json({
+        success: true,
+        data: tables,
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   generateQrCodes = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { clubUuid } = req.params;

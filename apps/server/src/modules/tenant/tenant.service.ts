@@ -126,6 +126,11 @@ export class TenantService {
     return this.tenantRepository.assignManager(clubUuid, userUuid);
   }
 
+  async getTables(clubUuid: string) {
+    await this.getTenantById(clubUuid);
+    return this.tenantRepository.getTables(clubUuid);
+  }
+
   async generateQrCodes(clubUuid: string, tableCount: number, sectionName: string) {
     await this.getTenantById(clubUuid);
     return this.tenantRepository.generateTablesAndQrs(clubUuid, tableCount, sectionName);

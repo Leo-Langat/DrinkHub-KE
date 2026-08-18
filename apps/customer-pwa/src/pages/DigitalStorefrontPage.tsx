@@ -29,6 +29,8 @@ interface BrandingConfig {
   primary: string;
   primaryDark: string;
   accent: string;
+  openingHours: string;
+  closingHours: string;
 }
 
 interface MenuItem {
@@ -67,6 +69,8 @@ const DEFAULT_BRAND: BrandingConfig = {
   primary: '#DC2626',
   primaryDark: '#991B1B',
   accent: '#F59E0B',
+  openingHours: '14:00',
+  closingHours: '04:00',
 };
 
 /* ─────────────────────────────────────────────
@@ -188,6 +192,8 @@ export const DigitalStorefrontPage: React.FC = () => {
           primary: club.brandColor ?? club.themeColor ?? '#DC2626',
           primaryDark: adjustColor(club.brandColor ?? club.themeColor ?? '#DC2626', -20),
           accent: '#F59E0B',
+          openingHours: club.openingHours ?? '14:00',
+          closingHours: club.closingHours ?? '04:00',
         });
 
         // Resolve table UUID from venueTables/tables array
@@ -340,6 +346,29 @@ export const DigitalStorefrontPage: React.FC = () => {
     r.style.setProperty('--primary-dark', brand.primaryDark);
     r.style.setProperty('--accent', brand.accent);
   }, [brand]);
+
+  /* ── Compute venue open/closed from operating hours ── */
+  const isVenueOpen = useCallback((): boolean => {
+    try {
+      const now = new Date();
+      const oh = brand.openingHours || '00:00';
+      const ch = brand.closingHours || '23:59';
+      const [oH, oM] = oh.split(':').map(Number);
+      const [cH, cM] = ch.split(':').map(Number);
+      const nowMins = now.getHours() * 60 + now.getMinutes();
+      const openMins = oH * 60 + oM;
+      const closeMins = cH * 60 + cM;
+      // Handle overnight hours (e.g. 18:00 – 02:00)
+      if (closeMins <= openMins) {
+        return nowMins >= openMins || nowMins < closeMins;
+      }
+      return nowMins >= openMins && nowMins < closeMins;
+    } catch {
+      return true;
+    }
+  }, [brand.openingHours, brand.closingHours]);
+
+  const venueOpen = isVenueOpen();
 
   /* ── Offer Matcher & Item Pricing Helper ──── */
   const getOfferForItem = useCallback((item: MenuItem): Offer | null => {
@@ -863,11 +892,17 @@ export const DigitalStorefrontPage: React.FC = () => {
             </div>
           )}
 
+          {!venueOpen && (
+            <div className="flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-bold mb-1" style={{ background: 'rgba(239,68,68,0.1)', color: '#F87171', border: '1px solid rgba(239,68,68,0.25)' }}>
+              🔒 <span>{brand.name} is currently closed. Opens at {brand.openingHours}.</span>
+            </div>
+          )}
+
           <button
-            disabled={!ageOk || placing || (payment === 'mpesa' && phone.length < 9)}
+            disabled={!ageOk || placing || !venueOpen || (payment === 'mpesa' && phone.length < 9)}
             onClick={placeOrder}
             className="btn-primary w-full py-4 text-sm font-black flex items-center justify-center gap-2 text-white"
-            style={{ background: ageOk ? brand.primary : undefined }}
+            style={{ background: ageOk && venueOpen ? brand.primary : undefined }}
           >
             {placing ? (
               <span className="flex items-center gap-2">
@@ -876,10 +911,13 @@ export const DigitalStorefrontPage: React.FC = () => {
                 </svg>
                 Placing Order…
               </span>
+            ) : !venueOpen ? (
+              <>🔒 Closed · Opens at {brand.openingHours}</>
             ) : (
               <>Confirm Order · KES {cartFinalTotal.toLocaleString()}</>
             )}
           </button>
+
         </div>
       </div>
     );
@@ -982,10 +1020,17 @@ export const DigitalStorefrontPage: React.FC = () => {
 
         {/* Online status chip */}
         <div className="absolute top-4 right-4">
-          <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase backdrop-blur-md" style={{ background: 'rgba(0,0,0,0.45)', color: '#34D399', border: '1px solid rgba(52,211,153,0.3)' }}>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
-            Open Now
-          </div>
+          {venueOpen ? (
+            <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase backdrop-blur-md" style={{ background: 'rgba(0,0,0,0.45)', color: '#34D399', border: '1px solid rgba(52,211,153,0.3)' }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
+              Open Now
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase backdrop-blur-md" style={{ background: 'rgba(0,0,0,0.45)', color: '#F87171', border: '1px solid rgba(248,113,113,0.3)' }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
+              Closed
+            </div>
+          )}
         </div>
 
         {/* Club identity row */}
@@ -1013,7 +1058,27 @@ export const DigitalStorefrontPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── LIVE ACTIVE ORDER STATUS BANNER ── */}
+      {/* ── CLOSED NOTICE BANNER ── */}
+      {!venueOpen && (
+        <div className="px-4 pt-4 fade-up">
+          <div
+            className="rounded-2xl p-4 flex items-center gap-3 border"
+            style={{
+              background: 'linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(239,68,68,0.06) 100%)',
+              borderColor: 'rgba(239,68,68,0.3)',
+            }}
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg" style={{ background: 'rgba(239,68,68,0.15)' }}>🔒</div>
+            <div className="flex-1 min-w-0">
+              <p className="font-black text-sm" style={{ color: '#F87171' }}>We're Currently Closed</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                {brand.name} is open from {brand.openingHours} to {brand.closingHours}. You can still browse the menu.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeOrder && activeOrder.status !== 'CANCELLED' && (
         <div className="px-4 pt-3 fade-up">
           <div
@@ -1353,15 +1418,18 @@ export const DigitalStorefrontPage: React.FC = () => {
             onClick={() => setScreen('cart')}
             className="w-full flex items-center justify-between p-4 rounded-2xl text-white shadow-2xl font-bold transition-all active:scale-[0.97]"
             style={{
-              background: brand.primary,
-              boxShadow: `0 8px 32px ${brand.primary}55`,
+              background: venueOpen ? brand.primary : '#6B7280',
+              boxShadow: venueOpen ? `0 8px 32px ${brand.primary}55` : '0 8px 32px rgba(0,0,0,0.3)',
             }}
           >
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-sm" style={{ background: 'rgba(0,0,0,0.25)' }}>
                 {cartCount}
               </div>
-              <span className="text-sm font-bold">View Order</span>
+              <div>
+                <span className="text-sm font-bold block leading-tight">{venueOpen ? 'View Order' : 'Venue Closed'}</span>
+                {!venueOpen && <span className="text-[10px] opacity-70">Opens {brand.openingHours}</span>}
+              </div>
             </div>
             <div className="flex items-center gap-2">
               {cartTotalDiscount > 0 && (
@@ -1373,6 +1441,7 @@ export const DigitalStorefrontPage: React.FC = () => {
           </button>
         </div>
       )}
+
     </div>
   );
 };

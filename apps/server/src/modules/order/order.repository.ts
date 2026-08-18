@@ -9,6 +9,7 @@ export class OrderRepository implements IOrderRepository {
       include: {
         table: true,
         waiter: true,
+        offer: true,
         orderItems: { include: { product: true } },
         payments: true,
       },
@@ -26,6 +27,7 @@ export class OrderRepository implements IOrderRepository {
       include: {
         table: true,
         waiter: true,
+        offer: true,
         orderItems: { include: { product: true } },
         payments: true,
       },
@@ -46,10 +48,12 @@ export class OrderRepository implements IOrderRepository {
 
     let subtotal = 0;
     const orderItemsData = [];
+    const productsMap = new Map<string, any>();
 
     for (const item of items) {
       const product = await prisma.product.findUnique({ where: { productUuid: item.productUuid } });
       if (product) {
+        productsMap.set(item.productUuid, product);
         const itemSubtotal = Number(product.price) * item.quantity;
         subtotal += itemSubtotal;
         orderItemsData.push({
@@ -63,17 +67,106 @@ export class OrderRepository implements IOrderRepository {
       }
     }
 
-    const totalAmount = subtotal;
+    // ── Apply Offers & Calculate Discounts ──
+    let resolvedOfferUuid: string | null = offerUuid ?? null;
+    let discountAmount = 0;
+
+    // 1. If explicit offerUuid passed, fetch it
+    let matchedOffer = null;
+    if (resolvedOfferUuid) {
+      matchedOffer = await prisma.offer.findFirst({
+        where: { offerUuid: resolvedOfferUuid, clubUuid, isActive: true, deletedAt: null },
+      });
+    }
+
+    // 2. If no explicit offerUuid, check for any active offer that matches products in the order
+    if (!matchedOffer) {
+      const activeOffers = await prisma.offer.findMany({
+        where: { clubUuid, isActive: true, deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      for (const off of activeOffers) {
+        let prodId: string | null = null;
+        if (off.description && off.description.startsWith('{') && off.description.endsWith('}')) {
+          try {
+            const parsed = JSON.parse(off.description);
+            prodId = parsed.productId ?? null;
+          } catch {}
+        }
+
+        // Check if offer targets an item in the cart
+        const hasMatchingProduct = prodId 
+          ? items.some((it: any) => it.productUuid === prodId)
+          : items.some((it: any) => {
+              const p = productsMap.get(it.productUuid);
+              return p && (off.title.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(off.title.toLowerCase()));
+            });
+
+        if (hasMatchingProduct) {
+          matchedOffer = off;
+          resolvedOfferUuid = off.offerUuid;
+          break;
+        }
+      }
+    }
+
+    // 3. Compute discount based on matched offer
+    if (matchedOffer) {
+      const discVal = Number(matchedOffer.discountValue || 0);
+      let prodId: string | null = null;
+      if (matchedOffer.description && matchedOffer.description.startsWith('{') && matchedOffer.description.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(matchedOffer.description);
+          prodId = parsed.productId ?? null;
+        } catch {}
+      }
+
+      if (matchedOffer.offerType === 'BUY_ONE_GET_ONE') {
+        // Find targeted or eligible items and discount free pairs
+        for (const item of items) {
+          const p = productsMap.get(item.productUuid);
+          const isEligible = !prodId || item.productUuid === prodId;
+          if (p && isEligible && item.quantity > 1) {
+            const freeCount = Math.floor(item.quantity / 2);
+            discountAmount += freeCount * Number(p.price);
+          }
+        }
+      } else if (matchedOffer.offerType === 'FIXED_AMOUNT_DISCOUNT') {
+        if (prodId) {
+          const matchingItem = items.find((it: any) => it.productUuid === prodId);
+          if (matchingItem) {
+            discountAmount = Math.min(subtotal, discVal * matchingItem.quantity);
+          }
+        } else {
+          discountAmount = Math.min(subtotal, discVal);
+        }
+      } else if (matchedOffer.offerType === 'PERCENTAGE_DISCOUNT' && discVal > 0) {
+        if (prodId) {
+          const matchingItem = items.find((it: any) => it.productUuid === prodId);
+          const p = matchingItem ? productsMap.get(matchingItem.productUuid) : null;
+          if (matchingItem && p) {
+            const itemTotal = Number(p.price) * matchingItem.quantity;
+            discountAmount = Math.round(itemTotal * (discVal / 100));
+          }
+        } else {
+          discountAmount = Math.round(subtotal * (discVal / 100));
+        }
+      }
+    }
+
+    discountAmount = Math.max(0, Math.min(subtotal, discountAmount));
+    const totalAmount = Math.max(0, subtotal - discountAmount);
 
     return prisma.order.create({
       data: {
         clubUuid,
         tableUuid,
         customerSessionUuid,
-        offerUuid,
+        offerUuid: resolvedOfferUuid,
         orderNumber: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
         subtotalAmount: subtotal,
-        discountAmount: 0,
+        discountAmount,
         totalAmount,
         status: 'PENDING',
         notes,
@@ -84,6 +177,7 @@ export class OrderRepository implements IOrderRepository {
       },
       include: {
         table: true,
+        offer: true,
         orderItems: { include: { product: true } },
         payments: true,
       },

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Plus, Minus, X, ChevronRight, ChevronLeft, Sparkles, CheckCircle2,
@@ -341,29 +341,99 @@ export const DigitalStorefrontPage: React.FC = () => {
     r.style.setProperty('--accent', brand.accent);
   }, [brand]);
 
-  /* ── Online detection ─────────────────────── */
-  useEffect(() => {
-    const on = () => setIsOnline(true);
-    const off = () => setIsOnline(false);
-    window.addEventListener('online', on);
-    window.addEventListener('offline', off);
-    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
-  }, []);
+  /* ── Offer Matcher & Item Pricing Helper ──── */
+  const getOfferForItem = useCallback((item: MenuItem): Offer | null => {
+    if (!offers || offers.length === 0) return null;
+    // 1. Direct productId match
+    const directMatch = offers.find(o => o.productId === item.id);
+    if (directMatch) return directMatch;
 
-  /* ── Hero parallax ────────────────────────── */
-  useEffect(() => {
-    const onScroll = () => setHeroOpacity(Math.max(0, 1 - window.scrollY / 220));
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+    // 2. Name / title match
+    const itName = item.name.toLowerCase().trim();
+    const nameMatch = offers.find(o => {
+      const offTitle = o.title.toLowerCase().trim();
+      return offTitle.includes(itName) || itName.includes(offTitle);
+    });
+    if (nameMatch) return nameMatch;
+
+    return null;
+  }, [offers]);
+
+  const getItemPricing = useCallback((item: MenuItem, quantity: number = 1) => {
+    const offer = getOfferForItem(item);
+    if (!offer) {
+      return {
+        originalPrice: item.price,
+        unitPrice: item.price,
+        totalPrice: item.price * quantity,
+        discountAmount: 0,
+        offer: null,
+        isBogo: false,
+      };
+    }
+
+    const isBogo = offer.offerType === 'BUY_ONE_GET_ONE';
+    const isFixed = offer.offerType === 'FIXED_AMOUNT_DISCOUNT';
+    const discVal = Number(offer.discountValue || 0);
+
+    let unitPrice = item.price;
+    let totalPrice = item.price * quantity;
+    let discountAmount = 0;
+
+    if (isBogo) {
+      // Buy 1 Get 1 Free: customer pays for ceil(quantity / 2)
+      const billableQty = Math.ceil(quantity / 2);
+      totalPrice = item.price * billableQty;
+      discountAmount = (item.price * quantity) - totalPrice;
+      unitPrice = quantity > 1 ? Math.round(totalPrice / quantity) : item.price;
+    } else if (isFixed && discVal > 0) {
+      unitPrice = Math.max(0, item.price - discVal);
+      totalPrice = unitPrice * quantity;
+      discountAmount = (item.price - unitPrice) * quantity;
+    } else if (discVal > 0) {
+      unitPrice = Math.round(item.price * (1 - discVal / 100));
+      totalPrice = unitPrice * quantity;
+      discountAmount = (item.price - unitPrice) * quantity;
+    }
+
+    return {
+      originalPrice: item.price,
+      unitPrice,
+      totalPrice,
+      discountAmount,
+      offer,
+      isBogo,
+    };
+  }, [getOfferForItem]);
 
   /* ── Cart helpers ─────────────────────────── */
   const filtered = cat === 'All' ? menuItems : menuItems.filter((m) => m.category === cat);
   const cartCount = Object.values(cart).reduce((s, n) => s + n, 0);
-  const cartTotal = Object.entries(cart).reduce((s, [id, n]) => {
+
+  const cartCalculations = Object.entries(cart).map(([id, qty]) => {
     const item = menuItems.find((m) => m.id === id);
-    return s + (item ? item.price * n : 0);
-  }, 0);
+    if (!item) return null;
+    const pricing = getItemPricing(item, qty);
+    return {
+      item,
+      qty,
+      ...pricing,
+    };
+  }).filter(Boolean) as {
+    item: MenuItem;
+    qty: number;
+    originalPrice: number;
+    unitPrice: number;
+    totalPrice: number;
+    discountAmount: number;
+    offer: Offer | null;
+    isBogo: boolean;
+  }[];
+
+  const cartSubtotal = cartCalculations.reduce((s, c) => s + (c.originalPrice * c.qty), 0);
+  const cartTotalDiscount = cartCalculations.reduce((s, c) => s + c.discountAmount, 0);
+  const cartFinalTotal = Math.max(0, cartSubtotal - cartTotalDiscount);
+  const appliedOffer = cartCalculations.find(c => c.offer)?.offer ?? null;
 
   const add = (id: string) => setCart((p) => ({ ...p, [id]: (p[id] ?? 0) + 1 }));
   const dec = (id: string) => setCart((p) => {
@@ -398,6 +468,7 @@ export const DigitalStorefrontPage: React.FC = () => {
       };
       if (tableUuid) body.tableUuid = tableUuid;
       if (formattedPhone) body.phoneNumber = formattedPhone;
+      if (appliedOffer) body.offerUuid = appliedOffer.id;
 
       const res = await fetch(getApiUrl('/orders'), {
         method: 'POST',
@@ -582,6 +653,15 @@ export const DigitalStorefrontPage: React.FC = () => {
           {/* ── Order Summary Card ── */}
           <div className="card p-5 text-left space-y-3 rounded-2xl border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Ordered Items</p>
+
+            {/* Applied offer banner on receipt */}
+            {activeOrder?.offer && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold" style={{ background: 'rgba(251,191,36,0.12)', color: '#F59E0B', border: '1px solid rgba(251,191,36,0.3)' }}>
+                <Flame className="w-3.5 h-3.5 flex-shrink-0" />
+                Deal Applied: {activeOrder.offer.title}
+              </div>
+            )}
+
             {orderItemsList.length > 0 ? (
               orderItemsList.map((item: any, idx: number) => (
                 <div key={idx} className="flex justify-between items-center text-sm">
@@ -605,10 +685,19 @@ export const DigitalStorefrontPage: React.FC = () => {
                 );
               })
             )}
+
+            {/* Discount row on receipt */}
+            {Number(activeOrder?.discountAmount) > 0 && (
+              <div className="flex justify-between items-center text-sm border-t pt-2" style={{ borderColor: 'var(--border)' }}>
+                <span className="font-bold text-emerald-400">Discount Applied</span>
+                <span className="font-black text-emerald-400">-KES {Number(activeOrder.discountAmount).toLocaleString()}</span>
+              </div>
+            )}
+
             <div className="flex justify-between pt-3 border-t font-bold" style={{ borderColor: 'var(--border)' }}>
               <span style={{ color: 'var(--text)' }}>Total Amount</span>
               <span className="text-base font-black" style={{ color: brand.accent }}>
-                KES {Number(activeOrder?.totalAmount ?? cartTotal).toLocaleString()}
+                KES {Number(activeOrder?.totalAmount ?? cartFinalTotal).toLocaleString()}
               </span>
             </div>
           </div>
@@ -718,19 +807,45 @@ export const DigitalStorefrontPage: React.FC = () => {
           {/* Order summary */}
           <div className="card p-5 space-y-3">
             <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Order Summary</p>
-            {Object.entries(cart).map(([id, qty]) => {
-              const item = menuItems.find((m) => m.id === id);
-              if (!item) return null;
-              return (
-                <div key={id} className="flex justify-between items-center text-sm">
-                  <span style={{ color: 'var(--text-secondary)' }}>{qty}× {item.name}</span>
-                  <span className="font-bold" style={{ color: 'var(--text)' }}>KES {(item.price * qty).toLocaleString()}</span>
+
+            {/* Active offer banner in checkout */}
+            {appliedOffer && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold" style={{ background: 'rgba(251,191,36,0.12)', color: '#F59E0B', border: '1px solid rgba(251,191,36,0.3)' }}>
+                <Flame className="w-3.5 h-3.5 flex-shrink-0" />
+                {appliedOffer.badge || appliedOffer.title} — Deal Active!
+              </div>
+            )}
+
+            {cartCalculations.map((c) => (
+              <div key={c.item.id} className="space-y-0.5">
+                <div className="flex justify-between items-center text-sm">
+                  <span style={{ color: 'var(--text-secondary)' }}>{c.qty}× {c.item.name}</span>
+                  <div className="text-right">
+                    {c.discountAmount > 0 && (
+                      <span className="text-xs line-through block" style={{ color: 'var(--text-muted)' }}>KES {(c.originalPrice * c.qty).toLocaleString()}</span>
+                    )}
+                    <span className="font-bold" style={{ color: c.discountAmount > 0 ? '#F59E0B' : 'var(--text)' }}>KES {c.totalPrice.toLocaleString()}</span>
+                  </div>
                 </div>
-              );
-            })}
+                {c.offer && (
+                  <div className="flex items-center gap-1 text-[10px] font-bold" style={{ color: '#34D399' }}>
+                    <Tag className="w-2.5 h-2.5" />
+                    {c.isBogo ? 'Buy 1 Get 1 Free' : c.offer.badge || c.offer.title}
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {cartTotalDiscount > 0 && (
+              <div className="flex justify-between items-center text-sm border-t pt-2" style={{ borderColor: 'var(--border)' }}>
+                <span className="font-bold text-emerald-400">🎉 You're saving</span>
+                <span className="font-black text-emerald-400">-KES {cartTotalDiscount.toLocaleString()}</span>
+              </div>
+            )}
+
             <div className="flex justify-between pt-3 border-t font-bold" style={{ borderColor: 'var(--border)' }}>
               <span style={{ color: 'var(--text)' }}>Total</span>
-              <span style={{ color: brand.accent }}>KES {cartTotal.toLocaleString()}</span>
+              <span style={{ color: brand.accent }}>KES {cartFinalTotal.toLocaleString()}</span>
             </div>
           </div>
 
@@ -762,7 +877,7 @@ export const DigitalStorefrontPage: React.FC = () => {
                 Placing Order…
               </span>
             ) : (
-              <>Confirm Order · KES {cartTotal.toLocaleString()}</>
+              <>Confirm Order · KES {cartFinalTotal.toLocaleString()}</>
             )}
           </button>
         </div>
@@ -785,38 +900,59 @@ export const DigitalStorefrontPage: React.FC = () => {
         </div>
 
         <div className="max-w-md mx-auto px-4 py-6 space-y-3 pb-40">
-          {Object.entries(cart).map(([id, qty]) => {
-            const item = menuItems.find((m) => m.id === id);
-            if (!item) return null;
-            return (
-              <div key={id} className="card flex items-center gap-4 p-4">
-                {item.img
-                  ? <img src={item.img} alt={item.name} className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
-                  : <div className="w-16 h-16 rounded-xl flex-shrink-0 flex items-center justify-center text-2xl" style={{ background: 'var(--surface-2)' }}>🍸</div>
-                }
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm truncate" style={{ color: 'var(--text)' }}>{item.name}</p>
-                  <p className="font-black text-sm mt-0.5" style={{ color: brand.accent }}>KES {(item.price * qty).toLocaleString()}</p>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <button onClick={() => dec(id)} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
-                    <Minus className="w-4 h-4" style={{ color: 'var(--text)' }} />
-                  </button>
-                  <span className="w-5 text-center font-black text-sm" style={{ color: 'var(--text)' }}>{qty}</span>
-                  <button onClick={() => add(id)} className="w-8 h-8 rounded-xl flex items-center justify-center text-white" style={{ background: brand.primary }}>
-                    <Plus className="w-4 h-4" />
-                  </button>
+          {/* Active offer banner in cart */}
+          {appliedOffer && (
+            <div className="flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-bold" style={{ background: 'rgba(251,191,36,0.12)', color: '#F59E0B', border: '1px solid rgba(251,191,36,0.3)' }}>
+              <Flame className="w-4 h-4 flex-shrink-0" />
+              <span>{appliedOffer.badge || appliedOffer.title} — Active!</span>
+            </div>
+          )}
+
+          {cartCalculations.map((c) => (
+            <div key={c.item.id} className="card flex items-center gap-4 p-4">
+              {c.item.img
+                ? <img src={c.item.img} alt={c.item.name} className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
+                : <div className="w-16 h-16 rounded-xl flex-shrink-0 flex items-center justify-center text-2xl" style={{ background: 'var(--surface-2)' }}>🍸</div>
+              }
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-sm truncate" style={{ color: 'var(--text)' }}>{c.item.name}</p>
+                {c.offer && (
+                  <div className="flex items-center gap-1 mt-0.5 text-[10px] font-bold" style={{ color: '#34D399' }}>
+                    <Tag className="w-2.5 h-2.5" />
+                    {c.isBogo ? 'Buy 1 Get 1 Free' : c.offer.badge || c.offer.title}
+                  </div>
+                )}
+                <div className="flex items-center gap-2 mt-1">
+                  {c.discountAmount > 0 && (
+                    <span className="text-xs line-through" style={{ color: 'var(--text-muted)' }}>KES {(c.originalPrice * c.qty).toLocaleString()}</span>
+                  )}
+                  <span className="font-black text-sm" style={{ color: c.discountAmount > 0 ? '#F59E0B' : brand.accent }}>KES {c.totalPrice.toLocaleString()}</span>
                 </div>
               </div>
-            );
-          })}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button onClick={() => dec(c.item.id)} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
+                  <Minus className="w-4 h-4" style={{ color: 'var(--text)' }} />
+                </button>
+                <span className="w-5 text-center font-black text-sm" style={{ color: 'var(--text)' }}>{c.qty}</span>
+                <button onClick={() => add(c.item.id)} className="w-8 h-8 rounded-xl flex items-center justify-center text-white" style={{ background: brand.primary }}>
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="fixed bottom-0 inset-x-0 p-4 border-t" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
-          <div className="max-w-md mx-auto space-y-3">
+          <div className="max-w-md mx-auto space-y-2">
+            {cartTotalDiscount > 0 && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="font-bold text-emerald-400">🎉 Savings</span>
+                <span className="font-black text-emerald-400">-KES {cartTotalDiscount.toLocaleString()}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center">
               <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>Total</span>
-              <span className="text-xl font-black" style={{ color: brand.accent }}>KES {cartTotal.toLocaleString()}</span>
+              <span className="text-xl font-black" style={{ color: brand.accent }}>KES {cartFinalTotal.toLocaleString()}</span>
             </div>
             <button onClick={() => setScreen('checkout')} className="btn-primary w-full py-4 text-sm font-black flex items-center justify-center gap-2 text-white" style={{ background: brand.primary }}>
               Continue to Checkout <ChevronRight className="w-4 h-4" />
@@ -1135,14 +1271,25 @@ export const DigitalStorefrontPage: React.FC = () => {
           </div>
         )}
 
-        {filtered.filter((i) => i.isAvailable).map((item) => (
+        {filtered.filter((i) => i.isAvailable).map((item) => {
+          const itemOffer = getOfferForItem(item);
+          const itemPricing = itemOffer ? getItemPricing(item, 1) : null;
+          return (
           <div key={item.id} className="card flex items-center gap-4 p-4 transition-all active:scale-[0.98]">
             <div className="relative flex-shrink-0">
               {item.img
                 ? <img src={item.img} alt={item.name} className="w-20 h-20 rounded-xl object-cover" />
                 : <div className="w-20 h-20 rounded-xl flex items-center justify-center text-3xl" style={{ background: 'var(--surface)' }}>🍸</div>
               }
-              {item.badge && (
+              {itemOffer && (
+                <span
+                  className="absolute -top-2 -right-2 text-[8px] font-black rounded-full px-1.5 py-0.5 text-white animate-pulse"
+                  style={{ background: 'linear-gradient(135deg, #F59E0B, #EF4444)' }}
+                >
+                  {itemOffer.badge ? itemOffer.badge.slice(0, 8) : 'DEAL'}
+                </span>
+              )}
+              {!itemOffer && item.badge && (
                 <span
                   className="absolute -top-2 -right-2 text-[8px] font-black rounded-full px-1.5 py-0.5 text-white"
                   style={{ background: brand.primary }}
@@ -1155,8 +1302,22 @@ export const DigitalStorefrontPage: React.FC = () => {
             <div className="flex-1 min-w-0 space-y-1">
               <p className="font-bold text-sm leading-tight truncate" style={{ color: 'var(--text)' }}>{item.name}</p>
               {item.desc && <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{item.desc}</p>}
+              {/* Offer label */}
+              {itemOffer && (
+                <div className="flex items-center gap-1 text-[10px] font-bold" style={{ color: '#34D399' }}>
+                  <Tag className="w-2.5 h-2.5" />
+                  {itemOffer.offerType === 'BUY_ONE_GET_ONE' ? 'Buy 1 Get 1 Free' : itemOffer.badge || itemOffer.title}
+                </div>
+              )}
               <div className="flex items-center justify-between pt-1">
-                <span className="font-black text-sm" style={{ color: brand.accent }}>KES {item.price.toLocaleString()}</span>
+                <div className="flex items-center gap-2">
+                  {itemPricing && itemPricing.discountAmount > 0 && (
+                    <span className="text-xs line-through" style={{ color: 'var(--text-muted)' }}>KES {item.price.toLocaleString()}</span>
+                  )}
+                  <span className="font-black text-sm" style={{ color: itemPricing && itemPricing.discountAmount > 0 ? '#F59E0B' : brand.accent }}>
+                    KES {itemPricing ? itemPricing.unitPrice.toLocaleString() : item.price.toLocaleString()}
+                  </span>
+                </div>
 
                 {(cart[item.id] ?? 0) > 0 ? (
                   <div className="flex items-center gap-2 rounded-xl p-1" style={{ background: 'var(--surface-2)' }}>
@@ -1181,7 +1342,8 @@ export const DigitalStorefrontPage: React.FC = () => {
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* ── FLOATING CART BAR ────────────────── */}
@@ -1202,7 +1364,10 @@ export const DigitalStorefrontPage: React.FC = () => {
               <span className="text-sm font-bold">View Order</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-black">KES {cartTotal.toLocaleString()}</span>
+              {cartTotalDiscount > 0 && (
+                <span className="text-xs font-bold line-through opacity-60">KES {cartSubtotal.toLocaleString()}</span>
+              )}
+              <span className="text-sm font-black">KES {cartFinalTotal.toLocaleString()}</span>
               <ChevronRight className="w-4 h-4 opacity-70" />
             </div>
           </button>

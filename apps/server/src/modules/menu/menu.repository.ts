@@ -124,9 +124,24 @@ export class MenuRepository implements IMenuRepository {
         offerType: data.offerType || 'PERCENTAGE_DISCOUNT',
         discountValue: data.discountValue!,
         promoCode: data.promoCode,
-        startTime: data.startTime!,
-        endTime: data.endTime!,
+        startTime: data.startTime || new Date(),
+        endTime: data.endTime || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
       },
+    });
+  }
+
+  async deleteOffer(offerUuid: string): Promise<boolean> {
+    await prisma.offer.update({
+      where: { offerUuid },
+      data: { deletedAt: new Date(), isActive: false },
+    });
+    return true;
+  }
+
+  async toggleOffer(offerUuid: string, isActive: boolean): Promise<Offer> {
+    return prisma.offer.update({
+      where: { offerUuid },
+      data: { isActive },
     });
   }
 }

@@ -16,4 +16,6 @@ export interface IMenuRepository {
 
   findOffersByClub(clubUuid: string): Promise<Offer[]>;
   createOffer(clubUuid: string, data: Partial<Offer>): Promise<Offer>;
+  deleteOffer(offerUuid: string): Promise<boolean>;
+  toggleOffer(offerUuid: string, isActive: boolean): Promise<Offer>;
 }

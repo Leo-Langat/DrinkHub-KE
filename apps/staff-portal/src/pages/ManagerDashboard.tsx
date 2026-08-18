@@ -6,7 +6,7 @@ import {
   Eye, EyeOff, Trash2, Edit2, CheckCircle2, X, RefreshCcw, Filter,
   AlertCircle, ArrowUpRight, RotateCcw, Key, UserX, UserCheck,
   Phone, Mail, Hash, Lock, Clock, Briefcase, Shield, QrCode, Copy, ExternalLink,
-  Tag, Layers, FolderPlus, Camera, Image, Upload, Printer, Sparkles,
+  Tag, Layers, FolderPlus, Camera, Image, Upload, Printer, Sparkles, Flame, Gift, Percent,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis,
@@ -779,18 +779,31 @@ interface CategoryItem {
   count: number;
 }
 
+interface ManagerOffer {
+  id: string;
+  title: string;
+  description?: string;
+  discountValue: number;
+  promoCode?: string;
+  offerType: string;
+  isActive: boolean;
+}
+
 /* Module-level cache — survives re-renders and tab navigation */
-let _menuCache: { categories: CategoryItem[]; items: MenuItem[] } | null = null;
+let _menuCache: { categories: CategoryItem[]; items: MenuItem[]; offers: ManagerOffer[] } | null = null;
 
 const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
   // Seed from cache immediately so the tab appears instant on revisit
   const [items, setItems] = React.useState<MenuItem[]>(_menuCache?.items ?? []);
   const [categories, setCategories] = React.useState<CategoryItem[]>(_menuCache?.categories ?? []);
+  const [offers, setOffers] = React.useState<ManagerOffer[]>(_menuCache?.offers ?? []);
   const [selectedCatFilter, setSelectedCatFilter] = React.useState<string>('All');
   
   // Modals
   const [showAdd, setShowAdd] = React.useState(false);
   const [showCategoriesModal, setShowCategoriesModal] = React.useState(false);
+  const [showOffersModal, setShowOffersModal] = React.useState(false);
+  const [showAddOfferModal, setShowAddOfferModal] = React.useState(false);
   const [showAddCatModal, setShowAddCatModal] = React.useState(false);
   const [showEditCatModal, setShowEditCatModal] = React.useState(false);
   const [showEditItemModal, setShowEditItemModal] = React.useState(false);
@@ -801,6 +814,13 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
   const [newCatForm, setNewCatForm] = React.useState({ name: '', description: '' });
   const [editCatForm, setEditCatForm] = React.useState({ id: '', name: '', description: '' });
   const [editItemForm, setEditItemForm] = React.useState({ id: '', name: '', category: '', price: '', imageUrl: '', description: '' });
+  const [offerForm, setOfferForm] = React.useState({
+    title: '',
+    description: '',
+    discountValue: '20',
+    promoCode: '',
+    offerType: 'PERCENTAGE_DISCOUNT',
+  });
 
   const [loading, setLoading] = React.useState(false);
   // True only on first load when there's no cached data yet
@@ -866,6 +886,7 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
       if (!res.ok) return;
       const data = await res.json();
       const rawCats: any[] = (data.data ?? data).categories ?? [];
+      const rawOffers: any[] = (data.data ?? data).offers ?? [];
       
       const parsedCats: CategoryItem[] = rawCats.map((cat: any) => ({
         id: cat.categoryUuid ?? cat.uuid ?? cat.id,
@@ -874,6 +895,17 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
         count: (cat.products ?? []).length,
       }));
       setCategories(parsedCats);
+
+      const parsedOffers: ManagerOffer[] = rawOffers.map((o: any) => ({
+        id: o.offerUuid ?? o.uuid ?? o.id,
+        title: o.title,
+        description: o.description,
+        discountValue: Number(o.discountValue ?? 0),
+        promoCode: o.promoCode,
+        offerType: o.offerType ?? 'PERCENTAGE_DISCOUNT',
+        isActive: o.isActive !== false,
+      }));
+      setOffers(parsedOffers);
 
       setAddForm(p => ({
         ...p,
@@ -897,7 +929,7 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
       setItems(flat);
 
       // Populate module-level cache for instant revisits
-      _menuCache = { categories: parsedCats, items: flat };
+      _menuCache = { categories: parsedCats, items: flat, offers: parsedOffers };
     } catch { /* keep previous state on error */ }
     finally {
       setFetching(false);
@@ -905,6 +937,68 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
   // No dependency on addForm.category — prevents re-fetching on every form change
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleCreateOffer = async () => {
+    if (!offerForm.title.trim() || !offerForm.discountValue) {
+      showToast('Offer title and discount value are required');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(getApiUrl('/menu/offers'), {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          title: offerForm.title.trim(),
+          description: offerForm.description.trim() || undefined,
+          offerType: offerForm.offerType,
+          discountValue: Number(offerForm.discountValue),
+          promoCode: offerForm.promoCode.trim().toUpperCase() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || 'Failed to create offer');
+      showToast(`Special offer "${offerForm.title}" published!`);
+      setOfferForm({ title: '', description: '', discountValue: '20', promoCode: '', offerType: 'PERCENTAGE_DISCOUNT' });
+      setShowAddOfferModal(false);
+      fetchMenu();
+    } catch (err: any) {
+      showToast(err.message || 'Error creating offer');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleOffer = async (id: string, currentActive: boolean) => {
+    try {
+      const nextActive = !currentActive;
+      setOffers(prev => prev.map(o => o.id === id ? { ...o, isActive: nextActive } : o));
+      await fetch(getApiUrl(`/menu/offers/${id}/toggle`), {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ isActive: nextActive }),
+      });
+      showToast(`Offer ${nextActive ? 'activated' : 'paused'}`);
+    } catch {
+      showToast('Failed to update offer status');
+      fetchMenu();
+    }
+  };
+
+  const handleDeleteOffer = async (id: string, title: string) => {
+    if (!confirm(`Are you sure you want to delete offer "${title}"?`)) return;
+    try {
+      setOffers(prev => prev.filter(o => o.id !== id));
+      await fetch(getApiUrl(`/menu/offers/${id}`), {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
+      showToast(`Offer "${title}" deleted`);
+    } catch {
+      showToast('Failed to delete offer');
+      fetchMenu();
+    }
+  };
 
   React.useEffect(() => {
     fetchMenu();
@@ -1125,8 +1219,15 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
 
   return (
     <div className="space-y-5">
-      <SectionHeader title="Menu Management" subtitle="Manage your venue's categories, food, and drink items in real-time" action={
-        <div className="flex items-center gap-2.5">
+      <SectionHeader title="Menu Management" subtitle="Manage your venue's categories, food, drink items, and daily offers in real-time" action={
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={() => setShowOffersModal(true)}
+            className="flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-bold transition-all hover:bg-amber-500/10 hover:border-amber-400 text-amber-600 dark:text-amber-400"
+            style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}
+          >
+            <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Deals & Offers ({offers.filter(o => o.isActive).length})
+          </button>
           <button onClick={() => setShowCategoriesModal(true)} className="flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-bold transition-colors hover:bg-slate-50" style={{ borderColor: 'var(--border)', color: 'var(--text-primary)', background: 'var(--bg-card)' }}>
             <Layers className="h-3.5 w-3.5 text-blue-600" /> Manage Categories ({categories.length})
           </button>
@@ -1135,6 +1236,59 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
           </button>
         </div>
       } />
+
+      {/* ── Deals & Daily Offers Preview Strip ── */}
+      {offers.length > 0 && (
+        <div className="rounded-2xl border p-4 transition-all" style={{ background: 'var(--bg-card)', borderColor: 'rgba(245,158,11,0.3)' }}>
+          <div className="flex items-center justify-between gap-3 mb-2.5">
+            <div className="flex items-center gap-2">
+              <div className="h-6 w-6 rounded-lg bg-amber-500/20 text-amber-500 flex items-center justify-center">
+                <Flame className="h-3.5 w-3.5" />
+              </div>
+              <span className="text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                Active Customer Deals of the Day ({offers.filter(o => o.isActive).length})
+              </span>
+            </div>
+            <button
+              onClick={() => setShowOffersModal(true)}
+              className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
+            >
+              Manage Deals <ArrowUpRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {offers.slice(0, 3).map(offer => (
+              <div
+                key={offer.id}
+                className="flex items-center justify-between p-3 rounded-xl border transition-all"
+                style={{
+                  background: offer.isActive ? 'rgba(245,158,11,0.06)' : 'var(--bg-body)',
+                  borderColor: offer.isActive ? 'rgba(245,158,11,0.25)' : 'var(--border)',
+                  opacity: offer.isActive ? 1 : 0.6,
+                }}
+              >
+                <div className="min-w-0 pr-2">
+                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{offer.title}</p>
+                  <p className="text-[11px] text-slate-500 truncate">
+                    {offer.offerType === 'BUY_ONE_GET_ONE' ? 'Buy 1 Get 1' : `${offer.discountValue}% Discount`}
+                    {offer.promoCode ? ` · Code: ${offer.promoCode}` : ''}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleToggleOffer(offer.id, offer.isActive)}
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-colors ${
+                    offer.isActive
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                      : 'bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                  }`}
+                >
+                  {offer.isActive ? 'Active' : 'Paused'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Filter and Search Bar Row */}
       <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
@@ -1462,6 +1616,190 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
             <button onClick={() => setShowEditItemModal(false)} className="flex-1 rounded-xl border py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors" style={{ borderColor: '#E2E8F0' }}>Cancel</button>
             <button disabled={loading} onClick={handleUpdateItem} className="flex-1 rounded-xl py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>
               {loading ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Modal: Manage Daily Deals & Offers ── */}
+      <Modal open={showOffersModal} onClose={() => setShowOffersModal(false)} title="Manage Special Deals & Offers of the Day" size="lg">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'var(--border)' }}>
+            <p className="text-xs text-slate-500">
+              Create and toggle daily promotional banners that appear directly on your customers' mobile menu.
+            </p>
+            <button
+              onClick={() => {
+                setOfferForm({ title: '', description: '', discountValue: '20', promoCode: '', offerType: 'PERCENTAGE_DISCOUNT' });
+                setShowAddOfferModal(true);
+              }}
+              className="flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold text-white hover:opacity-90 transition-opacity whitespace-nowrap"
+              style={{ background: '#F59E0B' }}
+            >
+              <Plus className="h-3.5 w-3.5" /> New Deal
+            </button>
+          </div>
+
+          <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+            {offers.length === 0 ? (
+              <div className="text-center py-8 space-y-2">
+                <Sparkles className="h-8 w-8 text-amber-400 mx-auto opacity-40" />
+                <p className="text-xs text-slate-400">No active deals or offers yet.</p>
+                <button
+                  onClick={() => setShowAddOfferModal(true)}
+                  className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline"
+                >
+                  Create your first Happy Hour or Daily Deal →
+                </button>
+              </div>
+            ) : (
+              offers.map(offer => (
+                <div
+                  key={offer.id}
+                  className="flex items-center justify-between p-3.5 rounded-xl border bg-slate-50/50 dark:bg-slate-900/50 transition-colors"
+                  style={{ borderColor: 'var(--border)' }}
+                >
+                  <div className="space-y-1 min-w-0 flex-1 pr-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                        {offer.offerType === 'BUY_ONE_GET_ONE' ? '🎁 BUY 1 GET 1' : `${offer.discountValue}% OFF`}
+                      </span>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                        {offer.title}
+                      </h4>
+                      {offer.promoCode && (
+                        <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                          {offer.promoCode}
+                        </span>
+                      )}
+                    </div>
+                    {offer.description && (
+                      <p className="text-xs text-slate-500 line-clamp-1">{offer.description}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => handleToggleOffer(offer.id, offer.isActive)}
+                      className={`text-xs font-bold px-3 py-1 rounded-full border transition-colors ${
+                        offer.isActive
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                          : 'bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                      }`}
+                    >
+                      {offer.isActive ? 'Active' : 'Paused'}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteOffer(offer.id, offer.title)}
+                      className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/50 text-red-500 transition-colors"
+                      title="Delete Offer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="pt-2 flex justify-end">
+            <button onClick={() => setShowOffersModal(false)} className="rounded-xl border px-5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors" style={{ borderColor: '#E2E8F0' }}>
+              Close
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Modal: Create Special Deal / Offer of the Day ── */}
+      <Modal open={showAddOfferModal} onClose={() => setShowAddOfferModal(false)} title="Create Special Deal of the Day" size="md">
+        <div className="space-y-4">
+          <div>
+            <FL required>Deal / Offer Title</FL>
+            <SI
+              value={offerForm.title}
+              onChange={e => setOfferForm(p => ({ ...p, title: e.target.value }))}
+              placeholder="e.g. Happy Hour Cocktails, 20% Off Single Malts"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FL required>Offer Type</FL>
+              <SS
+                value={offerForm.offerType}
+                onChange={e => setOfferForm(p => ({ ...p, offerType: e.target.value }))}
+                options={[
+                  { v: 'PERCENTAGE_DISCOUNT', l: 'Percentage Discount (%)' },
+                  { v: 'FIXED_AMOUNT_DISCOUNT', l: 'Fixed Amount (KES)' },
+                  { v: 'BUY_ONE_GET_ONE', l: 'Buy 1 Get 1 Free' },
+                ]}
+              />
+            </div>
+            <div>
+              <FL required>{offerForm.offerType === 'PERCENTAGE_DISCOUNT' ? 'Discount Percentage (%)' : offerForm.offerType === 'FIXED_AMOUNT_DISCOUNT' ? 'Discount Amount (KES)' : 'Bonus Quantity'}</FL>
+              <SI
+                type="number"
+                value={offerForm.discountValue}
+                onChange={e => setOfferForm(p => ({ ...p, discountValue: e.target.value }))}
+                placeholder={offerForm.offerType === 'PERCENTAGE_DISCOUNT' ? '20' : '500'}
+                min="0"
+              />
+            </div>
+          </div>
+
+          <div>
+            <FL>Promo Code (Optional)</FL>
+            <SI
+              value={offerForm.promoCode}
+              onChange={e => setOfferForm(p => ({ ...p, promoCode: e.target.value.toUpperCase() }))}
+              placeholder="e.g. HAPPY20, CHEERS"
+            />
+          </div>
+
+          <div>
+            <FL>Description & Terms (Optional)</FL>
+            <SI
+              value={offerForm.description}
+              onChange={e => setOfferForm(p => ({ ...p, description: e.target.value }))}
+              placeholder="e.g. Available every Friday from 5 PM to 9 PM at all tables."
+            />
+          </div>
+
+          {/* Quick presets */}
+          <div>
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Quick Presets</p>
+            <div className="flex gap-1.5 flex-wrap">
+              {[
+                { title: 'Happy Hour: Buy 2 Cocktails Get 1 Free', type: 'BUY_ONE_GET_ONE', val: '1', code: 'HAPPY' },
+                { title: '20% Off All Single Malts & Whiskeys', type: 'PERCENTAGE_DISCOUNT', val: '20', code: 'WHISKY20' },
+                { title: 'Weekend Vibes: KES 500 Off Bottle Service', type: 'FIXED_AMOUNT_DISCOUNT', val: '500', code: 'VIP500' },
+              ].map(preset => (
+                <button
+                  key={preset.title}
+                  type="button"
+                  onClick={() => setOfferForm({
+                    title: preset.title,
+                    description: 'Special limited-time deal for our guests.',
+                    offerType: preset.type,
+                    discountValue: preset.val,
+                    promoCode: preset.code,
+                  })}
+                  className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-amber-300/80 bg-amber-50/50 hover:bg-amber-100/70 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-700/60 transition-colors"
+                >
+                  {preset.title.split(':')[0]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button onClick={() => setShowAddOfferModal(false)} className="flex-1 rounded-xl border py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors" style={{ borderColor: '#E2E8F0' }}>Cancel</button>
+            <button
+              disabled={loading || !offerForm.title.trim() || !offerForm.discountValue}
+              onClick={handleCreateOffer}
+              className="flex-1 rounded-xl py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+              style={{ background: '#F59E0B' }}
+            >
+              {loading ? 'Publishing...' : 'Publish Special Deal'}
             </button>
           </div>
         </div>

@@ -4,7 +4,7 @@ import {
   Plus, Minus, X, ChevronRight, Sparkles, CheckCircle2,
   Clock, AlertCircle, ShoppingCart, MapPin, Wifi, WifiOff,
   Smartphone, Banknote, CreditCard, ArrowLeft, Star, Loader2,
-  User, Check, RefreshCw,
+  User, Check, RefreshCw, Flame, Gift, Tag, Copy,
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────
@@ -47,6 +47,10 @@ interface Offer {
   title: string;
   description: string | null;
   promoCode: string | null;
+  discountValue?: number;
+  offerType?: string;
+  badge?: string;
+  isActive?: boolean;
 }
 
 type CartMap = Record<string, number>;
@@ -89,6 +93,19 @@ export const DigitalStorefrontPage: React.FC = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const heroRef = useRef<HTMLDivElement>(null);
   const [heroOpacity, setHeroOpacity] = useState(1);
+
+  // Offers Banner Carousel
+  const [activeOfferIdx, setActiveOfferIdx] = useState(0);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  // Auto-rotate offers every 5 seconds if multiple offers exist
+  useEffect(() => {
+    if (offers.length <= 1) return;
+    const timer = setInterval(() => {
+      setActiveOfferIdx((prev) => (prev + 1) % offers.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [offers.length]);
 
   // Active Order Live Tracking
   const [activeOrderUuid, setActiveOrderUuid] = useState<string | null>(() => {
@@ -213,12 +230,29 @@ export const DigitalStorefrontPage: React.FC = () => {
         });
 
         rawOfferList.forEach((o: any) => {
-          rawOffers.push({
-            id: o.offerUuid ?? o.uuid ?? o.id,
-            title: o.title,
-            description: o.description ?? null,
-            promoCode: o.promoCode ?? null,
-          });
+          if (o.isActive !== false) {
+            const isBogo = o.offerType === 'BUY_ONE_GET_ONE';
+            const isFixed = o.offerType === 'FIXED_AMOUNT_DISCOUNT';
+            const discVal = Number(o.discountValue ?? 0);
+            const badge = isBogo
+              ? '🎁 BUY 1 GET 1'
+              : isFixed && discVal > 0
+                ? `💰 KES ${discVal.toLocaleString()} OFF`
+                : discVal > 0
+                  ? `🔥 ${discVal}% OFF`
+                  : '✨ SPECIAL DEAL';
+
+            rawOffers.push({
+              id: o.offerUuid ?? o.uuid ?? o.id,
+              title: o.title,
+              description: o.description ?? null,
+              promoCode: o.promoCode ?? null,
+              discountValue: discVal,
+              offerType: o.offerType,
+              badge,
+              isActive: o.isActive !== false,
+            });
+          }
         });
 
         setCategories(cats);
@@ -823,27 +857,98 @@ export const DigitalStorefrontPage: React.FC = () => {
         </div>
       )}
 
-      {/* ── ACTIVE OFFERS ─────────────────────── */}
+      {/* ── SPECIAL DEALS & OFFERS OF THE DAY BANNER ─────────────────────── */}
       {offers.length > 0 && (
         <div className="px-4 pt-4 fade-up">
-          {offers.map((offer) => (
-            <div key={offer.id} className="rounded-2xl p-4 flex items-center justify-between mb-2" style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.15) 0%, rgba(245,158,11,0.05) 100%)', border: '1px solid rgba(245,158,11,0.25)' }}>
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(245,158,11,0.2)' }}>
-                  <Sparkles className="w-5 h-5 text-amber-400" />
+          <div
+            className="relative overflow-hidden rounded-2xl border transition-all duration-300"
+            style={{
+              borderColor: 'rgba(245, 158, 11, 0.4)',
+              background: 'var(--surface)',
+              boxShadow: '0 4px 20px -2px rgba(245, 158, 11, 0.12)',
+            }}
+          >
+            {/* Ambient vibrant gradient glow */}
+            <div
+              className="absolute inset-0 pointer-events-none opacity-90 transition-opacity"
+              style={{
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(239, 68, 68, 0.08) 50%, rgba(168, 85, 247, 0.12) 100%)',
+              }}
+            />
+
+            <div className="relative p-4 space-y-3">
+              {/* Header row with badge and carousel pagination indicators */}
+              <div className="flex items-center justify-between">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide uppercase bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                  <Flame className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                  <span>Offers of the Day</span>
                 </div>
-                <div>
-                  <p className="text-xs font-black text-amber-400 uppercase tracking-wide">{offer.title}</p>
-                  {offer.description && <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{offer.description}</p>}
-                </div>
+
+                {offers.length > 1 && (
+                  <div className="flex items-center gap-1.5">
+                    {offers.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setActiveOfferIdx(i)}
+                        className={`h-1.5 rounded-full transition-all duration-300 ${
+                          activeOfferIdx === i
+                            ? 'w-5 bg-amber-500'
+                            : 'w-1.5 bg-amber-500/30 hover:bg-amber-500/60'
+                        }`}
+                        aria-label={`Offer ${i + 1}`}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-              {offer.promoCode && (
-                <span className="text-[10px] font-black rounded-lg px-2 py-1.5 flex-shrink-0" style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B', border: '1px solid rgba(245,158,11,0.3)' }}>
-                  {offer.promoCode}
-                </span>
-              )}
+
+              {/* Current Featured Offer */}
+              {(() => {
+                const current = offers[activeOfferIdx % offers.length];
+                if (!current) return null;
+                return (
+                  <div className="flex items-start justify-between gap-3 pt-0.5">
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-amber-500 text-white shadow-sm shadow-amber-500/20">
+                          {current.badge || '🔥 SPECIAL DEAL'}
+                        </span>
+                        <h3 className="font-black text-sm leading-tight truncate" style={{ color: 'var(--text)' }}>
+                          {current.title}
+                        </h3>
+                      </div>
+                      {current.description && (
+                        <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
+                          {current.description}
+                        </p>
+                      )}
+                    </div>
+
+                    {current.promoCode && (
+                      <button
+                        onClick={() => {
+                          if (current.promoCode) {
+                            navigator.clipboard?.writeText(current.promoCode);
+                            setCopiedCode(current.promoCode);
+                            setTimeout(() => setCopiedCode(null), 2500);
+                          }
+                        }}
+                        title="Click to copy promo code"
+                        className="flex-shrink-0 flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 active:scale-95 transition-all text-center"
+                      >
+                        <span className="text-[9px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                          {copiedCode === current.promoCode ? 'Copied! 🎉' : 'Tap to Copy'}
+                        </span>
+                        <span className="font-mono text-xs font-black tracking-wider text-amber-600 dark:text-amber-300">
+                          {current.promoCode}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
-          ))}
+          </div>
         </div>
       )}
 

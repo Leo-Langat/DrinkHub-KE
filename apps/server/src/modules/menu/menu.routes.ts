@@ -245,3 +245,5 @@ menuRouter.post('/upload', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PL
  *         description: Offer created
  */
 menuRouter.post('/offers', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PLATFORM_ADMIN']), validateRequest(createOfferSchema), menuController.createOffer);
+menuRouter.delete('/offers/:offerUuid', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PLATFORM_ADMIN']), menuController.deleteOffer);
+menuRouter.patch('/offers/:offerUuid/toggle', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PLATFORM_ADMIN']), menuController.toggleOffer);

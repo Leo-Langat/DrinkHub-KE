@@ -60,10 +60,10 @@ export const createOfferSchema = z.object({
   body: z.object({
     title: z.string().min(2, 'Offer title is required'),
     description: z.string().optional(),
-    offerType: z.enum(['PERCENTAGE_DISCOUNT', 'FIXED_AMOUNT_DISCOUNT', 'BUY_ONE_GET_ONE']),
-    discountValue: z.number().positive('Discount value must be greater than 0'),
+    offerType: z.enum(['PERCENTAGE_DISCOUNT', 'FIXED_AMOUNT_DISCOUNT', 'BUY_ONE_GET_ONE']).default('PERCENTAGE_DISCOUNT'),
+    discountValue: z.number().nonnegative('Discount value must be greater than or equal to 0'),
     promoCode: z.string().optional(),
-    startTime: z.string(),
-    endTime: z.string(),
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
   }),
 });

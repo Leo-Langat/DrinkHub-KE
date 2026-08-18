@@ -163,4 +163,33 @@ export class MenuController {
       next(error);
     }
   };
+
+  deleteOffer = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { offerUuid } = req.params;
+      await this.menuService.deleteOffer(offerUuid);
+      res.json({
+        success: true,
+        data: { message: 'Offer deleted successfully' },
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  toggleOffer = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { offerUuid } = req.params;
+      const { isActive } = req.body;
+      const offer = await this.menuService.toggleOffer(offerUuid, Boolean(isActive));
+      res.json({
+        success: true,
+        data: offer,
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

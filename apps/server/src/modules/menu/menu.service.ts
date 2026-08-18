@@ -115,10 +115,23 @@ export class MenuService {
     return this.menuRepository.archiveProduct(productUuid);
   }
 
-  async createOffer(clubUuid: string, data: Partial<Offer>): Promise<Offer> {
-    if (!data.title || !data.discountValue || !data.startTime || !data.endTime) {
-      throw new BadRequestError('Offer title, discount, start time, and end time are required');
+  async createOffer(clubUuid: string, data: any): Promise<Offer> {
+    if (!data.title || data.discountValue === undefined) {
+      throw new BadRequestError('Offer title and discount value are required');
     }
-    return this.menuRepository.createOffer(clubUuid, data);
+    return this.menuRepository.createOffer(clubUuid, {
+      ...data,
+      discountValue: Number(data.discountValue),
+      startTime: data.startTime ? new Date(data.startTime) : new Date(),
+      endTime: data.endTime ? new Date(data.endTime) : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+    });
+  }
+
+  async deleteOffer(offerUuid: string): Promise<boolean> {
+    return this.menuRepository.deleteOffer(offerUuid);
+  }
+
+  async toggleOffer(offerUuid: string, isActive: boolean): Promise<Offer> {
+    return this.menuRepository.toggleOffer(offerUuid, isActive);
   }
 }

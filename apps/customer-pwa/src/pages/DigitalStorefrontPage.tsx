@@ -331,7 +331,7 @@ export const DigitalStorefrontPage: React.FC = () => {
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-8 text-center" style={{ background: 'var(--bg)' }}>
         <WifiOff className="w-14 h-14 opacity-40" />
         <div>
-          <h2 className="text-xl font-black text-white">No Internet Connection</h2>
+          <h2 className="text-xl font-black" style={{ color: 'var(--text)' }}>No Internet Connection</h2>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Please connect to Wi-Fi or mobile data to browse the menu and place orders.</p>
         </div>
       </div>
@@ -354,7 +354,7 @@ export const DigitalStorefrontPage: React.FC = () => {
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-8 text-center" style={{ background: 'var(--bg)' }}>
         <AlertCircle className="w-14 h-14 text-red-400" />
         <div>
-          <h2 className="text-xl font-black text-white">Unable to Load Menu</h2>
+          <h2 className="text-xl font-black" style={{ color: 'var(--text)' }}>Unable to Load Menu</h2>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>{loadError}</p>
         </div>
         <button onClick={() => window.location.reload()} className="btn-primary px-6 py-3 text-sm font-bold" style={{ background: 'var(--primary)' }}>
@@ -409,7 +409,7 @@ export const DigitalStorefrontPage: React.FC = () => {
                  currentStatus === 'READY' ? 'Order Ready for Delivery' :
                  'Order Delivered · Cheers! 🥂'}
               </div>
-              <h2 className="text-xl font-black text-white">
+              <h2 className="text-xl font-black" style={{ color: 'var(--text)' }}>
                 {activeOrder?.orderNumber ? `Order #${activeOrder.orderNumber}` : 'Order Status'}
               </h2>
               {displayTable && (
@@ -474,7 +474,7 @@ export const DigitalStorefrontPage: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-blue-400">Assigned Waiter</p>
-                  <p className="text-xs font-bold text-white">{activeOrder.waiter.fullName}</p>
+                  <p className="text-xs font-bold" style={{ color: 'var(--text)' }}>{activeOrder.waiter.fullName}</p>
                 </div>
               </div>
             )}
@@ -489,7 +489,7 @@ export const DigitalStorefrontPage: React.FC = () => {
                   <span style={{ color: 'var(--text-secondary)' }}>
                     {item.quantity}× {item.product?.name ?? item.name ?? 'Drink / Food Item'}
                   </span>
-                  <span className="font-bold text-white">
+                  <span className="font-bold" style={{ color: 'var(--text)' }}>
                     KES {Number(item.subtotal ?? (item.unitPrice ? item.unitPrice * item.quantity : 0)).toLocaleString()}
                   </span>
                 </div>
@@ -501,13 +501,13 @@ export const DigitalStorefrontPage: React.FC = () => {
                 return (
                   <div key={id} className="flex justify-between items-center text-sm">
                     <span style={{ color: 'var(--text-secondary)' }}>{qty}× {item.name}</span>
-                    <span className="font-bold text-white">KES {(item.price * qty).toLocaleString()}</span>
+                    <span className="font-bold" style={{ color: 'var(--text)' }}>KES {(item.price * qty).toLocaleString()}</span>
                   </div>
                 );
               })
             )}
             <div className="flex justify-between pt-3 border-t font-bold" style={{ borderColor: 'var(--border)' }}>
-              <span className="text-white">Total Amount</span>
+              <span style={{ color: 'var(--text)' }}>Total Amount</span>
               <span className="text-base font-black" style={{ color: brand.accent }}>
                 KES {Number(activeOrder?.totalAmount ?? cartTotal).toLocaleString()}
               </span>
@@ -550,10 +550,10 @@ export const DigitalStorefrontPage: React.FC = () => {
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <div className="sticky top-0 z-20 flex items-center gap-3 px-4 py-4 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
           <button onClick={() => setScreen('cart')} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--surface)' }}>
-            <ArrowLeft className="w-5 h-5 text-white" />
+            <ArrowLeft className="w-5 h-5" style={{ color: 'var(--text)' }} />
           </button>
           <div>
-            <h2 className="font-black text-white text-base leading-none">Checkout</h2>
+            <h2 className="font-black text-base leading-none" style={{ color: 'var(--text)' }}>Checkout</h2>
             {table && <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Table #{table}</p>}
           </div>
         </div>
@@ -596,7 +596,8 @@ export const DigitalStorefrontPage: React.FC = () => {
                   placeholder="7XX XXX XXX"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="flex-1 bg-transparent text-white text-sm outline-none placeholder:text-white/20"
+                  className="flex-1 bg-transparent text-sm outline-none placeholder:opacity-40"
+                  style={{ color: 'var(--text)' }}
                 />
               </div>
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>You'll receive an STK Push prompt on this number.</p>
@@ -624,12 +625,12 @@ export const DigitalStorefrontPage: React.FC = () => {
               return (
                 <div key={id} className="flex justify-between items-center text-sm">
                   <span style={{ color: 'var(--text-secondary)' }}>{qty}× {item.name}</span>
-                  <span className="font-bold text-white">KES {(item.price * qty).toLocaleString()}</span>
+                  <span className="font-bold" style={{ color: 'var(--text)' }}>KES {(item.price * qty).toLocaleString()}</span>
                 </div>
               );
             })}
             <div className="flex justify-between pt-3 border-t font-bold" style={{ borderColor: 'var(--border)' }}>
-              <span className="text-white">Total</span>
+              <span style={{ color: 'var(--text)' }}>Total</span>
               <span style={{ color: brand.accent }}>KES {cartTotal.toLocaleString()}</span>
             </div>
           </div>
@@ -638,7 +639,7 @@ export const DigitalStorefrontPage: React.FC = () => {
           <label className="flex items-start gap-3 cursor-pointer">
             <input type="checkbox" checked={ageOk} onChange={(e) => setAgeOk(e.target.checked)} className="mt-0.5 flex-shrink-0" />
             <span className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              I confirm I am <strong className="text-white">over 18 years old</strong> and will provide valid identification upon request.
+              I confirm I am <strong style={{ color: 'var(--text)' }}>over 18 years old</strong> and will provide valid identification upon request.
             </span>
           </label>
 
@@ -651,7 +652,7 @@ export const DigitalStorefrontPage: React.FC = () => {
           <button
             disabled={!ageOk || placing || (payment === 'mpesa' && phone.length < 9)}
             onClick={placeOrder}
-            className="btn-primary w-full py-4 text-sm font-black flex items-center justify-center gap-2"
+            className="btn-primary w-full py-4 text-sm font-black flex items-center justify-center gap-2 text-white"
             style={{ background: ageOk ? brand.primary : undefined }}
           >
             {placing ? (
@@ -676,10 +677,10 @@ export const DigitalStorefrontPage: React.FC = () => {
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <div className="sticky top-0 z-20 flex items-center gap-3 px-4 py-4 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
           <button onClick={() => setScreen('menu')} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--surface)' }}>
-            <ArrowLeft className="w-5 h-5 text-white" />
+            <ArrowLeft className="w-5 h-5" style={{ color: 'var(--text)' }} />
           </button>
           <div>
-            <h2 className="font-black text-white text-base leading-none">Your Order</h2>
+            <h2 className="font-black text-base leading-none" style={{ color: 'var(--text)' }}>Your Order</h2>
             <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{table ? `Table #${table} · ` : ''}{cartCount} item{cartCount !== 1 ? 's' : ''}</p>
           </div>
         </div>
@@ -695,16 +696,16 @@ export const DigitalStorefrontPage: React.FC = () => {
                   : <div className="w-16 h-16 rounded-xl flex-shrink-0 flex items-center justify-center text-2xl" style={{ background: 'var(--surface-2)' }}>🍸</div>
                 }
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm text-white truncate">{item.name}</p>
+                  <p className="font-bold text-sm truncate" style={{ color: 'var(--text)' }}>{item.name}</p>
                   <p className="font-black text-sm mt-0.5" style={{ color: brand.accent }}>KES {(item.price * qty).toLocaleString()}</p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button onClick={() => dec(id)} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
-                    <Minus className="w-4 h-4 text-white" />
+                    <Minus className="w-4 h-4" style={{ color: 'var(--text)' }} />
                   </button>
-                  <span className="w-5 text-center font-black text-white text-sm">{qty}</span>
-                  <button onClick={() => add(id)} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: brand.primary }}>
-                    <Plus className="w-4 h-4 text-white" />
+                  <span className="w-5 text-center font-black text-sm" style={{ color: 'var(--text)' }}>{qty}</span>
+                  <button onClick={() => add(id)} className="w-8 h-8 rounded-xl flex items-center justify-center text-white" style={{ background: brand.primary }}>
+                    <Plus className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -715,10 +716,10 @@ export const DigitalStorefrontPage: React.FC = () => {
         <div className="fixed bottom-0 inset-x-0 p-4 border-t" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
           <div className="max-w-md mx-auto space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-sm font-bold text-white">Total</span>
+              <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>Total</span>
               <span className="text-xl font-black" style={{ color: brand.accent }}>KES {cartTotal.toLocaleString()}</span>
             </div>
-            <button onClick={() => setScreen('checkout')} className="btn-primary w-full py-4 text-sm font-black flex items-center justify-center gap-2" style={{ background: brand.primary }}>
+            <button onClick={() => setScreen('checkout')} className="btn-primary w-full py-4 text-sm font-black flex items-center justify-center gap-2 text-white" style={{ background: brand.primary }}>
               Continue to Checkout <ChevronRight className="w-4 h-4" />
             </button>
           </div>
@@ -897,7 +898,7 @@ export const DigitalStorefrontPage: React.FC = () => {
             </div>
 
             <div className="flex-1 min-w-0 space-y-1">
-              <p className="font-bold text-sm text-white leading-tight truncate">{item.name}</p>
+              <p className="font-bold text-sm leading-tight truncate" style={{ color: 'var(--text)' }}>{item.name}</p>
               {item.desc && <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{item.desc}</p>}
               <div className="flex items-center justify-between pt-1">
                 <span className="font-black text-sm" style={{ color: brand.accent }}>KES {item.price.toLocaleString()}</span>
@@ -905,9 +906,9 @@ export const DigitalStorefrontPage: React.FC = () => {
                 {(cart[item.id] ?? 0) > 0 ? (
                   <div className="flex items-center gap-2 rounded-xl p-1" style={{ background: 'var(--surface-2)' }}>
                     <button onClick={() => dec(item.id)} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--surface)' }}>
-                      <Minus className="w-3.5 h-3.5 text-white" />
+                      <Minus className="w-3.5 h-3.5" style={{ color: 'var(--text)' }} />
                     </button>
-                    <span className="w-4 text-center text-xs font-black text-white">{cart[item.id]}</span>
+                    <span className="w-4 text-center text-xs font-black" style={{ color: 'var(--text)' }}>{cart[item.id]}</span>
                     <button onClick={() => add(item.id)} className="w-7 h-7 rounded-lg flex items-center justify-center text-white" style={{ background: brand.primary }}>
                       <Plus className="w-3.5 h-3.5" />
                     </button>

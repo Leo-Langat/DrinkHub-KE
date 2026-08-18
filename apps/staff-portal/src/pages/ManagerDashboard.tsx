@@ -2159,7 +2159,7 @@ const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
         }
 
         // 4. Populate Recent Orders with clean items list and waiter
-        setRecentOrders(raw.slice(0, 6).map((o: any) => ({
+        setRecentOrders(raw.slice(0, 50).map((o: any) => ({
           id: o.orderNumber ?? o.uuid?.slice(0, 8).toUpperCase() ?? '-',
           table: o.table?.tableNumber ? `T-${String(o.table.tableNumber).padStart(2, '0')}` : '-',
           item: (o.items ?? o.orderItems ?? []).map((i: any) => `${i.product?.name ?? i.name} x ${i.quantity ?? 1}`).join(', ') || 'Drink Order',
@@ -2303,22 +2303,22 @@ const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
         </div>
       </div>
 
-      {/* Recent Orders List */}
+      {/* Recent Orders List - Scrollable */}
       <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
         <div className="flex items-center justify-between px-5 py-3 border-b" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
           <div>
             <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>Recent Orders</h3>
-            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Latest orders placed at your venue</p>
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Live order feed (scroll to view all)</p>
           </div>
           <span className="text-xs font-semibold px-2.5 py-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
             Live Feed
           </span>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-auto max-h-80" style={{ scrollbarWidth: 'thin' }}>
           <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-[11px] font-bold text-left uppercase tracking-wider" style={{ borderColor: 'var(--border)', background: 'var(--bg-body)', color: 'var(--text-muted)' }}>
+            <thead className="sticky top-0 z-10 shadow-sm" style={{ background: 'var(--bg-card)' }}>
+              <tr className="border-b text-[11px] font-bold text-left uppercase tracking-wider" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
                 <th className="px-5 py-2.5">Order ID</th>
                 <th className="px-5 py-2.5">Table & Item</th>
                 <th className="px-5 py-2.5">Waiter</th>

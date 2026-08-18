@@ -84,23 +84,112 @@ const PhoneInput = ({ error, value, onChange, placeholder }: { error?: string; v
 );
 
 /*           Shared UI           */
+const getStatusConfig = (rawStatus: string) => {
+  const key = (rawStatus ?? '').toUpperCase().trim();
+  switch (key) {
+    case 'PENDING':
+      return {
+        label: 'PENDING',
+        dot: 'bg-amber-500 animate-pulse',
+        badge: 'bg-amber-50 text-amber-800 border-amber-300/80 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-700/60 shadow-sm shadow-amber-500/10',
+        activeFilter: 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500 shadow-sm shadow-amber-500/30',
+        inactiveFilter: 'hover:border-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-950/30 text-amber-700 dark:text-amber-300',
+      };
+    case 'CLAIMED':
+      return {
+        label: 'CLAIMED',
+        dot: 'bg-sky-500',
+        badge: 'bg-sky-50 text-sky-800 border-sky-300/80 dark:bg-sky-950/70 dark:text-sky-300 dark:border-sky-700/60 shadow-sm shadow-sky-500/10',
+        activeFilter: 'bg-sky-600 hover:bg-sky-700 text-white border-sky-600 shadow-sm shadow-sky-500/30',
+        inactiveFilter: 'hover:border-sky-400 hover:bg-sky-50/50 dark:hover:bg-sky-950/30 text-sky-700 dark:text-sky-300',
+      };
+    case 'PREPARING':
+      return {
+        label: 'PREPARING',
+        dot: 'bg-indigo-500',
+        badge: 'bg-indigo-50 text-indigo-800 border-indigo-300/80 dark:bg-indigo-950/70 dark:text-indigo-300 dark:border-indigo-700/60 shadow-sm shadow-indigo-500/10',
+        activeFilter: 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600 shadow-sm shadow-indigo-500/30',
+        inactiveFilter: 'hover:border-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300',
+      };
+    case 'READY':
+      return {
+        label: 'READY',
+        dot: 'bg-teal-500',
+        badge: 'bg-teal-50 text-teal-800 border-teal-300/80 dark:bg-teal-950/70 dark:text-teal-300 dark:border-teal-700/60 shadow-sm shadow-teal-500/10',
+        activeFilter: 'bg-teal-600 hover:bg-teal-700 text-white border-teal-600 shadow-sm shadow-teal-500/30',
+        inactiveFilter: 'hover:border-teal-400 hover:bg-teal-50/50 dark:hover:bg-teal-950/30 text-teal-700 dark:text-teal-300',
+      };
+    case 'DELIVERED':
+    case 'COMPLETED':
+      return {
+        label: 'DELIVERED',
+        dot: 'bg-emerald-500',
+        badge: 'bg-emerald-50 text-emerald-800 border-emerald-300/80 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-700/60 shadow-sm shadow-emerald-500/10',
+        activeFilter: 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-sm shadow-emerald-500/30',
+        inactiveFilter: 'hover:border-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300',
+      };
+    case 'CANCELLED':
+      return {
+        label: 'CANCELLED',
+        dot: 'bg-rose-500',
+        badge: 'bg-rose-50 text-rose-800 border-rose-300/80 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-700/60 shadow-sm shadow-rose-500/10',
+        activeFilter: 'bg-rose-600 hover:bg-rose-700 text-white border-rose-600 shadow-sm shadow-rose-500/30',
+        inactiveFilter: 'hover:border-rose-400 hover:bg-rose-50/50 dark:hover:bg-rose-950/30 text-rose-700 dark:text-rose-300',
+      };
+    case 'ACTIVE':
+    case 'ONLINE':
+    case 'AVAILABLE':
+      return {
+        label: rawStatus,
+        dot: 'bg-emerald-500',
+        badge: 'bg-emerald-50 text-emerald-800 border-emerald-300/80 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-700/60',
+        activeFilter: 'bg-emerald-600 text-white border-emerald-600',
+        inactiveFilter: 'hover:border-emerald-400',
+      };
+    case 'INACTIVE':
+    case 'OFFLINE':
+      return {
+        label: rawStatus,
+        dot: 'bg-slate-400',
+        badge: 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
+        activeFilter: 'bg-slate-600 text-white border-slate-600',
+        inactiveFilter: 'hover:border-slate-400',
+      };
+    case 'ON LEAVE':
+      return {
+        label: 'On Leave',
+        dot: 'bg-amber-500',
+        badge: 'bg-amber-50 text-amber-800 border-amber-300/80 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-700/60',
+        activeFilter: 'bg-amber-600 text-white border-amber-600',
+        inactiveFilter: 'hover:border-amber-400',
+      };
+    case 'OUT OF STOCK':
+      return {
+        label: 'Out of Stock',
+        dot: 'bg-rose-500',
+        badge: 'bg-rose-50 text-rose-800 border-rose-300/80 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-700/60',
+        activeFilter: 'bg-rose-600 text-white border-rose-600',
+        inactiveFilter: 'hover:border-rose-400',
+      };
+    default:
+      return {
+        label: rawStatus,
+        dot: 'bg-slate-400',
+        badge: 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+        activeFilter: 'bg-blue-600 text-white border-blue-600',
+        inactiveFilter: 'hover:border-slate-400',
+      };
+  }
+};
+
 const StatusBadge = ({ status }: { status: string }) => {
-  const m: Record<string, string> = {
-    Active: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    Inactive: 'bg-slate-100 text-slate-600 border-slate-200',
-    'On Leave': 'bg-amber-50 text-amber-700 border-amber-200',
-    'Part-time': 'bg-blue-50 text-blue-700 border-blue-200',
-    Online: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    Offline: 'bg-slate-100 text-slate-500 border-slate-200',
-    Pending: 'bg-amber-50 text-amber-700 border-amber-200',
-    Preparing: 'bg-blue-50 text-blue-700 border-blue-200',
-    Ready: 'bg-purple-50 text-purple-700 border-purple-200',
-    Delivered: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    Cancelled: 'bg-red-50 text-red-600 border-red-200',
-    Available: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    'Out of Stock': 'bg-red-50 text-red-600 border-red-200',
-  };
-  return <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold border ${m[status] ?? 'bg-slate-50 text-slate-600 border-slate-200'}`}>{status}</span>;
+  const config = getStatusConfig(status);
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold border transition-colors whitespace-nowrap ${config.badge}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${config.dot}`} />
+      <span>{config.label}</span>
+    </span>
+  );
 };
 
 const KPI = ({ label, value, sub, icon }: { label: string; value: string; sub: string; icon: React.ReactNode }) => (
@@ -628,12 +717,32 @@ const OrdersPage = ({ showToast }: { showToast: (m: string) => void }) => {
           <Search className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search order, table, waiter   " className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--text-primary)' }} />
         </div>
-        <div className="flex gap-1.5 flex-wrap">
-          {statuses.map(s => (
-            <button key={s} onClick={() => setFilter(s)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${filter === s ? 'text-white' : 'hover:bg-slate-100'}`} style={{ background: filter === s ? '#2563EB' : 'var(--bg-card)', color: filter === s ? '#fff' : 'var(--text-secondary)', border: `1px solid ${filter === s ? '#2563EB' : 'var(--border)'}` }}>
-              {s}
-            </button>
-          ))}
+        <div className="flex gap-1.5 flex-wrap items-center">
+          {statuses.map(s => {
+            const count = s === 'All' ? orders.length : orders.filter(o => (o.status ?? '').toUpperCase() === s).length;
+            const isSelected = filter === s;
+            const config = s === 'All' ? null : getStatusConfig(s);
+
+            return (
+              <button
+                key={s}
+                onClick={() => setFilter(s)}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all border ${
+                  isSelected
+                    ? (config ? config.activeFilter : 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600 shadow-sm shadow-blue-500/20')
+                    : (config ? `${config.inactiveFilter} border-[var(--border)] bg-[var(--bg-card)]` : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-[var(--text-secondary)] border-[var(--border)] bg-[var(--bg-card)]')
+                }`}
+              >
+                {config && <span className={`h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-white' : config.dot}`} />}
+                <span>{s}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  isSelected ? 'bg-white/25 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
       <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>

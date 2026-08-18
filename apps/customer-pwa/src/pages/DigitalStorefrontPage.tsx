@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  Plus, Minus, X, ChevronRight, Sparkles, CheckCircle2,
+  Plus, Minus, X, ChevronRight, ChevronLeft, Sparkles, CheckCircle2,
   Clock, AlertCircle, ShoppingCart, MapPin, Wifi, WifiOff,
   Smartphone, Banknote, CreditCard, ArrowLeft, Star, Loader2,
-  User, Check, RefreshCw, Flame, Gift, Tag, Copy,
+  User, Check, RefreshCw, Flame, Gift, Tag, Copy, Zap, Timer,
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────
@@ -50,6 +50,10 @@ interface Offer {
   discountValue?: number;
   offerType?: string;
   badge?: string;
+  imageUrl?: string | null;
+  originalPrice?: number | null;
+  dealPrice?: number | null;
+  productId?: string | null;
   isActive?: boolean;
 }
 
@@ -231,25 +235,86 @@ export const DigitalStorefrontPage: React.FC = () => {
 
         rawOfferList.forEach((o: any) => {
           if (o.isActive !== false) {
+            let cleanDesc = o.description ?? '';
+            let img: string | null = null;
+            let badgeText: string | null = null;
+            let origPrice: number | null = null;
+            let dealPrice: number | null = null;
+            let prodId: string | null = null;
+
+            if (o.description && typeof o.description === 'string' && o.description.startsWith('{') && o.description.endsWith('}')) {
+              try {
+                const parsed = JSON.parse(o.description);
+                cleanDesc = parsed.desc ?? '';
+                img = parsed.imageUrl ?? null;
+                badgeText = parsed.badge ?? null;
+                origPrice = parsed.originalPrice ? Number(parsed.originalPrice) : null;
+                dealPrice = parsed.dealPrice ? Number(parsed.dealPrice) : null;
+                prodId = parsed.productId ?? null;
+              } catch {}
+            }
+
+            // Fallback: match offer title with menu items to auto-attach item photo & price!
+            if (!img || !origPrice) {
+              const match = items.find(item =>
+                o.title.toLowerCase().includes(item.name.toLowerCase()) ||
+                item.name.toLowerCase().includes(o.title.toLowerCase())
+              );
+              if (match) {
+                if (!img) img = match.img;
+                if (!origPrice) origPrice = match.price;
+                if (!prodId) prodId = match.id;
+              }
+            }
+
+            // Fallback visuals if no custom image was set
+            if (!img) {
+              const t = o.title.toLowerCase();
+              if (t.includes('whisky') || t.includes('whiskey') || t.includes('scotch') || t.includes('bourbon')) {
+                img = 'https://images.unsplash.com/photo-1527281400683-1aae777175f8?w=600&auto=format&fit=crop&q=80';
+              } else if (t.includes('cocktail') || t.includes('sour') || t.includes('mojito') || t.includes('margarita')) {
+                img = 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=600&auto=format&fit=crop&q=80';
+              } else if (t.includes('beer') || t.includes('cider') || t.includes('lager') || t.includes('draught')) {
+                img = 'https://images.unsplash.com/photo-1608270190989-c5c8297b83d8?w=600&auto=format&fit=crop&q=80';
+              } else if (t.includes('wine') || t.includes('champagne') || t.includes('prosecco')) {
+                img = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&auto=format&fit=crop&q=80';
+              } else if (t.includes('grill') || t.includes('rib') || t.includes('burger') || t.includes('meat') || t.includes('wings')) {
+                img = 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80';
+              } else {
+                img = 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=600&auto=format&fit=crop&q=80';
+              }
+            }
+
             const isBogo = o.offerType === 'BUY_ONE_GET_ONE';
             const isFixed = o.offerType === 'FIXED_AMOUNT_DISCOUNT';
             const discVal = Number(o.discountValue ?? 0);
-            const badge = isBogo
+            const badge = badgeText || (isBogo
               ? '🎁 BUY 1 GET 1'
               : isFixed && discVal > 0
                 ? `💰 KES ${discVal.toLocaleString()} OFF`
                 : discVal > 0
-                  ? `🔥 ${discVal}% OFF`
-                  : '✨ SPECIAL DEAL';
+                  ? `⚡ ${discVal}% OFF`
+                  : '🔥 TODAY\'S SPECIAL');
+
+            // Calculate deal price if originalPrice exists
+            if (origPrice && !dealPrice) {
+              if (isFixed) dealPrice = Math.max(0, origPrice - discVal);
+              else if (discVal > 0 && !isBogo) dealPrice = Math.round(origPrice * (1 - discVal / 100));
+              else if (isBogo) dealPrice = origPrice;
+            }
 
             rawOffers.push({
               id: o.offerUuid ?? o.uuid ?? o.id,
               title: o.title,
-              description: o.description ?? null,
+              description: cleanDesc || null,
               promoCode: o.promoCode ?? null,
               discountValue: discVal,
               offerType: o.offerType,
               badge,
+              imageUrl: img,
+              originalPrice: origPrice,
+              dealPrice: dealPrice,
+              productId: prodId,
               isActive: o.isActive !== false,
             });
           }
@@ -857,96 +922,181 @@ export const DigitalStorefrontPage: React.FC = () => {
         </div>
       )}
 
-      {/* ── SPECIAL DEALS & OFFERS OF THE DAY BANNER ─────────────────────── */}
+      {/* ── FUTURISTIC MOVING SPECIAL DEALS & OFFERS BANNER ─────────────────────── */}
       {offers.length > 0 && (
         <div className="px-4 pt-4 fade-up">
           <div
-            className="relative overflow-hidden rounded-2xl border transition-all duration-300"
+            className="group relative overflow-hidden rounded-3xl border transition-all duration-500 shadow-2xl"
             style={{
-              borderColor: 'rgba(245, 158, 11, 0.4)',
-              background: 'var(--surface)',
-              boxShadow: '0 4px 20px -2px rgba(245, 158, 11, 0.12)',
+              borderColor: 'rgba(245, 158, 11, 0.45)',
+              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 27, 75, 0.92) 50%, rgba(15, 23, 42, 0.98) 100%)',
+              boxShadow: '0 8px 32px -4px rgba(245, 158, 11, 0.25), 0 0 20px 0 rgba(239, 68, 68, 0.15)',
             }}
           >
-            {/* Ambient vibrant gradient glow */}
+            {/* Ambient cyber neon glow & particle shimmer backdrop */}
             <div
-              className="absolute inset-0 pointer-events-none opacity-90 transition-opacity"
-              style={{
-                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(239, 68, 68, 0.08) 50%, rgba(168, 85, 247, 0.12) 100%)',
-              }}
+              className="absolute -top-20 -right-20 w-60 h-60 rounded-full blur-3xl pointer-events-none opacity-40 animate-pulse"
+              style={{ background: 'radial-gradient(circle, #F59E0B 0%, #EC4899 50%, transparent 70%)' }}
+            />
+            <div
+              className="absolute -bottom-20 -left-20 w-60 h-60 rounded-full blur-3xl pointer-events-none opacity-30 animate-pulse"
+              style={{ background: 'radial-gradient(circle, #3B82F6 0%, #8B5CF6 50%, transparent 70%)', animationDelay: '1.5s' }}
             />
 
-            <div className="relative p-4 space-y-3">
-              {/* Header row with badge and carousel pagination indicators */}
+            {/* Top Animated Cyber Slide Timer Progress Line */}
+            {offers.length > 1 && (
+              <div className="absolute top-0 inset-x-0 h-1 bg-slate-800/80 overflow-hidden">
+                <div
+                  key={activeOfferIdx}
+                  className="h-full bg-gradient-to-r from-amber-400 via-rose-500 to-amber-400 animate-[progress_5s_linear_infinite]"
+                  style={{ width: '100%' }}
+                />
+              </div>
+            )}
+
+            <div className="relative p-4 sm:p-5 space-y-3.5">
+              {/* Header row with Cyber Beacon and slider navigation */}
               <div className="flex items-center justify-between">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide uppercase bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-                  <Flame className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
-                  <span>Offers of the Day</span>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black tracking-wider uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-500/20 backdrop-blur-md">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                  </span>
+                  <Zap className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Exclusive Deal of the Day</span>
                 </div>
 
-                {offers.length > 1 && (
-                  <div className="flex items-center gap-1.5">
-                    {offers.map((_, i) => (
+                {/* Slider Controls */}
+                <div className="flex items-center gap-1.5">
+                  {offers.length > 1 && (
+                    <>
                       <button
-                        key={i}
-                        onClick={() => setActiveOfferIdx(i)}
-                        className={`h-1.5 rounded-full transition-all duration-300 ${
-                          activeOfferIdx === i
-                            ? 'w-5 bg-amber-500'
-                            : 'w-1.5 bg-amber-500/30 hover:bg-amber-500/60'
-                        }`}
-                        aria-label={`Offer ${i + 1}`}
-                      />
-                    ))}
-                  </div>
-                )}
+                        onClick={() => setActiveOfferIdx((prev) => (prev - 1 + offers.length) % offers.length)}
+                        className="w-6 h-6 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 text-white transition-all backdrop-blur-md"
+                        aria-label="Previous deal"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setActiveOfferIdx((prev) => (prev + 1) % offers.length)}
+                        className="w-6 h-6 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 text-white transition-all backdrop-blur-md"
+                        aria-label="Next deal"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
 
-              {/* Current Featured Offer */}
+              {/* Current Featured Offer Card */}
               {(() => {
                 const current = offers[activeOfferIdx % offers.length];
                 if (!current) return null;
+
                 return (
-                  <div className="flex items-start justify-between gap-3 pt-0.5">
-                    <div className="space-y-1.5 flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-4">
+                    {/* Left: Offer Details & Actions */}
+                    <div className="space-y-2 flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-amber-500 text-white shadow-sm shadow-amber-500/20">
-                          {current.badge || '🔥 SPECIAL DEAL'}
+                        <span className="text-[10px] font-black px-2.5 py-0.5 rounded-md bg-gradient-to-r from-amber-500 to-rose-500 text-white shadow-md shadow-amber-500/30 uppercase tracking-wide">
+                          {current.badge || '🔥 TODAY\'S SPECIAL'}
                         </span>
-                        <h3 className="font-black text-sm leading-tight truncate" style={{ color: 'var(--text)' }}>
-                          {current.title}
-                        </h3>
                       </div>
+
+                      <h3 className="font-black text-base sm:text-lg text-white leading-tight truncate tracking-tight">
+                        {current.title}
+                      </h3>
+
                       {current.description && (
-                        <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
+                        <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed opacity-90">
                           {current.description}
                         </p>
                       )}
+
+                      {/* Pricing Tag */}
+                      <div className="flex items-center gap-2 pt-0.5 flex-wrap">
+                        {current.dealPrice ? (
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-base font-black text-amber-400">
+                              KES {current.dealPrice.toLocaleString()}
+                            </span>
+                            {current.originalPrice && current.originalPrice > current.dealPrice && (
+                              <span className="text-xs font-semibold text-slate-400 line-through opacity-75">
+                                KES {current.originalPrice.toLocaleString()}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs font-black text-amber-400">
+                            {current.offerType === 'BUY_ONE_GET_ONE' ? 'Buy 1 Get 1 Free' : `${current.discountValue}% Off`}
+                          </span>
+                        )}
+
+                        {/* Interactive Promo Code Pill */}
+                        {current.promoCode && (
+                          <button
+                            onClick={() => {
+                              if (current.promoCode) {
+                                navigator.clipboard?.writeText(current.promoCode);
+                                setCopiedCode(current.promoCode);
+                                setTimeout(() => setCopiedCode(null), 2500);
+                              }
+                            }}
+                            title="Click to copy promo code"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-amber-400/40 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-[11px] font-mono font-bold tracking-wide transition-all active:scale-95 shadow-sm"
+                          >
+                            <Copy className="w-3 h-3 text-amber-400" />
+                            <span>{copiedCode === current.promoCode ? 'Copied! 🎉' : current.promoCode}</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
 
-                    {current.promoCode && (
-                      <button
-                        onClick={() => {
-                          if (current.promoCode) {
-                            navigator.clipboard?.writeText(current.promoCode);
-                            setCopiedCode(current.promoCode);
-                            setTimeout(() => setCopiedCode(null), 2500);
-                          }
-                        }}
-                        title="Click to copy promo code"
-                        className="flex-shrink-0 flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 active:scale-95 transition-all text-center"
-                      >
-                        <span className="text-[9px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
-                          {copiedCode === current.promoCode ? 'Copied! 🎉' : 'Tap to Copy'}
+                    {/* Right: Floating Product Image with Holographic Glow */}
+                    <div className="relative flex-shrink-0">
+                      {/* Holographic glowing ambient back-ring */}
+                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 blur-md opacity-70 animate-pulse pointer-events-none scale-105" />
+                      
+                      <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl bg-slate-900 flex items-center justify-center group-hover:scale-105 transition-transform duration-500">
+                        {current.imageUrl ? (
+                          <img
+                            src={current.imageUrl}
+                            alt={current.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-amber-950/80 to-purple-950/80 text-3xl">
+                            🍸
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+                        <span className="absolute bottom-1 right-1 text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-md text-amber-300 border border-white/10">
+                          Special
                         </span>
-                        <span className="font-mono text-xs font-black tracking-wider text-amber-600 dark:text-amber-300">
-                          {current.promoCode}
-                        </span>
-                      </button>
-                    )}
+                      </div>
+                    </div>
                   </div>
                 );
               })()}
+
+              {/* Bottom Pagination Dots */}
+              {offers.length > 1 && (
+                <div className="flex items-center justify-center gap-1.5 pt-1">
+                  {offers.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setActiveOfferIdx(i)}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${
+                        activeOfferIdx === i
+                          ? 'w-6 bg-gradient-to-r from-amber-400 to-rose-500 shadow-sm shadow-amber-500/50'
+                          : 'w-1.5 bg-white/20 hover:bg-white/40'
+                      }`}
+                      aria-label={`Deal ${i + 1}`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

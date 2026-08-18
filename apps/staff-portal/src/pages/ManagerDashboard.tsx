@@ -6,7 +6,7 @@ import {
   Eye, EyeOff, Trash2, Edit2, CheckCircle2, X, RefreshCcw, Filter,
   AlertCircle, ArrowUpRight, RotateCcw, Key, UserX, UserCheck,
   Phone, Mail, Hash, Lock, Clock, Briefcase, Shield, QrCode, Copy, ExternalLink,
-  Tag, Layers, FolderPlus, Camera, Image, Upload, Printer, Sparkles, Flame, Gift, Percent,
+  Tag, Layers, FolderPlus, Camera, Image, Upload, Printer, Sparkles, Flame, Gift, Percent, Zap,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis,
@@ -786,6 +786,11 @@ interface ManagerOffer {
   discountValue: number;
   promoCode?: string;
   offerType: string;
+  badge?: string;
+  imageUrl?: string;
+  originalPrice?: number;
+  dealPrice?: number;
+  productId?: string;
   isActive: boolean;
 }
 
@@ -820,11 +825,66 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
     discountValue: '20',
     promoCode: '',
     offerType: 'PERCENTAGE_DISCOUNT',
+    badge: '🔥 TODAY\'S SPECIAL',
+    imageUrl: '',
+    originalPrice: '',
+    dealPrice: '',
+    selectedProductId: '',
   });
 
   const [loading, setLoading] = React.useState(false);
   // True only on first load when there's no cached data yet
   const [fetching, setFetching] = React.useState(_menuCache === null);
+
+  /* ── Offer Image Upload & Compression ── */
+  const handleOfferImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Please select a valid image file (PNG, JPG, WebP)');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('Image file size must be less than 10MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 600;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          setOfferForm(p => ({ ...p, imageUrl: compressedDataUrl }));
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
 
   /* ── Image Upload & Canvas Compression ── */
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
@@ -896,15 +956,41 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
       }));
       setCategories(parsedCats);
 
-      const parsedOffers: ManagerOffer[] = rawOffers.map((o: any) => ({
-        id: o.offerUuid ?? o.uuid ?? o.id,
-        title: o.title,
-        description: o.description,
-        discountValue: Number(o.discountValue ?? 0),
-        promoCode: o.promoCode,
-        offerType: o.offerType ?? 'PERCENTAGE_DISCOUNT',
-        isActive: o.isActive !== false,
-      }));
+      const parsedOffers: ManagerOffer[] = rawOffers.map((o: any) => {
+        let cleanDesc = o.description;
+        let img = undefined;
+        let badgeText = undefined;
+        let origPrice = undefined;
+        let dPrice = undefined;
+        let prodId = undefined;
+
+        if (o.description && typeof o.description === 'string' && o.description.startsWith('{') && o.description.endsWith('}')) {
+          try {
+            const parsed = JSON.parse(o.description);
+            cleanDesc = parsed.desc ?? '';
+            img = parsed.imageUrl;
+            badgeText = parsed.badge;
+            origPrice = parsed.originalPrice ? Number(parsed.originalPrice) : undefined;
+            dPrice = parsed.dealPrice ? Number(parsed.dealPrice) : undefined;
+            prodId = parsed.productId;
+          } catch {}
+        }
+
+        return {
+          id: o.offerUuid ?? o.uuid ?? o.id,
+          title: o.title,
+          description: cleanDesc,
+          discountValue: Number(o.discountValue ?? 0),
+          promoCode: o.promoCode,
+          offerType: o.offerType ?? 'PERCENTAGE_DISCOUNT',
+          badge: badgeText,
+          imageUrl: img,
+          originalPrice: origPrice,
+          dealPrice: dPrice,
+          productId: prodId,
+          isActive: o.isActive !== false,
+        };
+      });
       setOffers(parsedOffers);
 
       setAddForm(p => ({
@@ -945,12 +1031,21 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
     }
     setLoading(true);
     try {
+      const richDesc = JSON.stringify({
+        desc: offerForm.description.trim(),
+        imageUrl: offerForm.imageUrl || undefined,
+        badge: offerForm.badge || '🔥 TODAY\'S SPECIAL',
+        originalPrice: offerForm.originalPrice ? Number(offerForm.originalPrice) : undefined,
+        dealPrice: offerForm.dealPrice ? Number(offerForm.dealPrice) : undefined,
+        productId: offerForm.selectedProductId || undefined,
+      });
+
       const res = await fetch(getApiUrl('/menu/offers'), {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({
           title: offerForm.title.trim(),
-          description: offerForm.description.trim() || undefined,
+          description: richDesc,
           offerType: offerForm.offerType,
           discountValue: Number(offerForm.discountValue),
           promoCode: offerForm.promoCode.trim().toUpperCase() || undefined,
@@ -959,7 +1054,18 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message || 'Failed to create offer');
       showToast(`Special offer "${offerForm.title}" published!`);
-      setOfferForm({ title: '', description: '', discountValue: '20', promoCode: '', offerType: 'PERCENTAGE_DISCOUNT' });
+      setOfferForm({
+        title: '',
+        description: '',
+        discountValue: '20',
+        promoCode: '',
+        offerType: 'PERCENTAGE_DISCOUNT',
+        badge: '🔥 TODAY\'S SPECIAL',
+        imageUrl: '',
+        originalPrice: '',
+        dealPrice: '',
+        selectedProductId: '',
+      });
       setShowAddOfferModal(false);
       fetchMenu();
     } catch (err: any) {
@@ -1630,7 +1736,18 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
             </p>
             <button
               onClick={() => {
-                setOfferForm({ title: '', description: '', discountValue: '20', promoCode: '', offerType: 'PERCENTAGE_DISCOUNT' });
+                setOfferForm({
+                  title: '',
+                  description: '',
+                  discountValue: '20',
+                  promoCode: '',
+                  offerType: 'PERCENTAGE_DISCOUNT',
+                  badge: '🔥 TODAY\'S SPECIAL',
+                  imageUrl: '',
+                  originalPrice: '',
+                  dealPrice: '',
+                  selectedProductId: '',
+                });
                 setShowAddOfferModal(true);
               }}
               className="flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold text-white hover:opacity-90 transition-opacity whitespace-nowrap"
@@ -1710,15 +1827,134 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
       </Modal>
 
       {/* ── Modal: Create Special Deal / Offer of the Day ── */}
-      <Modal open={showAddOfferModal} onClose={() => setShowAddOfferModal(false)} title="Create Special Deal of the Day" size="md">
+      <Modal open={showAddOfferModal} onClose={() => setShowAddOfferModal(false)} title="Create Special Deal of the Day" size="lg">
         <div className="space-y-4">
+          {/* Quick presets */}
           <div>
-            <FL required>Deal / Offer Title</FL>
-            <SI
-              value={offerForm.title}
-              onChange={e => setOfferForm(p => ({ ...p, title: e.target.value }))}
-              placeholder="e.g. Happy Hour Cocktails, 20% Off Single Malts"
-            />
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Quick Presets</p>
+            <div className="flex gap-1.5 flex-wrap">
+              {[
+                { title: 'Happy Hour: Buy 2 Cocktails Get 1 Free', type: 'BUY_ONE_GET_ONE', val: '1', code: 'HAPPY', badge: '🍸 VIP HAPPY HOUR' },
+                { title: '20% Off All Single Malts & Whiskeys', type: 'PERCENTAGE_DISCOUNT', val: '20', code: 'WHISKY20', badge: '🔥 20% OFF' },
+                { title: 'Weekend Vibes: KES 500 Off Bottle Service', type: 'FIXED_AMOUNT_DISCOUNT', val: '500', code: 'VIP500', badge: '⚡ FLASH DEAL' },
+              ].map(preset => (
+                <button
+                  key={preset.title}
+                  type="button"
+                  onClick={() => setOfferForm(p => ({
+                    ...p,
+                    title: preset.title,
+                    description: 'Special limited-time deal for our guests.',
+                    offerType: preset.type,
+                    discountValue: preset.val,
+                    promoCode: preset.code,
+                    badge: preset.badge,
+                  }))}
+                  className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-amber-300/80 bg-amber-50/50 hover:bg-amber-100/70 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-700/60 transition-colors"
+                >
+                  {preset.title.split(':')[0]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Link to Existing Menu Item (Optional) */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <FL>Auto-fill from Menu Item (Optional)</FL>
+              <span className="text-[10px] text-slate-400">Pulls item photo & original price</span>
+            </div>
+            <select
+              value={offerForm.selectedProductId}
+              onChange={e => {
+                const pId = e.target.value;
+                const found = items.find(it => it.id === pId);
+                if (found) {
+                  const isFixed = offerForm.offerType === 'FIXED_AMOUNT_DISCOUNT';
+                  const disc = Number(offerForm.discountValue || 0);
+                  const calculatedDeal = isFixed ? Math.max(0, found.price - disc) : Math.round(found.price * (1 - disc / 100));
+                  setOfferForm(p => ({
+                    ...p,
+                    selectedProductId: pId,
+                    title: `${found.name} Deal`,
+                    imageUrl: found.imageUrl || p.imageUrl,
+                    originalPrice: String(found.price),
+                    dealPrice: String(calculatedDeal),
+                  }));
+                } else {
+                  setOfferForm(p => ({ ...p, selectedProductId: '' }));
+                }
+              }}
+              className="w-full rounded-xl border px-3 py-2 text-xs font-semibold bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            >
+              <option value="">-- Choose an item to link photo & price --</option>
+              {items.map(it => (
+                <option key={it.id} value={it.id}>
+                  {it.name} ({it.category}) — KES {it.price.toLocaleString()}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Deal Photo Upload / Preview */}
+          <div>
+            <FL>Featured Offer Photo</FL>
+            {offerForm.imageUrl ? (
+              <div className="relative rounded-xl border p-2.5 flex items-center gap-3 bg-slate-50 dark:bg-slate-900/50" style={{ borderColor: 'var(--border)' }}>
+                <img src={offerForm.imageUrl} alt="Preview" className="h-16 w-16 rounded-xl object-cover border border-amber-500/30 flex-shrink-0 shadow-md" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-slate-800 dark:text-white truncate">Special Deal Photo Set</p>
+                  <p className="text-[11px] text-slate-400">Will be featured on the customer's moving banner</p>
+                  <div className="flex items-center gap-3 mt-1.5">
+                    <label className="cursor-pointer text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline">
+                      Change Photo
+                      <input type="file" accept="image/*" className="hidden" onChange={handleOfferImageUpload} />
+                    </label>
+                    <span className="text-slate-300">|</span>
+                    <button type="button" onClick={() => setOfferForm(p => ({ ...p, imageUrl: '' }))} className="text-xs font-bold text-red-500 hover:underline">
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-amber-400/50 p-4 cursor-pointer hover:border-amber-500 hover:bg-amber-50/20 transition-all text-center">
+                <div className="h-8 w-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500">
+                  <Camera className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Upload high-res item photo</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">PNG, JPG, WebP up to 10MB</p>
+                </div>
+                <input type="file" accept="image/*" className="hidden" onChange={handleOfferImageUpload} />
+              </label>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <FL required>Deal / Offer Title</FL>
+              <SI
+                value={offerForm.title}
+                onChange={e => setOfferForm(p => ({ ...p, title: e.target.value }))}
+                placeholder="e.g. Happy Hour Cocktails, 20% Off Single Malts"
+              />
+            </div>
+            <div>
+              <FL>Glowing Badge / Tag</FL>
+              <SS
+                value={offerForm.badge}
+                onChange={e => setOfferForm(p => ({ ...p, badge: e.target.value }))}
+                options={[
+                  { v: '🔥 TODAY\'S SPECIAL', l: '🔥 TODAY\'S SPECIAL' },
+                  { v: '⚡ FLASH DEAL', l: '⚡ FLASH DEAL' },
+                  { v: '🍸 VIP HAPPY HOUR', l: '🍸 VIP HAPPY HOUR' },
+                  { v: '🎁 BUY 1 GET 1', l: '🎁 BUY 1 GET 1' },
+                  { v: '✨ CHEF\'S SPECIAL', l: '✨ CHEF\'S SPECIAL' },
+                  { v: '💰 SPECIAL DISCOUNT', l: '💰 SPECIAL DISCOUNT' },
+                ]}
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -1746,13 +1982,24 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
             </div>
           </div>
 
-          <div>
-            <FL>Promo Code (Optional)</FL>
-            <SI
-              value={offerForm.promoCode}
-              onChange={e => setOfferForm(p => ({ ...p, promoCode: e.target.value.toUpperCase() }))}
-              placeholder="e.g. HAPPY20, CHEERS"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <FL>Promo Code (Optional)</FL>
+              <SI
+                value={offerForm.promoCode}
+                onChange={e => setOfferForm(p => ({ ...p, promoCode: e.target.value.toUpperCase() }))}
+                placeholder="e.g. HAPPY20, CHEERS"
+              />
+            </div>
+            <div>
+              <FL>Original Price in KES (Optional)</FL>
+              <SI
+                type="number"
+                value={offerForm.originalPrice}
+                onChange={e => setOfferForm(p => ({ ...p, originalPrice: e.target.value }))}
+                placeholder="e.g. 5000"
+              />
+            </div>
           </div>
 
           <div>
@@ -1764,30 +2011,36 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
             />
           </div>
 
-          {/* Quick presets */}
-          <div>
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Quick Presets</p>
-            <div className="flex gap-1.5 flex-wrap">
-              {[
-                { title: 'Happy Hour: Buy 2 Cocktails Get 1 Free', type: 'BUY_ONE_GET_ONE', val: '1', code: 'HAPPY' },
-                { title: '20% Off All Single Malts & Whiskeys', type: 'PERCENTAGE_DISCOUNT', val: '20', code: 'WHISKY20' },
-                { title: 'Weekend Vibes: KES 500 Off Bottle Service', type: 'FIXED_AMOUNT_DISCOUNT', val: '500', code: 'VIP500' },
-              ].map(preset => (
-                <button
-                  key={preset.title}
-                  type="button"
-                  onClick={() => setOfferForm({
-                    title: preset.title,
-                    description: 'Special limited-time deal for our guests.',
-                    offerType: preset.type,
-                    discountValue: preset.val,
-                    promoCode: preset.code,
-                  })}
-                  className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-amber-300/80 bg-amber-50/50 hover:bg-amber-100/70 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-700/60 transition-colors"
-                >
-                  {preset.title.split(':')[0]}
-                </button>
-              ))}
+          {/* Futuristic Live Preview Card */}
+          <div className="p-3.5 rounded-2xl border bg-slate-950 text-white space-y-2 relative overflow-hidden" style={{ borderColor: 'rgba(245, 158, 11, 0.4)' }}>
+            <p className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1">
+              <Zap className="h-3 w-3" /> Live Customer Banner Preview
+            </p>
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-1 min-w-0 flex-1">
+                <span className="text-[9px] font-black px-2 py-0.5 rounded bg-amber-500 text-white uppercase tracking-wider">
+                  {offerForm.badge || '🔥 TODAY\'S SPECIAL'}
+                </span>
+                <p className="text-xs font-black truncate">{offerForm.title || 'Deal Title Preview'}</p>
+                <p className="text-[11px] text-slate-300 truncate">{offerForm.description || 'Special limited-time deal for our guests.'}</p>
+                <div className="flex items-center gap-2 pt-0.5">
+                  <span className="text-xs font-black text-amber-400">
+                    {offerForm.offerType === 'BUY_ONE_GET_ONE' ? 'Buy 1 Get 1' : `${offerForm.discountValue || '20'}% OFF`}
+                  </span>
+                  {offerForm.promoCode && (
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300">
+                      {offerForm.promoCode}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="w-16 h-16 rounded-xl overflow-hidden border border-amber-500/40 bg-slate-900 flex-shrink-0 flex items-center justify-center">
+                {offerForm.imageUrl ? (
+                  <img src={offerForm.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-2xl">🍸</span>
+                )}
+              </div>
             </div>
           </div>
 

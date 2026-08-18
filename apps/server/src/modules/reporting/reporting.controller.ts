@@ -6,7 +6,7 @@ export class ReportingController {
 
   getAnalytics = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const clubUuid = (req.headers['x-tenant-id'] as string) || (req.query.clubUuid as string) || 'default-club';
+      const clubUuid = (req.headers['x-tenant-id'] as string) || (req.query.clubUuid as string) || req.user?.tenantId || (req.user as any)?.clubUuid || 'default-club';
       const period = (req.query.period as any) || 'MONTHLY';
       const format = (req.query.format as string) || 'JSON';
 

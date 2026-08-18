@@ -2064,9 +2064,15 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
                                                                                                                    */
 const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
   const [refreshing, setRefreshing] = React.useState(false);
-  const [kpis, setKpis] = React.useState({ revenue: '-', orders: '-', waiters: '-', avgOrder: '-' });
+  const [kpis, setKpis] = React.useState({
+    revenue: 'KES 0',
+    orders: '0',
+    waiters: '0',
+    avgOrder: 'KES 0',
+    completedCount: 0,
+  });
   const [revChart, setRevChart] = React.useState<{ day: string; rev: number }[]>([]);
-  const [hourChart, setHourChart] = React.useState<{ h: string; n: number }[]>([]);
+  const [hourChart, setHourChart] = React.useState<{ h: number; n: number }[]>([]);
   const [recentOrders, setRecentOrders] = React.useState<OrderRow[]>([]);
 
   const fetchDashboard = React.useCallback(async () => {
@@ -2076,123 +2082,290 @@ const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
         fetch(getApiUrl('/reports/analytics?period=WEEKLY'), { headers: authHeaders() }),
         fetch(getApiUrl('/orders'), { headers: authHeaders() }),
       ]);
+
+      let reportData: any = null;
       if (analyticsRes.ok) {
         const d = await analyticsRes.json();
-        const report = d.data?.report ?? d.data ?? {};
-        const k = report.kpis ?? {};
-        if (k.totalRevenue != null || k.totalOrdersCount != null) {
-          setKpis({
-            revenue: `KES ${Number(k.totalRevenue ?? 0).toLocaleString()}`,
-            orders: String(k.totalOrdersCount ?? 0),
-            waiters: String(k.activeWaitersCount ?? 0),
-            avgOrder: `KES ${Number(k.averageOrderValue ?? 0).toLocaleString()}`,
-          });
-        }
-        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        if (report.dailyRevenue?.length) {
-          setRevChart(report.dailyRevenue.map((d: any) => ({ day: d.day ?? d.date, rev: Number(d.revenue ?? d.rev ?? 0) })));
-        } else {
-          setRevChart(days.map(day => ({ day, rev: 0 })));
-        }
-        if (report.hourlyOrders?.length) {
-          setHourChart(report.hourlyOrders.map((h: any) => ({ h: String(h.hour ?? h.h), n: Number(h.count ?? h.n ?? 0) })));
-        } else {
-          setHourChart([]);
-        }
+        reportData = d.data?.report ?? d.data ?? {};
       }
+
       if (ordersRes.ok) {
         const od = await ordersRes.json();
         const raw: any[] = od.data?.orders ?? od.data ?? [];
-        
-        const totalRev = raw.reduce((sum, o) => sum + (o.status === 'COMPLETED' || o.status === 'DELIVERED' ? Number(o.totalAmount || 0) : 0), 0);
-        const completedCount = raw.filter(o => o.status === 'COMPLETED' || o.status === 'DELIVERED').length;
+
+        // 1. Calculate Real KPIs
+        const completedOrders = raw.filter(o => o.status === 'COMPLETED' || o.status === 'DELIVERED');
+        const totalRev = completedOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+        const completedCount = completedOrders.length;
         const avgVal = completedCount > 0 ? Math.round(totalRev / completedCount) : 0;
-        const activeWaitersSet = new Set(raw.map(o => o.waiterId || o.waiter?.userUuid).filter(Boolean));
+        const activeWaitersSet = new Set(raw.map(o => o.waiterUuid || o.waiterId || o.waiter?.userUuid).filter(Boolean));
 
-        setKpis(prev => ({
-          revenue: totalRev > 0 ? `KES ${totalRev.toLocaleString()}` : (prev.revenue !== '-' ? prev.revenue : 'KES 0'),
-          orders: raw.length > 0 ? String(raw.length) : (prev.orders !== '-' ? prev.orders : '0'),
-          waiters: activeWaitersSet.size > 0 ? String(activeWaitersSet.size) : (prev.waiters !== '-' ? prev.waiters : '0'),
-          avgOrder: avgVal > 0 ? `KES ${avgVal.toLocaleString()}` : (prev.avgOrder !== '-' ? prev.avgOrder : 'KES 0'),
-        }));
+        setKpis({
+          revenue: `KES ${totalRev.toLocaleString()}`,
+          orders: String(raw.length),
+          waiters: String(activeWaitersSet.size > 0 ? activeWaitersSet.size : (reportData?.kpis?.activeWaitersCount || 1)),
+          avgOrder: `KES ${avgVal.toLocaleString()}`,
+          completedCount,
+        });
 
-        setRecentOrders(raw.slice(0, 5).map((o: any) => ({
+        // 2. Calculate Weekly Revenue (Mon-Sun)
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const daysOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const dayRevMap: Record<string, number> = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+
+        completedOrders.forEach((o: any) => {
+          if (o.createdAt) {
+            const day = dayNames[new Date(o.createdAt).getDay()];
+            if (dayRevMap[day] !== undefined) {
+              dayRevMap[day] += Number(o.totalAmount || 0);
+            }
+          }
+        });
+
+        // Use report dailyRevenue if populated, or fallback to real calculated dayRevMap
+        if (reportData?.dailyRevenue?.some((d: any) => Number(d.revenue || d.rev || 0) > 0)) {
+          setRevChart(reportData.dailyRevenue.map((d: any) => ({
+            day: d.day ?? d.date,
+            rev: Number(d.revenue ?? d.rev ?? 0),
+          })));
+        } else {
+          setRevChart(daysOrder.map(day => ({
+            day,
+            rev: dayRevMap[day] || 0,
+          })));
+        }
+
+        // 3. Calculate Hourly Orders (00:00 - 23:00)
+        const hourMap: Record<number, number> = {};
+        for (let i = 0; i < 24; i++) hourMap[i] = 0;
+
+        raw.forEach((o: any) => {
+          if (o.createdAt) {
+            const h = new Date(o.createdAt).getHours();
+            hourMap[h] = (hourMap[h] || 0) + 1;
+          }
+        });
+
+        if (reportData?.hourlyOrders?.some((h: any) => Number(h.count || h.n || 0) > 0)) {
+          setHourChart(reportData.hourlyOrders.map((h: any) => ({
+            h: Number(h.hour ?? h.h),
+            n: Number(h.count ?? h.n ?? 0),
+          })));
+        } else {
+          setHourChart(Object.keys(hourMap).map(h => ({
+            h: Number(h),
+            n: hourMap[Number(h)] || 0,
+          })));
+        }
+
+        // 4. Populate Recent Orders with clean items list and waiter
+        setRecentOrders(raw.slice(0, 6).map((o: any) => ({
           id: o.orderNumber ?? o.uuid?.slice(0, 8).toUpperCase() ?? '-',
           table: o.table?.tableNumber ? `T-${String(o.table.tableNumber).padStart(2, '0')}` : '-',
-          item: (o.items ?? o.orderItems ?? []).map((i: any) => `${i.product?.name ?? i.name}`).join(', ') || '-',
-          waiter: o.waiter?.fullName?.split(' ')[0] ?? 'Unclaimed',
+          item: (o.items ?? o.orderItems ?? []).map((i: any) => `${i.product?.name ?? i.name} x ${i.quantity ?? 1}`).join(', ') || 'Drink Order',
+          waiter: o.waiter?.fullName ? o.waiter.fullName.split(' ')[0] : 'Unassigned',
           amount: Number(o.totalAmount ?? 0),
           status: o.status ?? '-',
           time: o.createdAt ? new Date(o.createdAt).toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' }) : '-',
         })));
       }
-    } catch { /* keep current state on error */ } finally {
+    } catch {
+      /* keep current state on error */
+    } finally {
       setRefreshing(false);
     }
   }, []);
 
-  React.useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
-  const doRefresh = async () => { await fetchDashboard(); showToast('Dashboard refreshed'); };
+  React.useEffect(() => {
+    fetchDashboard();
+  }, [fetchDashboard]);
+
+  const doRefresh = async () => {
+    await fetchDashboard();
+    showToast('Dashboard refreshed');
+  };
 
   return (
     <div className="space-y-5">
-      <SectionHeader title="Club Overview" subtitle="Live dashboard" action={
-        <button onClick={doRefresh} disabled={refreshing} className="flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-slate-50 transition-colors disabled:opacity-50" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-          <RefreshCcw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />{refreshing ? 'Refreshing   ' : 'Refresh'}
-        </button>
-      } />
+      <SectionHeader
+        title="Club Overview"
+        subtitle="Live dashboard"
+        action={
+          <button
+            onClick={doRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-slate-50 transition-colors disabled:opacity-50"
+            style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+          >
+            <RefreshCcw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing…' : 'Refresh'}
+          </button>
+        }
+      />
+
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <KPI label="Revenue (Period)" value={kpis.revenue} sub="From completed orders" icon={<TrendingUp className="h-5 w-5 text-emerald-500" />} />
-        <KPI label="Total Orders" value={kpis.orders} sub="All statuses" icon={<ClipboardList className="h-5 w-5 text-blue-500" />} />
-        <KPI label="Active Waiters" value={kpis.waiters} sub="With completed orders" icon={<Users className="h-5 w-5 text-purple-500" />} />
-        <KPI label="Avg Order Value" value={kpis.avgOrder} sub="Completed orders" icon={<ArrowUpRight className="h-5 w-5 text-amber-500" />} />
+        <KPI
+          label="Revenue (Period)"
+          value={kpis.revenue}
+          sub={`From ${kpis.completedCount} completed order${kpis.completedCount === 1 ? '' : 's'}`}
+          icon={<TrendingUp className="h-5 w-5 text-emerald-500" />}
+        />
+        <KPI
+          label="Total Orders"
+          value={kpis.orders}
+          sub="All active & past orders"
+          icon={<ClipboardList className="h-5 w-5 text-blue-500" />}
+        />
+        <KPI
+          label="Active Waiters"
+          value={kpis.waiters}
+          sub="Staff taking orders"
+          icon={<Users className="h-5 w-5 text-purple-500" />}
+        />
+        <KPI
+          label="Avg Order Value"
+          value={kpis.avgOrder}
+          sub="Per completed order"
+          icon={<ArrowUpRight className="h-5 w-5 text-amber-500" />}
+        />
       </div>
-      <div className="grid grid-cols-2 gap-4">
+
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Weekly Revenue Area Chart */}
         <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          <h3 className="text-sm font-black mb-4" style={{ color: 'var(--text-primary)' }}>Weekly Revenue (KES)</h3>
-          <ResponsiveContainer width="100%" height={180}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>Weekly Revenue (KES)</h3>
+              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Revenue breakdown for the current week</p>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={revChart}>
-              <defs><linearGradient id="revG" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563EB" stopOpacity={0.12} /><stop offset="95%" stopColor="#2563EB" stopOpacity={0} /></linearGradient></defs>
+              <defs>
+                <linearGradient id="revG" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#2563EB" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#2563EB" stopOpacity={0.0} />
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${v / 1000}K`} />
-              <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '11px' }} formatter={(v: number) => [`KES ${v.toLocaleString()}`, 'Revenue']} />
-              <Area type="monotone" dataKey="rev" stroke="#2563EB" strokeWidth={2} fill="url(#revG)" />
+              <YAxis
+                tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+                axisLine={false}
+                tickLine={false}
+                domain={[0, (dataMax: number) => Math.max(1000, dataMax > 0 ? Math.ceil(dataMax * 1.15) : 1000)]}
+                tickFormatter={(v: number) => (v === 0 ? '0' : v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`)}
+              />
+              <Tooltip
+                contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-primary)' }}
+                formatter={(v: any) => [`KES ${Number(v || 0).toLocaleString()}`, 'Revenue']}
+              />
+              <Area type="monotone" dataKey="rev" stroke="#2563EB" strokeWidth={2.5} fill="url(#revG)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
+
+        {/* Orders by Hour Bar Chart */}
         <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          <h3 className="text-sm font-black mb-4" style={{ color: 'var(--text-primary)' }}>Orders by Hour</h3>
-          <ResponsiveContainer width="100%" height={180}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>Orders by Hour</h3>
+              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Order volume distributed across the day</p>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={200}>
             <BarChart data={hourChart}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-              <XAxis dataKey="h" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} tickFormatter={(h: number | string) => `${h}:00`} />
-              <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '11px' }} />
+              <XAxis
+                dataKey="h"
+                tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(h: number | string) => `${String(h).padStart(2, '0')}:00`}
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+                axisLine={false}
+                tickLine={false}
+                allowDecimals={false}
+                domain={[0, (dataMax: number) => Math.max(4, dataMax > 0 ? Math.ceil(dataMax * 1.2) : 4)]}
+              />
+              <Tooltip
+                contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-primary)' }}
+                labelFormatter={(label) => `Time: ${String(label).padStart(2, '0')}:00`}
+                formatter={(v: any) => [`${v} order${v === 1 ? '' : 's'}`, 'Order Count']}
+              />
               <Bar dataKey="n" name="Orders" fill="#10B981" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
-      {/* Quick order list */}
+
+      {/* Recent Orders List */}
       <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
         <div className="flex items-center justify-between px-5 py-3 border-b" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>Recent Orders</h3>
-          <StatusBadge status="Online" />
+          <div>
+            <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>Recent Orders</h3>
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Latest orders placed at your venue</p>
+          </div>
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Live Feed
+          </span>
         </div>
-        <table className="w-full text-sm">
-          <tbody>{recentOrders.length === 0 ? (
-            <tr><td colSpan={5} className="text-center py-6 text-xs text-slate-400">No recent orders</td></tr>
-          ) : recentOrders.map(o => (
-            <tr key={o.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
-              <td className="px-5 py-3 font-mono text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{o.id}</td>
-              <td className="px-5 py-3 text-xs" style={{ color: 'var(--text-secondary)' }}>{o.table} | {o.item}</td>
-              <td className="px-5 py-3 text-xs font-bold text-emerald-600">KES {o.amount.toLocaleString()}</td>
-              <td className="px-5 py-3"><StatusBadge status={o.status} /></td>
-              <td className="px-5 py-3 text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{o.time}</td>
-            </tr>
-          ))}</tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-[11px] font-bold text-left uppercase tracking-wider" style={{ borderColor: 'var(--border)', background: 'var(--bg-body)', color: 'var(--text-muted)' }}>
+                <th className="px-5 py-2.5">Order ID</th>
+                <th className="px-5 py-2.5">Table & Item</th>
+                <th className="px-5 py-2.5">Waiter</th>
+                <th className="px-5 py-2.5">Amount</th>
+                <th className="px-5 py-2.5">Status</th>
+                <th className="px-5 py-2.5">Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-8 text-xs text-slate-400">
+                    No recent orders found
+                  </td>
+                </tr>
+              ) : (
+                recentOrders.map(o => (
+                  <tr
+                    key={o.id}
+                    className="border-b last:border-0 hover:bg-slate-50/50 transition-colors"
+                    style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}
+                  >
+                    <td className="px-5 py-3 font-mono text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
+                      #{o.id}
+                    </td>
+                    <td className="px-5 py-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      <span className="font-bold text-slate-900 dark:text-slate-100 mr-1.5">{o.table}</span>
+                      <span className="opacity-80">· {o.item}</span>
+                    </td>
+                    <td className="px-5 py-3 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                      {o.waiter}
+                    </td>
+                    <td className="px-5 py-3 text-xs font-bold text-emerald-600">
+                      KES {o.amount.toLocaleString()}
+                    </td>
+                    <td className="px-5 py-3">
+                      <StatusBadge status={o.status} />
+                    </td>
+                    <td className="px-5 py-3 text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
+                      {o.time}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -2207,20 +2380,28 @@ const ReportsPage = ({ showToast }: { showToast: (m: string, type?: 'success' | 
         const res = await fetch(getApiUrl('/reports/analytics?period=WEEKLY'), { headers: authHeaders() });
         const d = await res.json();
         const report = d.data?.report ?? d.data ?? {};
-        const rows = (report.hourlyOrders ?? []).map((h: any) => [`${h.hour ?? h.h}:00`, h.count ?? h.n ?? 0, (h.count ?? 0) * 2000]);
-        csvExport(['Hour', 'Orders', 'Revenue (KES)'], rows, 'daily-revenue.csv');
+        const rows = (report.dailyRevenue ?? []).map((r: any) => [r.day ?? r.date, r.revenue ?? 0]);
+        csvExport(['Day', 'Revenue (KES)'], rows, 'daily-revenue.csv');
       } else if (type === 'weekly') {
         const res = await fetch(getApiUrl('/reports/analytics?period=WEEKLY'), { headers: authHeaders() });
         const d = await res.json();
         const report = d.data?.report ?? d.data ?? {};
-        const rows = (report.dailyRevenue ?? []).map((d: any) => [d.day ?? d.date, d.revenue ?? 0]);
-        csvExport(['Day', 'Revenue (KES)'], rows, 'weekly-orders.csv');
+        const rows = (report.hourlyOrders ?? []).map((h: any) => [`${String(h.hour ?? h.h).padStart(2, '0')}:00`, h.count ?? h.n ?? 0]);
+        csvExport(['Hour', 'Orders Count'], rows, 'hourly-orders.csv');
       } else if (type === 'orders') {
         const res = await fetch(getApiUrl('/orders'), { headers: authHeaders() });
         const d = await res.json();
         const raw: any[] = d.data?.orders ?? d.data ?? [];
-        const rows = raw.map((o: any) => [o.orderNumber ?? o.uuid?.slice(0, 8), o.table?.tableNumber ? `T-${o.table.tableNumber}` : '-', (o.items ?? []).map((i: any) => i.product?.name).join('; '), o.waiter?.fullName ?? 'Unclaimed', o.totalAmount, o.status]);
-        csvExport(['Order', 'Table', 'Item', 'Waiter', 'Amount (KES)', 'Status'], rows, 'order-summary.csv');
+        const rows = raw.map((o: any) => [
+          o.orderNumber ?? o.uuid?.slice(0, 8),
+          o.table?.tableNumber ? `T-${o.table.tableNumber}` : '-',
+          (o.items ?? o.orderItems ?? []).map((i: any) => `${i.product?.name ?? i.name} x ${i.quantity ?? 1}`).join('; '),
+          o.waiter?.fullName ?? 'Unassigned',
+          o.totalAmount,
+          o.status,
+          o.createdAt ? new Date(o.createdAt).toLocaleString('en-KE') : '-',
+        ]);
+        csvExport(['Order', 'Table', 'Item', 'Waiter', 'Amount (KES)', 'Status', 'Date'], rows, 'order-summary.csv');
       } else if (type === 'menu') {
         const res = await fetch(getApiUrl('/menu'), { headers: authHeaders() });
         const d = await res.json();
@@ -2233,13 +2414,27 @@ const ReportsPage = ({ showToast }: { showToast: (m: string, type?: 'success' | 
         });
         csvExport(['Item', 'Category', 'Price (KES)', 'Status'], rows, 'menu-performance.csv');
       } else if (type === 'staff') {
-        const res = await fetch(getApiUrl('/auth/staff?role=WAITER'), { headers: authHeaders() });
+        const res = await fetch(getApiUrl('/reports/analytics?period=WEEKLY'), { headers: authHeaders() });
         const d = await res.json();
-        const staff: any[] = d.data?.staff ?? d.data ?? [];
-        const rows = staff.map((s: any) => [s.fullName, s.email, s.isActive ? 'Active' : 'Inactive', '-', s.createdAt]);
-        csvExport(['Name', 'Email', 'Status', 'Shift', 'Created At'], rows, 'staff-activity.csv');
+        const report = d.data?.report ?? d.data ?? {};
+        const rows = (report.waiterPerformance ?? []).map((w: any) => [
+          w.name,
+          w.ordersServed,
+          w.revenueGenerated,
+          w.avgFulfillmentMins,
+        ]);
+        csvExport(['Waiter Name', 'Orders Served', 'Revenue Generated (KES)', 'Avg Fulfillment Time (Mins)'], rows, 'staff-performance.csv');
       } else {
-        csvExport(['Method', 'Share (%)'], [['M-Pesa', 68], ['Card', 20], ['Cash', 12]], 'payment-methods.csv');
+        const res = await fetch(getApiUrl('/reports/analytics?period=WEEKLY'), { headers: authHeaders() });
+        const d = await res.json();
+        const report = d.data?.report ?? d.data ?? {};
+        const pb = report.paymentBreakdown ?? {};
+        const rows = [
+          ['M-Pesa STK', pb.mpesa?.count ?? 0, `${pb.mpesa?.percentage ?? 0}%`],
+          ['Card POS', pb.card?.count ?? 0, `${pb.card?.percentage ?? 0}%`],
+          ['Cash', pb.cash?.count ?? 0, `${pb.cash?.percentage ?? 0}%`],
+        ];
+        csvExport(['Method', 'Transactions Count', 'Share (%)'], rows, 'payment-methods.csv');
       }
       showToast(`${title} exported successfully`);
     } catch {
@@ -2248,26 +2443,33 @@ const ReportsPage = ({ showToast }: { showToast: (m: string, type?: 'success' | 
   };
 
   const reports = [
-    { title: 'Daily Revenue', desc: 'Revenue breakdown by hour for current date', type: 'revenue' },
-    { title: 'Weekly Orders', desc: 'Order volume by day for the past 7 days', type: 'weekly' },
-    { title: 'Order Summary', desc: 'Full list of all orders with status and amounts', type: 'orders' },
-    { title: 'Menu Performance', desc: 'Sales volume and availability per menu item', type: 'menu' },
-    { title: 'Staff Activity', desc: 'Waiter status and account creation details', type: 'staff' },
-    { title: 'Payment Methods', desc: 'Breakdown of payments by method (M-Pesa, Card, Cash)', type: 'payment' },
+    { title: 'Daily Revenue', desc: 'Revenue breakdown by day for current week', type: 'revenue' },
+    { title: 'Hourly Orders', desc: 'Order volume distributed across operating hours', type: 'weekly' },
+    { title: 'Order Summary', desc: 'Full list of all orders with status, waiters and amounts', type: 'orders' },
+    { title: 'Menu Performance', desc: 'Sales volume, pricing, and availability per menu item', type: 'menu' },
+    { title: 'Staff Performance', desc: 'Waiter order counts, revenue generated, and fulfillment speeds', type: 'staff' },
+    { title: 'Payment Methods', desc: 'Breakdown of transactions by method (M-Pesa, Card, Cash)', type: 'payment' },
   ];
 
   return (
     <div className="space-y-5">
       <SectionHeader title="Reports" subtitle="Download detailed reports for your venue" />
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {reports.map(r => (
-          <div key={r.title} className="rounded-xl border p-5 flex items-start justify-between" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          <div
+            key={r.title}
+            className="rounded-xl border p-5 flex items-start justify-between"
+            style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}
+          >
             <div className="flex-1 min-w-0">
               <div className="font-black text-sm mb-1" style={{ color: 'var(--text-primary)' }}>{r.title}</div>
               <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{r.desc}</div>
             </div>
-            <button onClick={() => exportReport(r.title, r.type)}
-              className="ml-4 flex-shrink-0 flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+            <button
+              onClick={() => exportReport(r.title, r.type)}
+              className="ml-4 flex-shrink-0 flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
+              style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+            >
               <Download className="h-3.5 w-3.5" /> Export CSV
             </button>
           </div>

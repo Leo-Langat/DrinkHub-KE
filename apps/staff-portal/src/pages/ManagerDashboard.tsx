@@ -1020,8 +1020,6 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
     finally {
       setFetching(false);
     }
-  // No dependency on addForm.category — prevents re-fetching on every form change
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCreateOffer = async () => {

@@ -832,26 +832,30 @@ const OrdersPage = ({ showToast }: { showToast: (m: string) => void }) => {
         </div>
       </div>
       <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-        <table className="w-full text-sm">
-          <thead><tr className="border-b" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-            {['Order ID', 'Table', 'Item', 'Waiter', 'Amount', 'Status', 'Time'].map(h => (
-              <th key={h} className="px-5 py-3 text-left text-xs font-bold" style={{ color: 'var(--text-muted)' }}>{h}</th>
-            ))}
-          </tr></thead>
-          <tbody>{filtered.length === 0 ? (
-            <tr><td colSpan={7} className="text-center py-8 text-xs text-slate-400">No orders found</td></tr>
-          ) : filtered.map(o => (
-            <tr key={o.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
-              <td className="px-5 py-3.5 font-mono text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{o.id}</td>
-              <td className="px-5 py-3.5 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{o.table}</td>
-              <td className="px-5 py-3.5 text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{o.item}</td>
-              <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{o.waiter}</td>
-              <td className="px-5 py-3.5 text-xs font-bold text-emerald-600">KES {o.amount.toLocaleString()}</td>
-              <td className="px-5 py-3.5"><StatusBadge status={o.status} /></td>
-              <td className="px-5 py-3.5 text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{o.time}</td>
-            </tr>
-          ))}</tbody>
-        </table>
+        <div className="max-h-[62vh] overflow-y-auto overflow-x-auto scrollbar-thin" style={{ scrollbarWidth: 'thin' }}>
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 z-10 backdrop-blur-md shadow-sm" style={{ background: 'var(--bg-card)' }}>
+              <tr className="border-b" style={{ borderColor: 'var(--border)' }}>
+                {['Order ID', 'Table', 'Item', 'Waiter', 'Amount', 'Status', 'Time'].map(h => (
+                  <th key={h} className="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>{filtered.length === 0 ? (
+              <tr><td colSpan={7} className="text-center py-10 text-xs text-slate-400">No orders found</td></tr>
+            ) : filtered.map(o => (
+              <tr key={o.id} className="border-b last:border-0 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
+                <td className="px-5 py-3.5 font-mono text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{o.id}</td>
+                <td className="px-5 py-3.5 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{o.table}</td>
+                <td className="px-5 py-3.5 text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{o.item}</td>
+                <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{o.waiter}</td>
+                <td className="px-5 py-3.5 text-xs font-bold text-emerald-600">KES {o.amount.toLocaleString()}</td>
+                <td className="px-5 py-3.5"><StatusBadge status={o.status} /></td>
+                <td className="px-5 py-3.5 text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{o.time}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

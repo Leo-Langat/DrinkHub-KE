@@ -64,7 +64,7 @@
 /* ─── Reset ─────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; height: 100%; overflow: hidden; }
 
 body {
   background: var(--bg);
@@ -72,9 +72,12 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  min-height: 100vh;
+  height: 100%;
+  overflow: hidden;
   overscroll-behavior: none;
 }
+
+#root { height: 100%; }
 
 /* ─── Theme Transitions ─────────────────────────────────── */
 body,

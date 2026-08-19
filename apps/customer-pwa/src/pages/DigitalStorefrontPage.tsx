@@ -1041,7 +1041,7 @@ export const DigitalStorefrontPage: React.FC = () => {
 
   /* ────── MENU SCREEN (MAIN) ────── */
   return (
-    <div className="min-h-screen pb-28" style={{ background: 'var(--bg)' }}>
+    <div className="h-screen overflow-y-auto pb-28" style={{ background: 'var(--bg)', scrollbarWidth: 'none' }}>
 
       {/* ── HERO BANNER ─────────────────────── */}
       <div ref={heroRef} className="relative h-56 overflow-hidden">

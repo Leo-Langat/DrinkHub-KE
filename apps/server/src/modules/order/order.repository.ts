@@ -40,6 +40,14 @@ export class OrderRepository implements IOrderRepository {
         waiterUuid,
         status: { in: ['CLAIMED', 'PREPARING', 'READY'] },
       },
+      include: {
+        table: true,
+        waiter: true,
+        orderItems: { include: { product: true } },
+        payments: true,
+        offer: true,
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 

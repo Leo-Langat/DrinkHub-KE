@@ -1041,7 +1041,9 @@ export const DigitalStorefrontPage: React.FC = () => {
 
   /* ────── MENU SCREEN (MAIN) ────── */
   return (
-    <div className="h-screen overflow-y-auto pb-28" style={{ background: 'var(--bg)', scrollbarWidth: 'none' }}>
+    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--bg)' }}>
+      {/* ── STICKY TOP SECTION (hero, banners, category pills) ── */}
+      <div className="flex-shrink-0">
 
       {/* ── HERO BANNER ─────────────────────── */}
       <div ref={heroRef} className="relative h-56 overflow-hidden">
@@ -1454,6 +1456,11 @@ export const DigitalStorefrontPage: React.FC = () => {
         </div>
       </div>
 
+      </div>
+
+      {/* ── SCROLLABLE MENU ITEMS SECTION ── */}
+      <div className="flex-1 overflow-y-auto pb-28" style={{ scrollbarWidth: 'none' }}>
+
       {/* ── MENU ITEMS ───────────────────────── */}
       <div className="px-4 pt-3 space-y-3 fade-up-delay-2">
         {/* Special Header when in Deals Tab */}
@@ -1563,6 +1570,8 @@ export const DigitalStorefrontPage: React.FC = () => {
           );
         })}
       </div>
+
+      </div>{/* end scrollable items section */}
 
       {/* ── FLOATING CART BAR ────────────────── */}
       {cartCount > 0 && (

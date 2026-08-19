@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { io, Socket } from 'socket.io-client';
 import {
   Wine, ClipboardList, CheckCircle2, Clock, Bell, LogOut,
   User, ChevronDown, Circle, AlertCircle, Package,
@@ -13,6 +14,14 @@ const getApiUrl = (path: string): string => {
   if (base.endsWith('/')) base = base.slice(0, -1);
   if (!base.includes('/api/v1')) base = `${base}/api/v1`;
   return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+};
+
+const getSocketUrl = (): string => {
+  const envUrl = (import.meta as any).env?.VITE_API_URL;
+  let base = envUrl ? envUrl.trim() : 'http://localhost:5000';
+  if (base.endsWith('/')) base = base.slice(0, -1);
+  base = base.replace(/\/api\/v1\/?$/, '');
+  return base;
 };
 
 const authHeaders = (): Record<string, string> => {
@@ -208,12 +217,43 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
     }
   }, [user.id, user.userUuid]);
 
-  /* Initial fetch + polling every 15s */
+  /* Real-time Socket.IO Connection + 3s Auto-refresher */
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 15_000);
-    return () => clearInterval(interval);
-  }, [fetchOrders]);
+
+    const clubUuid = user.clubUuid || user.tenantId || (user as any).club?.clubUuid;
+    let socket: Socket | null = null;
+
+    try {
+      socket = io(getSocketUrl(), {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 15,
+        reconnectionDelay: 1000,
+      });
+
+      socket.on('connect', () => {
+        if (clubUuid) {
+          socket?.emit('join_tenant', clubUuid);
+        }
+      });
+
+      const handleRealtime = () => {
+        fetchOrders();
+      };
+
+      socket.on('new_order', handleRealtime);
+      socket.on('order_claimed', handleRealtime);
+      socket.on('order_status_updated', handleRealtime);
+      socket.on('notification', handleRealtime);
+    } catch {}
+
+    const interval = setInterval(fetchOrders, 3_000);
+    return () => {
+      clearInterval(interval);
+      if (socket) socket.disconnect();
+    };
+  }, [fetchOrders, user.clubUuid, user.tenantId]);
 
   /* Periodic heartbeat every 30s to keep online status active in manager portal */
   useEffect(() => {

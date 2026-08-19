@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { io, Socket } from 'socket.io-client';
 import { ThemeToggle } from '@drinkhub/ui';
 import {
   Wine, LayoutDashboard, ClipboardList, BookOpen, Users, TrendingUp,
@@ -203,7 +204,7 @@ const KPI = ({ label, value, sub, icon }: { label: string; value: string; sub: s
   </div>
 );
 
-const SectionHeader = ({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) => (
+const SectionHeader = ({ title, subtitle, action }: { title: React.ReactNode; subtitle?: React.ReactNode; action?: React.ReactNode }) => (
   <div className="flex items-center justify-between mb-6">
     <div>
       <h2 className="text-lg font-black" style={{ color: 'var(--text-primary)' }}>{title}</h2>
@@ -239,6 +240,25 @@ const getApiUrl = (path: string): string => {
   if (base.endsWith('/')) base = base.slice(0, -1);
   if (!base.includes('/api/v1')) base = `${base}/api/v1`;
   return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+};
+
+const getSocketUrl = (): string => {
+  const envUrl = (import.meta as any).env?.VITE_API_URL;
+  let base = envUrl ? envUrl.trim() : 'http://localhost:5000';
+  if (base.endsWith('/')) base = base.slice(0, -1);
+  base = base.replace(/\/api\/v1\/?$/, '');
+  return base;
+};
+
+const getClubUuid = (): string | null => {
+  try {
+    const userStr = localStorage.getItem('drinkhub_user');
+    if (!userStr) return null;
+    const u = JSON.parse(userStr);
+    return u.clubUuid || u.tenantId || u.club?.clubUuid || null;
+  } catch {
+    return null;
+  }
 };
 
 const authHeaders = (): Record<string, string> => {
@@ -668,9 +688,10 @@ const OrdersPage = ({ showToast }: { showToast: (m: string) => void }) => {
   const [filter, setFilter] = React.useState('All');
   const [search, setSearch] = React.useState('');
   const [refreshing, setRefreshing] = React.useState(false);
+  const [isLiveActive, setIsLiveActive] = React.useState(false);
 
-  const fetchOrders = React.useCallback(async () => {
-    setRefreshing(true);
+  const fetchOrders = React.useCallback(async (isBackground = false) => {
+    if (!isBackground) setRefreshing(true);
     try {
       const res = await fetch(getApiUrl('/orders'), { headers: authHeaders() });
       if (!res.ok) throw new Error('Failed to load orders');
@@ -686,25 +707,90 @@ const OrdersPage = ({ showToast }: { showToast: (m: string) => void }) => {
         time: o.createdAt ? new Date(o.createdAt).toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' }) : '-',
       })));
     } catch {
-      // Keep empty on error
+      // Keep existing on error
     } finally {
-      setRefreshing(false);
+      if (!isBackground) setRefreshing(false);
     }
   }, []);
 
-  React.useEffect(() => { fetchOrders(); }, [fetchOrders]);
+  // Initial load on mount
+  React.useEffect(() => {
+    fetchOrders(false);
+  }, [fetchOrders]);
 
-  const doRefresh = async () => { await fetchOrders(); showToast('Orders refreshed'); };
+  // Real-time Socket.IO Connection + 3-Second Background Auto-refresher
+  React.useEffect(() => {
+    const clubUuid = getClubUuid();
+    let socket: Socket | null = null;
+
+    try {
+      socket = io(getSocketUrl(), {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 15,
+        reconnectionDelay: 1000,
+      });
+
+      socket.on('connect', () => {
+        setIsLiveActive(true);
+        if (clubUuid) {
+          socket?.emit('join_tenant', clubUuid);
+        }
+      });
+
+      socket.on('disconnect', () => {
+        setIsLiveActive(false);
+      });
+
+      // Realtime Order events: status updated, order claimed, new order created
+      const handleRealtimeUpdate = () => {
+        fetchOrders(true);
+      };
+
+      socket.on('new_order', handleRealtimeUpdate);
+      socket.on('order_claimed', handleRealtimeUpdate);
+      socket.on('order_status_updated', handleRealtimeUpdate);
+      socket.on('notification', handleRealtimeUpdate);
+    } catch {
+      // Fallback to active polling
+    }
+
+    // High frequency 3-second background polling to guarantee seamless zero-refresh live updates
+    const pollInterval = setInterval(() => {
+      fetchOrders(true);
+    }, 3000);
+
+    return () => {
+      clearInterval(pollInterval);
+      if (socket) socket.disconnect();
+    };
+  }, [fetchOrders]);
+
+  const doRefresh = async () => { await fetchOrders(false); showToast('Orders refreshed'); };
 
   const statuses = ['All', 'PENDING', 'PREPARING', 'READY', 'DELIVERED', 'CANCELLED'];
   const filtered = orders.filter(o => (filter === 'All' || o.status === filter) && (search === '' || o.id.toLowerCase().includes(search.toLowerCase()) || o.table.toLowerCase().includes(search.toLowerCase()) || o.waiter.toLowerCase().includes(search.toLowerCase())));
 
   return (
     <div className="space-y-5">
-      <SectionHeader title="Live Orders" subtitle="Real-time order feed for your venue" action={
+      <SectionHeader
+        title={
+          <div className="flex items-center gap-2.5">
+            <span>Live Orders</span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              <span>Live Sync Active</span>
+            </span>
+          </div>
+        }
+        subtitle="Real-time order feed for your venue — auto updates instantly on status changes"
+        action={
         <div className="flex items-center gap-2">
           <button onClick={doRefresh} disabled={refreshing} className="flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-slate-50 transition-colors disabled:opacity-50" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-            <RefreshCcw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />{refreshing ? 'Refreshing   ' : 'Refresh'}
+            <RefreshCcw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />{refreshing ? 'Refreshing…' : 'Refresh'}
           </button>
           <button onClick={() => { csvExport(['Order', 'Table', 'Item', 'Waiter', 'Amount (KES)', 'Status', 'Time'], filtered.map(o => [o.id, o.table, o.item, o.waiter, o.amount, o.status, o.time]), 'orders-export.csv'); showToast('Orders exported'); }}
             className="flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-slate-50 transition-colors" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
@@ -715,7 +801,7 @@ const OrdersPage = ({ showToast }: { showToast: (m: string) => void }) => {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex-1 min-w-48 flex items-center gap-2 rounded-lg border px-3.5 py-2" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
           <Search className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search order, table, waiter   " className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--text-primary)' }} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search order, table, waiter…" className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--text-primary)' }} />
         </div>
         <div className="flex gap-1.5 flex-wrap items-center">
           {statuses.map(s => {
@@ -2075,8 +2161,8 @@ const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
   const [hourChart, setHourChart] = React.useState<{ h: number; n: number }[]>([]);
   const [recentOrders, setRecentOrders] = React.useState<OrderRow[]>([]);
 
-  const fetchDashboard = React.useCallback(async () => {
-    setRefreshing(true);
+  const fetchDashboard = React.useCallback(async (isBackground = false) => {
+    if (!isBackground) setRefreshing(true);
     try {
       const [analyticsRes, ordersRes] = await Promise.all([
         fetch(getApiUrl('/reports/analytics?period=WEEKLY'), { headers: authHeaders() }),
@@ -2172,16 +2258,56 @@ const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
     } catch {
       /* keep current state on error */
     } finally {
-      setRefreshing(false);
+      if (!isBackground) setRefreshing(false);
     }
   }, []);
 
+  // Initial load
   React.useEffect(() => {
-    fetchDashboard();
+    fetchDashboard(false);
+  }, [fetchDashboard]);
+
+  // Real-time Socket.IO Connection + 3-Second Background Auto-refresher
+  React.useEffect(() => {
+    const clubUuid = getClubUuid();
+    let socket: Socket | null = null;
+
+    try {
+      socket = io(getSocketUrl(), {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 15,
+        reconnectionDelay: 1000,
+      });
+
+      socket.on('connect', () => {
+        if (clubUuid) {
+          socket?.emit('join_tenant', clubUuid);
+        }
+      });
+
+      const handleRealtimeUpdate = () => {
+        fetchDashboard(true);
+      };
+
+      socket.on('new_order', handleRealtimeUpdate);
+      socket.on('order_claimed', handleRealtimeUpdate);
+      socket.on('order_status_updated', handleRealtimeUpdate);
+      socket.on('notification', handleRealtimeUpdate);
+    } catch {}
+
+    const pollInterval = setInterval(() => {
+      fetchDashboard(true);
+    }, 3000);
+
+    return () => {
+      clearInterval(pollInterval);
+      if (socket) socket.disconnect();
+    };
   }, [fetchDashboard]);
 
   const doRefresh = async () => {
-    await fetchDashboard();
+    await fetchDashboard(false);
     showToast('Dashboard refreshed');
   };
 

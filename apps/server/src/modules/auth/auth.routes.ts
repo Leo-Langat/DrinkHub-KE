@@ -281,6 +281,38 @@ authRouter.patch('/users/:uuid/status', authenticate, authorize(['PLATFORM_ADMIN
 /**
  * @openapi
  * /auth/users/{uuid}:
+ *   patch:
+ *     summary: Update a staff or manager user account details
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: uuid
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               fullName: { type: string }
+ *               email: { type: string }
+ *               phone: { type: string }
+ *               clubUuid: { type: string }
+ *               isActive: { type: boolean }
+ *     responses:
+ *       200:
+ *         description: User details updated
+ */
+authRouter.patch('/users/:uuid', authenticate, authorize(['PLATFORM_ADMIN', 'CLUB_ADMIN', 'MANAGER']), authController.updateUser);
+authRouter.put('/users/:uuid', authenticate, authorize(['PLATFORM_ADMIN', 'CLUB_ADMIN', 'MANAGER']), authController.updateUser);
+
+/**
+ * @openapi
+ * /auth/users/{uuid}:
  *   delete:
  *     summary: Delete a staff user account
  *     tags: [Auth]

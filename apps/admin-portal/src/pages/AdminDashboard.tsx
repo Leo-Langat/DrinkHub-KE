@@ -955,11 +955,22 @@ const ClubsPage = ({ showToast }: { showToast: (m: string) => void }) => {
 };
 
 /* ══════════════════════════════════════
-   MANAGERS PAGE (read-only; no Add button)
+   MANAGERS PAGE (scrollable with edit capability)
 ══════════════════════════════════════ */
 const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' | 'error') => void }) => {
   const [managers, setManagers] = useState<Manager[]>(initManagers);
+  const [clubs, setClubs] = useState<{ id: string; name: string }[]>([]);
   const [search, setSearch] = useState('');
+  const [editingManager, setEditingManager] = useState<Manager | null>(null);
+  const [editForm, setEditForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    clubId: '',
+    status: 'Active' as 'Active' | 'Suspended',
+  });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const fetchManagers = async () => {
@@ -985,11 +996,25 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
         /* Keep state empty if error */
       }
     };
+
+    const fetchClubs = async () => {
+      try {
+        const res = await fetch(getApiUrl('/tenants'), { headers: authHeaders() });
+        if (!res.ok) return;
+        const data = await res.json();
+        const raw: any[] = data.data?.tenants ?? data.data ?? [];
+        setClubs(raw.map((c: any) => ({ id: c.uuid ?? c.id, name: c.name })));
+      } catch {}
+    };
+
     fetchManagers();
+    fetchClubs();
   }, []);
+
   const filtered = managers.filter(m =>
     `${m.firstName} ${m.lastName} ${m.email} ${m.clubName}`.toLowerCase().includes(search.toLowerCase())
   );
+
   const toggle = async (id: string) => {
     const mgr = managers.find(m => m.id === id);
     if (!mgr) return;
@@ -1011,6 +1036,63 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
       showToast('Network error — could not update status', 'error');
     }
   };
+
+  const handleOpenEdit = (m: Manager) => {
+    setEditingManager(m);
+    setEditForm({
+      firstName: m.firstName,
+      lastName: m.lastName,
+      email: m.email,
+      phone: m.phone || '',
+      clubId: m.clubId || '',
+      status: m.status === 'Active' ? 'Active' : 'Suspended',
+    });
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingManager) return;
+    setSaving(true);
+    try {
+      const fullName = `${editForm.firstName.trim()} ${editForm.lastName.trim()}`.trim();
+      const res = await fetch(getApiUrl(`/auth/users/${editingManager.id}`), {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          fullName,
+          email: editForm.email.trim(),
+          phone: editForm.phone.trim(),
+          clubUuid: editForm.clubId || null,
+          isActive: editForm.status === 'Active',
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error?.message || 'Failed to update manager details');
+      }
+
+      const selectedClub = clubs.find(c => c.id === editForm.clubId);
+      setManagers(prev => prev.map(m => m.id === editingManager.id ? {
+        ...m,
+        firstName: editForm.firstName.trim(),
+        lastName: editForm.lastName.trim(),
+        email: editForm.email.trim(),
+        phone: editForm.phone.trim(),
+        clubId: editForm.clubId,
+        clubName: selectedClub?.name ?? (editForm.clubId ? m.clubName : 'No Venue Assigned'),
+        status: editForm.status,
+      } : m));
+
+      showToast('Manager details updated successfully');
+      setEditingManager(null);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update manager', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <SectionHeader title="Managers" subtitle="All club managers — created during club onboarding" action={
@@ -1029,42 +1111,150 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
         </button>
       </div>
       <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              {['Manager', 'Club', 'Status', 'Last Login', 'Actions'].map(h => (
-                <th key={h} className="px-5 py-3 text-left text-xs font-bold" style={{ color: 'var(--text-muted)' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(m => (
-              <tr key={m.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
-                <td className="px-5 py-3.5">
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center font-bold text-xs text-blue-700 flex-shrink-0">{m.firstName[0]}{m.lastName[0]}</div>
-                    <div>
-                      <div className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{m.firstName} {m.lastName}</div>
-                      <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{m.email}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{m.clubName}</td>
-                <td className="px-5 py-3.5"><StatusBadge status={m.status} /></td>
-                <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--text-muted)' }}>{m.lastLogin}</td>
-                <td className="px-5 py-3.5">
-                  <div className="flex items-center gap-1.5">
-                    <button onClick={() => showToast(`Password reset link sent to ${m.email}`)} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="Reset Password"><Key className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} /></button>
-                    <button onClick={() => toggle(m.id)} className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors" title={m.status === 'Active' ? 'Suspend' : 'Activate'}>
-                      {m.status === 'Active' ? <UserX className="h-3.5 w-3.5 text-amber-500" /> : <UserCheck className="h-3.5 w-3.5 text-emerald-500" />}
-                    </button>
-                  </div>
-                </td>
+        <div className="max-h-[62vh] overflow-y-auto overflow-x-auto scrollbar-thin">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 z-10 backdrop-blur-md">
+              <tr className="border-b" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+                {['Manager', 'Club', 'Status', 'Last Login', 'Actions'].map(h => (
+                  <th key={h} className="px-5 py-3 text-left text-xs font-bold" style={{ color: 'var(--text-muted)' }}>{h}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center py-8 text-xs text-slate-400">No managers found</td>
+                </tr>
+              ) : filtered.map(m => (
+                <tr key={m.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center font-bold text-xs text-blue-700 flex-shrink-0">
+                        {(m.firstName?.[0] || 'M').toUpperCase()}{(m.lastName?.[0] || '').toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{m.firstName} {m.lastName}</div>
+                        <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{m.email}</div>
+                        {m.phone && <div className="text-[10px] text-slate-400">{m.phone}</div>}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3.5 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{m.clubName}</td>
+                  <td className="px-5 py-3.5"><StatusBadge status={m.status} /></td>
+                  <td className="px-5 py-3.5 text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{m.lastLogin}</td>
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleOpenEdit(m)}
+                        className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                        title="Edit Manager Details"
+                      >
+                        <Edit2 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                      </button>
+                      <button onClick={() => showToast(`Password reset link sent to ${m.email}`)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Reset Password"><Key className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} /></button>
+                      <button onClick={() => toggle(m.id)} className="p-1.5 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors" title={m.status === 'Active' ? 'Suspend' : 'Activate'}>
+                        {m.status === 'Active' ? <UserX className="h-3.5 w-3.5 text-amber-500" /> : <UserCheck className="h-3.5 w-3.5 text-emerald-500" />}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      {/* ── Edit Manager Modal ── */}
+      <Modal open={!!editingManager} onClose={() => setEditingManager(null)} title="Edit Manager Details">
+        <form onSubmit={handleSaveEdit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <FG>
+              <FL required>First Name</FL>
+              <SI
+                required
+                value={editForm.firstName}
+                onChange={e => setEditForm(p => ({ ...p, firstName: e.target.value }))}
+                placeholder="First name"
+              />
+            </FG>
+            <FG>
+              <FL required>Last Name</FL>
+              <SI
+                required
+                value={editForm.lastName}
+                onChange={e => setEditForm(p => ({ ...p, lastName: e.target.value }))}
+                placeholder="Last name"
+              />
+            </FG>
+          </div>
+
+          <FG>
+            <FL required>Email Address</FL>
+            <SI
+              type="email"
+              required
+              value={editForm.email}
+              onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))}
+              placeholder="manager@example.com"
+            />
+          </FG>
+
+          <FG>
+            <FL>Phone Number</FL>
+            <SI
+              type="tel"
+              value={editForm.phone}
+              onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))}
+              placeholder="+254 700 000 000"
+            />
+          </FG>
+
+          <FG>
+            <FL>Assigned Venue / Club</FL>
+            <select
+              value={editForm.clubId}
+              onChange={e => setEditForm(p => ({ ...p, clubId: e.target.value }))}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 transition"
+            >
+              <option value="">No Venue Assigned</option>
+              {clubs.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </FG>
+
+          <FG>
+            <FL>Account Status</FL>
+            <select
+              value={editForm.status}
+              onChange={e => setEditForm(p => ({ ...p, status: e.target.value as 'Active' | 'Suspended' }))}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 transition"
+            >
+              <option value="Active">Active</option>
+              <option value="Suspended">Suspended</option>
+            </select>
+          </FG>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setEditingManager(null)}
+              disabled={saving}
+              className="px-4 py-2 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition disabled:opacity-50 shadow-md shadow-blue-500/20"
+            >
+              {saving ? <RefreshCcw className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+              {saving ? 'Saving…' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

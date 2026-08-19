@@ -374,4 +374,28 @@ export class AuthService {
     if (!user) throw new NotFoundError('User not found');
     await this.authRepository.updateUser(userUuid, { isActive });
   }
+
+  async updateUserDetails(
+    userUuid: string,
+    data: {
+      fullName?: string;
+      email?: string;
+      phone?: string;
+      clubUuid?: string;
+      isActive?: boolean;
+    },
+  ): Promise<any> {
+    const user = await this.authRepository.findById(userUuid);
+    if (!user) throw new NotFoundError('User not found');
+
+    const updateData: any = {};
+    if (data.fullName !== undefined) updateData.fullName = data.fullName.trim();
+    if (data.email !== undefined) updateData.email = data.email.trim().toLowerCase();
+    if (data.phone !== undefined) updateData.phone = data.phone ? data.phone.trim() : null;
+    if (data.clubUuid !== undefined) updateData.clubUuid = data.clubUuid || null;
+    if (data.isActive !== undefined) updateData.isActive = Boolean(data.isActive);
+
+    const updated = await this.authRepository.updateUser(userUuid, updateData);
+    return updated;
+  }
 }

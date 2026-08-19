@@ -258,4 +258,36 @@ export class AuthController {
       next(error);
     }
   };
+
+  updateUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { uuid } = req.params;
+      const { fullName, email, phone, clubUuid, isActive } = req.body;
+      const updated = await (this.authService as any).updateUserDetails(uuid, {
+        fullName,
+        email,
+        phone,
+        clubUuid,
+        isActive,
+      });
+
+      res.json({
+        success: true,
+        data: {
+          user: {
+            uuid: updated.userUuid,
+            fullName: updated.fullName,
+            email: updated.email,
+            phone: updated.phone,
+            clubUuid: updated.clubUuid,
+            isActive: updated.isActive,
+          },
+          message: 'User details updated successfully',
+        },
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

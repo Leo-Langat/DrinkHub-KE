@@ -212,11 +212,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 onClick={() => {
                   if (role === 'waiter') {
                     setUsername('waiter.kamau@alchemist.co.ke');
-                    setPassword('Password123!');
                   } else {
-                    setUsername('belvinrotich@gmail.com');
-                    setPassword('Belvin123');
+                    setUsername('admin@alchemist.co.ke');
                   }
+                  setPassword('Password123!');
                 }}
                 className="text-blue-600 hover:underline font-bold"
               >
@@ -224,7 +223,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               </button>
             </div>
             <p className="text-[11px] text-blue-700">
-              {role === 'waiter' ? 'waiter.kamau@alchemist.co.ke / Password123!' : 'belvinrotich@gmail.com / Belvin123'}
+              {role === 'waiter' ? 'waiter.kamau@alchemist.co.ke' : 'admin@alchemist.co.ke'} / Password123!
             </p>
           </div>
 

@@ -48,6 +48,9 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
 
       if (data.data?.accessToken) {
         localStorage.setItem('drinkhub_token', data.data.accessToken);
+        if (data.data.refreshToken) {
+          localStorage.setItem('drinkhub_refresh_token', data.data.refreshToken);
+        }
         localStorage.setItem('drinkhub_user', JSON.stringify(data.data.user));
         localStorage.setItem('drinkhub_login_time', Date.now().toString());
       }

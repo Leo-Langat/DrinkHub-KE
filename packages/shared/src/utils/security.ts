@@ -3,8 +3,8 @@
  * Shared across server, staff-portal, admin-portal, and customer-pwa.
  */
 
-export const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
-export const MAX_SESSION_MS = 12 * 60 * 60 * 1000; // 12 hours max shift length
+export const IDLE_TIMEOUT_MS = 2 * 60 * 60 * 1000;  // 2 hours idle timeout
+export const MAX_SESSION_MS = 24 * 60 * 60 * 1000;  // 24 hours max session (full day shift)
 
 /**
  * Safely parses JWT payload in browser/Node without external libraries.
@@ -29,11 +29,13 @@ export function parseJwtPayload(token: string): Record<string, any> | null {
 
 /**
  * Checks if a JWT access token is expired or about to expire within bufferMs.
+ * Returns false if token is a demo/opaque string (not a 3-part JWT with exp claim).
  */
 export function isJwtExpired(token: string | null | undefined, bufferMs = 5000): boolean {
   if (!token) return true;
   const payload = parseJwtPayload(token);
-  if (!payload || !payload.exp) return true;
+  // If token is not a 3-part JWT with exp claim (e.g. demo token), do not treat as expired
+  if (!payload || !payload.exp) return false;
   const expiresAtMs = payload.exp * 1000;
   return expiresAtMs - bufferMs <= Date.now();
 }

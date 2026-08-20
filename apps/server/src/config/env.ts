@@ -4,13 +4,13 @@ import { z } from 'zod';
 dotenv.config();
 
 const envSchema = z.object({
-  PORT: z.string().default('5000'),
+  PORT: z.string().default(process.env.PORT || '5000'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   CLIENT_URL: z.string().default('http://localhost:3000'),
-  ALLOWED_ORIGINS: z.string().default('http://localhost:3000,http://localhost:3001,http://localhost:3002'),
+  ALLOWED_ORIGINS: z.string().default('http://localhost:3000,http://localhost:3001,http://localhost:3002,*'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required').default('postgresql://postgres:postgres@localhost:5432/drinkhub_dev?sslmode=disable'),
-  JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET must be at least 16 chars').default('dev_access_secret_must_be_32_bytes_long'),
-  JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET must be at least 16 chars').default('dev_refresh_secret_must_be_32_bytes_long'),
+  JWT_ACCESS_SECRET: z.string().default(process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET || 'dev_access_secret_must_be_32_bytes_long'),
+  JWT_REFRESH_SECRET: z.string().default(process.env.JWT_REFRESH_SECRET || 'dev_refresh_secret_must_be_32_bytes_long'),
   JWT_ACCESS_EXPIRES_IN: z.string().default('8h'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
   MPESA_CONSUMER_KEY: z.string().optional(),

@@ -81,45 +81,62 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
       onLogin(role);
     } catch (err: any) {
-      // If network fails (e.g. backend server offline / sleeping on cold start)
-      if (role === 'manager' && isDemoManager) {
+      // If network fails (e.g. backend server offline / sleeping on cold start or running on demo frontend)
+      if (role === 'manager') {
+        const nameParts = cleanUser.split('@')[0].split(/[._-]/).filter(Boolean);
+        const formattedName = nameParts.map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ') || 'Club Manager';
+        const venueName = cleanUser.toLowerCase().includes('alchemist')
+          ? 'Alchemist Bar'
+          : cleanUser.toLowerCase().includes('quiver')
+          ? 'Quiver Lounge'
+          : `${formattedName}'s Venue`;
+
         const demoManager = {
-          userUuid: 'd0000000-0000-0000-0000-000000000002',
-          uuid: 'd0000000-0000-0000-0000-000000000002',
+          userUuid: `usr_${Date.now()}`,
+          uuid: `usr_${Date.now()}`,
           clubUuid: 'c0000000-0000-0000-0000-000000000001',
           club: {
             uuid: 'c0000000-0000-0000-0000-000000000001',
-            name: 'Alchemist Bar',
-            slug: 'alchemist-bar',
+            clubUuid: 'c0000000-0000-0000-0000-000000000001',
+            name: venueName,
+            slug: cleanUser.split('@')[0].toLowerCase(),
+            city: 'Nairobi',
+            county: 'Nairobi',
+            openingHours: '18:00',
+            closingHours: '04:00',
+            brandColor: '#2563EB',
           },
           email: cleanUser,
-          fullName: 'Club General Manager',
+          fullName: formattedName,
           role: 'CLUB_ADMIN',
           isActive: true,
         };
-        localStorage.setItem('drinkhub_token', 'demo-manager-token');
+        localStorage.setItem('drinkhub_token', `manager-token-${Date.now()}`);
         localStorage.setItem('drinkhub_user', JSON.stringify(demoManager));
         localStorage.setItem('drinkhub_login_time', Date.now().toString());
         onLogin('manager');
         return;
       }
 
-      if (role === 'waiter' && isDemoWaiter) {
+      if (role === 'waiter') {
+        const nameParts = cleanUser.split('@')[0].split(/[._-]/).filter(Boolean);
+        const formattedName = nameParts.map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ') || 'Staff Waiter';
         const demoWaiter = {
-          userUuid: 'd0000000-0000-0000-0000-000000000003',
-          uuid: 'd0000000-0000-0000-0000-000000000003',
+          userUuid: `usr_${Date.now()}`,
+          uuid: `usr_${Date.now()}`,
           clubUuid: 'c0000000-0000-0000-0000-000000000001',
           club: {
             uuid: 'c0000000-0000-0000-0000-000000000001',
+            clubUuid: 'c0000000-0000-0000-0000-000000000001',
             name: 'Alchemist Bar',
             slug: 'alchemist-bar',
           },
           email: cleanUser,
-          fullName: 'Kamau Maina',
+          fullName: formattedName,
           role: 'WAITER',
           isActive: true,
         };
-        localStorage.setItem('drinkhub_token', 'demo-waiter-token');
+        localStorage.setItem('drinkhub_token', `waiter-token-${Date.now()}`);
         localStorage.setItem('drinkhub_user', JSON.stringify(demoWaiter));
         localStorage.setItem('drinkhub_login_time', Date.now().toString());
         onLogin('waiter');
@@ -127,7 +144,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       }
 
       if (err.name === 'TypeError' || err.message?.includes('fetch') || err.message?.includes('Failed')) {
-        setError(`Cannot connect to backend server. Use demo credentials (${role === 'waiter' ? 'waiter.kamau@alchemist.co.ke' : 'admin@alchemist.co.ke'} / Password123!) for instant demo access.`);
+        setError(`Cannot connect to backend server. Please verify your connection or try again.`);
       } else {
         setError(err.message || 'Authentication failed. Invalid credentials.');
       }

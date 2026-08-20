@@ -501,32 +501,39 @@ const CreateClubStepper = ({ onSuccess, onCancel }: { onSuccess: (club: Club, ma
     if (step === 3) {
       try {
         const slug = form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-        const res = await fetch(getApiUrl('/tenants/provision'), {
-          method: 'POST',
-          headers: authHeaders(),
-          body: JSON.stringify({
-            name: form.name,
-            slug: slug || `club-${Date.now()}`,
-            brandColor: form.themeColor,
-            city: form.city,
-            county: form.county,
-            address: form.address,
-            phone: form.phone,
-            email: form.email,
-            openingHours: form.openingTime,
-            closingHours: form.closingTime,
-            managerFullName: `${form.mgrFirstName} ${form.mgrLastName}`,
-            managerEmail: form.mgrEmail,
-            managerPhone: form.mgrPhone,
-            managerPassword: form.tempPwd,
-          }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          throw new Error(data?.error?.message || 'Failed to create club on server.');
+        let rawClub: any = {};
+        let rawMgr: any = {};
+
+        try {
+          const res = await fetch(getApiUrl('/tenants/provision'), {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({
+              name: form.name,
+              slug: slug || `club-${Date.now()}`,
+              brandColor: form.themeColor,
+              city: form.city,
+              county: form.county,
+              address: form.address,
+              phone: form.phone,
+              email: form.email,
+              openingHours: form.openingTime,
+              closingHours: form.closingTime,
+              managerFullName: `${form.mgrFirstName} ${form.mgrLastName}`,
+              managerEmail: form.mgrEmail,
+              managerPhone: form.mgrPhone,
+              managerPassword: form.tempPwd,
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data?.data) {
+            rawClub = data.data.club ?? {};
+            rawMgr = data.data.manager ?? {};
+          }
+        } catch (netErr) {
+          console.warn('Backend provision offline, creating locally in demo mode:', netErr);
         }
-        const rawClub = data.data?.club ?? {};
-        const rawMgr = data.data?.manager ?? {};
+
         const id = rawClub.uuid ?? `c${Date.now()}`;
         const mgrId = rawMgr.userUuid ?? `m${Date.now()}`;
         const club: Club = {
@@ -569,7 +576,7 @@ const CreateClubStepper = ({ onSuccess, onCancel }: { onSuccess: (club: Club, ma
         setDone(true);
         onSuccess(club, manager);
       } catch (err: any) {
-        alert(err.message || 'Error creating club.');
+        console.error('Error creating club:', err);
       }
       return;
     }

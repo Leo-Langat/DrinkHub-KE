@@ -1359,7 +1359,6 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
             fullName,
             email: editForm.email.trim(),
             phone: editForm.phone.trim(),
-            clubUuid: editForm.clubId || null,
             isActive: editForm.status === 'Active',
           }),
         });
@@ -1372,15 +1371,12 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
         console.warn('Backend offline, applying manager changes locally in demo mode:', netErr);
       }
 
-      const matchedClub = clubs.find(c => String(c.id) === String(editForm.clubId));
       setManagers(prev => prev.map(m => m.id === editingManager.id ? {
         ...m,
         firstName: editForm.firstName.trim(),
         lastName: editForm.lastName.trim(),
         email: editForm.email.trim(),
         phone: editForm.phone.trim(),
-        clubId: editForm.clubId,
-        clubName: matchedClub ? matchedClub.name : (editForm.clubId ? m.clubName : 'No Venue Assigned'),
         status: editForm.status,
       } : m));
 
@@ -1510,19 +1506,14 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
           </FG>
 
           <FG>
-            <FL>Assigned Venue / Club</FL>
-            <select
-              value={editForm.clubId}
-              onChange={e => setEditForm(p => ({ ...p, clubId: e.target.value }))}
-              className="w-full rounded-lg border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition"
-            >
-              <option value="">-- No Venue Assigned --</option>
-              {clubs.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.name} {c.city ? `(${c.city})` : ''}
-                </option>
-              ))}
-            </select>
+            <FL>Assigned Venue / Club (Locked)</FL>
+            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 dark:bg-slate-800/60 dark:border-slate-700 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300">
+              <Building2 className="h-4 w-4 text-slate-400" />
+              <span>{editingManager?.clubName || 'No Venue Assigned'}</span>
+              <span className="ml-auto text-[10px] uppercase font-bold text-slate-400 bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded flex items-center gap-1">
+                <Lock className="h-3 w-3" /> Fixed
+              </span>
+            </div>
           </FG>
 
           <FG>

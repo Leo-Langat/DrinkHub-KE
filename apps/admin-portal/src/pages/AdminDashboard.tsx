@@ -703,6 +703,7 @@ const EditClubModal = ({
             closingHours: form.closingTime,
             brandColor: form.themeColor,
             logoUrl: form.logoUrl.trim() || null,
+            bannerUrl: form.bannerUrl.trim() || null,
           }),
         });
 
@@ -832,11 +833,38 @@ const EditClubModal = ({
 
         <div className="border-t pt-4 space-y-3" style={{ borderColor: 'var(--border)' }}>
           <h4 className="text-xs font-black uppercase tracking-wider text-slate-500">Branding & Appearance</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
+            {/* Logo */}
             <div>
               <FL>Logo Image</FL>
               <UploadBox label="Upload Logo" preview={form.logoUrl} onUpload={e => readFile(e, v => setForm(p => ({ ...p, logoUrl: v })))} />
+              {form.logoUrl && (
+                <button
+                  type="button"
+                  onClick={() => setForm(p => ({ ...p, logoUrl: '' }))}
+                  className="mt-1 text-[10px] text-red-400 hover:text-red-600 font-medium transition-colors"
+                >
+                  Remove logo
+                </button>
+              )}
             </div>
+
+            {/* Banner */}
+            <div>
+              <FL>Banner Image</FL>
+              <UploadBox label="Upload Banner" preview={form.bannerUrl} onUpload={e => readFile(e, v => setForm(p => ({ ...p, bannerUrl: v })))} />
+              {form.bannerUrl && (
+                <button
+                  type="button"
+                  onClick={() => setForm(p => ({ ...p, bannerUrl: '' }))}
+                  className="mt-1 text-[10px] text-red-400 hover:text-red-600 font-medium transition-colors"
+                >
+                  Remove banner
+                </button>
+              )}
+            </div>
+
+            {/* Theme Color */}
             <div>
               <FL>Theme Color</FL>
               <div className="space-y-2">

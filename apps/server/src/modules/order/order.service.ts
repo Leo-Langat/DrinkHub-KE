@@ -3,6 +3,7 @@ import { IOrderRepository } from './order.interface';
 import { NotFoundError, BadRequestError } from '../../common/errors/app-error';
 import { getIO } from '../../config/socket';
 import { logger } from '../../config/logger';
+import { prisma } from '../../config/prisma';
 
 export class OrderService {
   constructor(private orderRepository: IOrderRepository) {}
@@ -16,7 +17,12 @@ export class OrderService {
   }
 
   async getOrdersForClub(clubUuid?: string, status?: OrderStatus, waiterUuid?: string): Promise<Order[]> {
-    return this.orderRepository.findOrdersByClub(clubUuid, status, waiterUuid);
+    let targetClubUuid = clubUuid;
+    if (targetClubUuid === 'default-club') {
+      const firstClub = await prisma.club.findFirst({ where: { deletedAt: null } });
+      if (firstClub) targetClubUuid = firstClub.clubUuid;
+    }
+    return this.orderRepository.findOrdersByClub(targetClubUuid, status, waiterUuid);
   }
 
   async getActiveClaimedOrderByWaiter(waiterUuid: string): Promise<Order | null> {

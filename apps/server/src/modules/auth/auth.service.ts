@@ -319,7 +319,7 @@ export class AuthService {
         lastSeenAt: activeSession?.updatedAt ?? null,
         createdAt: u.createdAt,
         clubUuid: u.clubUuid,
-        club: u.club ? { name: u.club.name, uuid: u.club.uuid } : null,
+        club: u.club ? { name: u.club.name, uuid: u.club.clubUuid, clubUuid: u.club.clubUuid } : null,
       };
     });
   }
@@ -350,7 +350,7 @@ export class AuthService {
         lastSeenAt: activeSession?.updatedAt ?? null,
         createdAt: u.createdAt,
         clubUuid: u.clubUuid,
-        club: u.club ? { name: u.club.name, uuid: u.club.uuid } : null,
+        club: u.club ? { name: u.club.name, uuid: u.club.clubUuid, clubUuid: u.club.clubUuid } : null,
       };
     });
   }

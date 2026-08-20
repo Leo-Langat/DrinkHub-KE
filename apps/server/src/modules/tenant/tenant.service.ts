@@ -9,7 +9,14 @@ export class TenantService {
   constructor(private tenantRepository: ITenantRepository) {}
 
   async getTenantBySlug(slug: string): Promise<Club> {
-    const tenant = await this.tenantRepository.findBySlug(slug);
+    let tenant = await this.tenantRepository.findBySlug(slug);
+    if (!tenant) {
+      // Also check by ID in case a UUID was passed
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
+      if (isUuid) {
+        tenant = await this.tenantRepository.findById(slug);
+      }
+    }
     if (!tenant) {
       throw new NotFoundError(`Club with slug '${slug}' not found`);
     }

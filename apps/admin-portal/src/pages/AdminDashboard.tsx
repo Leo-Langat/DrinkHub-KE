@@ -1096,7 +1096,7 @@ const ClubsPage = ({ showToast }: { showToast: (m: string, t?: 'success' | 'erro
           const parsedClubs: Club[] = rawTenants.map(t => {
             const primaryUser = t.users?.find((u: any) => u.role === 'CLUB_ADMIN' || u.role === 'MANAGER') ?? t.users?.[0];
             return {
-              id: t.uuid,
+              id: t.clubUuid || t.uuid || t.id,
               name: t.name,
               description: t.description ?? '',
               address: t.address ?? '',
@@ -1299,7 +1299,7 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
         if (!res.ok) return;
         const data = await res.json();
         const raw: any[] = data.data?.tenants ?? data.data ?? [];
-        setClubs(raw.map((c: any) => ({ id: c.uuid ?? c.id, name: c.name })));
+        setClubs(raw.map((c: any) => ({ id: c.clubUuid || c.uuid || c.id, name: c.name })));
       } catch {}
     };
 
@@ -1570,7 +1570,7 @@ const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
           const parsedClubs: Club[] = rawTenants.map(t => {
             const primaryUser = t.users?.find((u: any) => u.role === 'CLUB_ADMIN' || u.role === 'MANAGER') ?? t.users?.[0];
             return {
-              id: t.uuid,
+              id: t.clubUuid || t.uuid || t.id,
               name: t.name,
               description: t.description ?? '',
               address: t.address ?? '',

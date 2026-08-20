@@ -6,11 +6,19 @@ import { prisma } from '../../config/prisma';
 export class MenuService {
   constructor(private menuRepository: IMenuRepository) {}
 
-  async getMenuForClub(clubUuid: string) {
+  async getMenuForClub(clubUuid?: string) {
+    let targetClubUuid = clubUuid;
+    if (!targetClubUuid || targetClubUuid === 'default-club') {
+      const firstClub = await prisma.club.findFirst({ where: { deletedAt: null } });
+      if (firstClub) targetClubUuid = firstClub.clubUuid;
+    }
+    if (!targetClubUuid) {
+      return { categories: [], products: [], offers: [] };
+    }
     const [categories, products, offers] = await Promise.all([
-      this.menuRepository.findCategoriesByClub(clubUuid),
-      this.menuRepository.findProductsByClub(clubUuid),
-      this.menuRepository.findOffersByClub(clubUuid),
+      this.menuRepository.findCategoriesByClub(targetClubUuid),
+      this.menuRepository.findProductsByClub(targetClubUuid),
+      this.menuRepository.findOffersByClub(targetClubUuid),
     ]);
     return { categories, products, offers };
   }

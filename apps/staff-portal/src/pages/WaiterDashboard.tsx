@@ -36,18 +36,23 @@ const authHeaders = (): Record<string, string> => {
 interface OrderItem {
   name: string;
   quantity: number;
+  price?: number;
+  subtotal?: number;
+  notes?: string;
 }
 
 interface Order {
   id: string;          // uuid from API
   orderNumber?: string;
   tableNumber: number | string;
+  sectionName?: string;
   items: OrderItem[];
   totalAmount: number;
   status: 'PENDING' | 'CLAIMED' | 'PREPARING' | 'READY' | 'DELIVERED';
   paymentMethod: 'MPESA' | 'CARD' | 'CASH';
   customerNote?: string;
   elapsedMinutes?: number;
+  createdAt?: string;
 }
 
 /* ─── Helpers ─── */
@@ -72,17 +77,22 @@ const mapOrder = (o: any): Order => ({
   id: o.orderUuid ?? o.uuid ?? o.id,
   orderNumber: o.orderNumber ?? undefined,
   tableNumber: o.table?.tableNumber ?? o.table?.name ?? o.tableNumber ?? (o.orderNumber ? o.orderNumber : '–'),
+  sectionName: o.table?.sectionName ?? o.sectionName ?? undefined,
   items: (o.items ?? o.orderItems ?? []).map((i: any) => ({
     name: i.product?.name ?? i.name ?? 'Item',
     quantity: i.quantity ?? 1,
+    price: Number(i.unitPrice ?? i.price ?? i.product?.price ?? 0),
+    subtotal: Number(i.subtotal ?? (Number(i.unitPrice ?? i.price ?? i.product?.price ?? 0) * (i.quantity ?? 1))),
+    notes: i.notes ?? i.instructions ?? undefined,
   })),
   totalAmount: Number(o.totalAmount ?? o.total ?? 0),
   status: o.status,
   paymentMethod: (o.paymentMethod ?? (o.payments?.[0]?.paymentMethod) ?? 'CASH').toUpperCase() as Order['paymentMethod'],
   customerNote: o.notes ?? o.customerNote ?? undefined,
+  createdAt: o.createdAt,
   elapsedMinutes: o.createdAt
-    ? Math.floor((Date.now() - new Date(o.createdAt).getTime()) / 60000)
-    : undefined,
+    ? Math.max(0, Math.floor((Date.now() - new Date(o.createdAt).getTime()) / 60000))
+    : 0,
 });
 
 /* ─── Component ─── */
@@ -94,11 +104,13 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
   const [historyOrders, setHistoryOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
 
   /* My currently claimed order */
   const [myOrder, setMyOrder] = useState<Order | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
 
   /* Completed count for this session */
   const [completedCount, setCompletedCount] = useState(0);
@@ -173,8 +185,8 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
   };
 
   /* ── Fetch orders (Available + Active Claimed + History) ── */
-  const fetchOrders = useCallback(async () => {
-    setLoadingOrders(true);
+  const fetchOrders = useCallback(async (silent = false) => {
+    if (!silent) setLoadingOrders(true);
     setOrdersError(null);
     try {
       // 1. Fetch available pending orders
@@ -210,16 +222,18 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
         setHistoryOrders(mapped);
         setCompletedCount(mapped.length);
       }
+
+      setLastSyncTime(new Date());
     } catch (err: any) {
-      setOrdersError(err.message || 'Could not load orders.');
+      if (!silent) setOrdersError(err.message || 'Could not load orders.');
     } finally {
-      setLoadingOrders(false);
+      if (!silent) setLoadingOrders(false);
     }
   }, [user.id, user.userUuid]);
 
   /* Real-time Socket.IO Connection + 3s Auto-refresher */
   useEffect(() => {
-    fetchOrders();
+    fetchOrders(false);
 
     const clubUuid = user.clubUuid || user.tenantId || (user as any).club?.clubUuid;
     let socket: Socket | null = null;
@@ -239,7 +253,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
       });
 
       const handleRealtime = () => {
-        fetchOrders();
+        fetchOrders(true);
       };
 
       socket.on('new_order', handleRealtime);
@@ -248,7 +262,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
       socket.on('notification', handleRealtime);
     } catch {}
 
-    const interval = setInterval(fetchOrders, 3_000);
+    const interval = setInterval(() => fetchOrders(true), 3_000);
     return () => {
       clearInterval(interval);
       if (socket) socket.disconnect();
@@ -293,7 +307,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
       return;
     }
     if (myOrder) {
-      alert('You already have an active order. Complete it before claiming another.');
+      alert('You already have an active order in progress. Complete it before claiming another.');
       return;
     }
     setActionLoading(true);
@@ -309,10 +323,11 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
       const claimed = mapOrder(data.data?.order ?? data.data ?? { ...order, status: 'CLAIMED' });
       setAvailableOrders((prev) => prev.filter((o) => o.id !== order.id));
       setMyOrder(claimed);
+      setCheckedItems({});
       setActiveTab('my-order');
     } catch (err: any) {
       setActionError(err.message || 'Failed to claim order.');
-      fetchOrders();
+      fetchOrders(false);
     } finally {
       setActionLoading(false);
     }
@@ -336,9 +351,10 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
       if (!res.ok) throw new Error(data?.error?.message || 'Failed to update order.');
       if (nextStatus === 'DELIVERED') {
         setMyOrder(null);
+        setCheckedItems({});
         setCompletedCount((c) => c + 1);
         setActiveTab('history');
-        fetchOrders();
+        fetchOrders(false);
       } else {
         setMyOrder((prev) => prev ? { ...prev, status: nextStatus } : null);
       }
@@ -349,16 +365,23 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
     }
   };
 
+  const toggleItemChecked = (index: number) => {
+    setCheckedItems(prev => ({
+      ...prev,
+      [index]: !prev[index],
+    }));
+  };
+
   const tabs = [
-    { key: 'available', label: 'Available Orders', icon: <Package className="h-4 w-4" />, count: availableOrders.length },
-    { key: 'my-order', label: 'My Order', icon: <ClipboardList className="h-4 w-4" />, count: myOrder ? 1 : 0 },
-    { key: 'history', label: 'History', icon: <History className="h-4 w-4" />, count: historyOrders.length },
+    { key: 'available', label: 'Incoming Orders', icon: <Package className="h-4 w-4" />, count: availableOrders.length },
+    { key: 'my-order', label: 'Processing Order', icon: <ClipboardList className="h-4 w-4" />, count: myOrder ? 1 : 0 },
+    { key: 'history', label: 'Delivered History', icon: <History className="h-4 w-4" />, count: historyOrders.length },
   ] as const;
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg-body)' }}>
       {/* Top Nav */}
-      <nav className="border-b flex items-center justify-between px-6 py-3 sticky top-0 z-30"
+      <nav className="border-b flex items-center justify-between px-4 sm:px-6 py-3 sticky top-0 z-30"
         style={{ background: '#2563EB', borderColor: '#1D4ED8' }}>
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-white/20 flex items-center justify-center">
@@ -373,10 +396,10 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
 
         <div className="flex items-center gap-2 sm:gap-3">
           <button
-            onClick={fetchOrders}
+            onClick={() => fetchOrders(false)}
             disabled={loadingOrders}
             className="relative h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors disabled:opacity-50"
-            title="Refresh orders"
+            title="Refresh orders now"
           >
             <RefreshCcw className={`h-4 w-4 ${loadingOrders ? 'animate-spin' : ''}`} />
           </button>
@@ -404,25 +427,154 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
       </nav>
 
       {/* Main Content */}
-      <div className="flex-1 max-w-4xl mx-auto w-full p-6 space-y-6">
+      <div className="flex-1 max-w-4xl mx-auto w-full p-4 sm:p-6 space-y-6">
         {/* KPI Row */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-3 sm:gap-4">
           {[
-            { label: 'Completed This Session', value: String(completedCount), icon: <CheckCircle2 className="h-5 w-5 text-emerald-500" /> },
-            { label: 'Active Order', value: myOrder ? `Table #${myOrder.tableNumber}` : 'None', icon: <Circle className="h-5 w-5 text-blue-500" /> },
-            { label: 'Available to Claim', value: String(availableOrders.length), icon: <Clock className="h-5 w-5 text-amber-500" /> },
+            { label: 'Completed Shift', value: String(completedCount), icon: <CheckCircle2 className="h-5 w-5 text-emerald-500" /> },
+            { label: 'Currently Active', value: myOrder ? `Table #${myOrder.tableNumber}` : 'None', icon: <Circle className="h-5 w-5 text-blue-500" /> },
+            { label: 'Available Orders', value: String(availableOrders.length), icon: <Clock className="h-5 w-5 text-amber-500" /> },
           ].map((kpi) => (
-            <div key={kpi.label} className="rounded-xl border p-4 flex items-center gap-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--bg-body)' }}>
+            <div key={kpi.label} className="rounded-xl border p-3.5 sm:p-4 flex items-center gap-3 sm:gap-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+              <div className="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--bg-body)' }}>
                 {kpi.icon}
               </div>
-              <div>
-                <div className="text-lg font-black" style={{ color: 'var(--text-primary)' }}>{kpi.value}</div>
-                <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>{kpi.label}</div>
+              <div className="min-w-0">
+                <div className="text-base sm:text-lg font-black truncate" style={{ color: 'var(--text-primary)' }}>{kpi.value}</div>
+                <div className="text-[11px] sm:text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{kpi.label}</div>
               </div>
             </div>
           ))}
         </div>
+
+        {/* ── PINNED ACTIVE PROCESSING ORDER CARD (Always visible when waiter has an active order) ── */}
+        {myOrder && (
+          <div className="rounded-2xl border-2 border-blue-500 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 dark:from-blue-950/40 dark:to-indigo-950/40 p-5 shadow-lg shadow-blue-500/10 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-blue-200 dark:border-blue-800/60 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-blue-600 text-white flex items-center justify-center flex-shrink-0 shadow-md">
+                  <ClipboardList className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                      Currently Processing
+                    </span>
+                    <span className="flex h-2 w-2 relative">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                    </span>
+                  </div>
+                  <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">
+                    {String(myOrder.tableNumber).startsWith('ORD') || String(myOrder.tableNumber).startsWith('#') ? myOrder.tableNumber : `Table #${myOrder.tableNumber}`}
+                    {myOrder.sectionName ? ` • ${myOrder.sectionName}` : ''}
+                  </h2>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className={`rounded-full border px-3 py-1 text-xs font-bold ${statusColors[myOrder.status] ?? ''}`}>
+                  ● {myOrder.status}
+                </span>
+                <span className="text-xs font-semibold text-slate-500">
+                  #{myOrder.orderNumber || (myOrder.id ? myOrder.id.slice(0, 8).toUpperCase() : '')}
+                </span>
+              </div>
+            </div>
+
+            {/* Itemized checklist showing exact order items to collect */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider px-1">
+                <span>Items in this Order (Tick as prepared)</span>
+                <span>Qty & Price</span>
+              </div>
+              <div className="bg-white dark:bg-slate-900 rounded-xl border border-blue-100 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
+                {myOrder.items.map((item, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => toggleItemChecked(idx)}
+                    className={`p-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
+                      checkedItems[idx] ? 'bg-emerald-50/60 dark:bg-emerald-950/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={!!checkedItems[idx]}
+                        onChange={() => toggleItemChecked(idx)}
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <div>
+                        <span className={`text-sm font-semibold ${checkedItems[idx] ? 'line-through text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}>
+                          {item.name}
+                        </span>
+                        {item.notes && (
+                          <div className="text-xs text-amber-600 font-medium">
+                            Note: "{item.notes}"
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-right flex-shrink-0">
+                      <span className="inline-block px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 font-black text-xs">
+                        × {item.quantity}
+                      </span>
+                      {item.subtotal ? (
+                        <div className="text-xs text-slate-500 font-mono mt-0.5">
+                          KES {item.subtotal.toLocaleString()}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Customer Special Note */}
+            {myOrder.customerNote && (
+              <div className="flex items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 p-3">
+                <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="text-xs text-amber-900 dark:text-amber-200">
+                  <span className="font-bold">Customer Instruction:</span> "{myOrder.customerNote}"
+                </div>
+              </div>
+            )}
+
+            {/* Total and Advance Action Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-blue-200 dark:border-blue-800/60">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 font-medium">
+                  {paymentIcons[myOrder.paymentMethod]}
+                  <span>Paid via {myOrder.paymentMethod}</span>
+                </div>
+                <span className="text-slate-300">•</span>
+                <span className="text-base font-black text-emerald-600">
+                  Total: KES {myOrder.totalAmount.toLocaleString()}
+                </span>
+              </div>
+
+              <button
+                onClick={advanceOrderStatus}
+                disabled={actionLoading || myOrder.status === 'DELIVERED'}
+                className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white transition-all shadow-md shadow-blue-500/20 disabled:opacity-50 hover:brightness-110 active:scale-[0.98]"
+                style={{ background: myOrder.status === 'READY' ? '#059669' : '#2563EB' }}
+              >
+                {actionLoading ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Updating Status…</>
+                ) : myOrder.status === 'CLAIMED' ? (
+                  <>Mark as Preparing in Bar/Kitchen →</>
+                ) : myOrder.status === 'PREPARING' ? (
+                  <>Mark as Ready for Delivery →</>
+                ) : myOrder.status === 'READY' ? (
+                  <>✓ Confirm Delivered to Table</>
+                ) : (
+                  'Delivered'
+                )}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Action error banner */}
         {actionError && (
@@ -432,62 +584,85 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
           </div>
         )}
 
-        {/* Tabs */}
-        <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          <div className="flex border-b" style={{ borderColor: 'var(--border)' }}>
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className="flex items-center gap-2 px-5 py-3 text-sm font-medium transition-all border-b-2 -mb-px"
-                style={{
-                  borderBottomColor: activeTab === tab.key ? '#2563EB' : 'transparent',
-                  color: activeTab === tab.key ? '#2563EB' : 'var(--text-secondary)',
-                  background: 'transparent',
-                }}
-              >
-                {tab.icon}
-                {tab.label}
-                {'count' in tab && tab.count > 0 && (
-                  <span className="rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold px-1.5 py-0.5">
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            ))}
+        {/* Tabs & Table */}
+        <div className="rounded-xl border overflow-hidden shadow-sm" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          {/* Header with live auto-refresh radar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b px-4 py-3 gap-2" style={{ borderColor: 'var(--border)', background: 'var(--bg-body)' }}>
+            <div className="flex border-b sm:border-b-0 -mb-px" style={{ borderColor: 'var(--border)' }}>
+              {tabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className="flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-bold transition-all border-b-2 -mb-px"
+                  style={{
+                    borderBottomColor: activeTab === tab.key ? '#2563EB' : 'transparent',
+                    color: activeTab === tab.key ? '#2563EB' : 'var(--text-secondary)',
+                    background: 'transparent',
+                  }}
+                >
+                  {tab.icon}
+                  {tab.label}
+                  {'count' in tab && tab.count > 0 && (
+                    <span className="rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-[10px] font-black px-1.5 py-0.5">
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Live Auto-Refresh Status Bar */}
+            <div className="flex items-center gap-3 text-xs self-end sm:self-center">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold">
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span>Live Table Auto-Refresh (3s)</span>
+              </div>
+              <span className="text-[11px] text-slate-400 hidden md:inline">
+                Synced {lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </span>
+            </div>
           </div>
 
-          <div className="p-5">
-            {/* ── AVAILABLE ORDERS TAB ── */}
+          <div className="p-4 sm:p-5">
+            {/* ── INCOMING / AVAILABLE ORDERS TAB ── */}
             {activeTab === 'available' && (
               <div className="space-y-3">
-                {loadingOrders ? (
+                {loadingOrders && availableOrders.length === 0 ? (
                   <div className="text-center py-16">
                     <Loader2 className="h-8 w-8 mx-auto animate-spin text-blue-500" />
-                    <p className="text-sm mt-3" style={{ color: 'var(--text-secondary)' }}>Loading orders…</p>
+                    <p className="text-sm mt-3" style={{ color: 'var(--text-secondary)' }}>Scanning for incoming table orders…</p>
                   </div>
                 ) : ordersError ? (
                   <div className="text-center py-16 space-y-3">
                     <WifiOff className="h-10 w-10 mx-auto" style={{ color: 'var(--text-muted)' }} />
                     <p className="text-sm font-semibold text-red-500">{ordersError}</p>
-                    <button onClick={fetchOrders} className="text-xs text-blue-600 hover:underline">
-                      Retry →
+                    <button onClick={() => fetchOrders(false)} className="text-xs text-blue-600 hover:underline">
+                      Retry Scan →
                     </button>
                   </div>
                 ) : availableOrders.length === 0 ? (
                   <div className="text-center py-16 space-y-2">
-                    <CheckCircle2 className="h-12 w-12 mx-auto text-emerald-300" />
-                    <p className="font-semibold" style={{ color: 'var(--text-secondary)' }}>No pending orders right now</p>
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>New orders will appear here automatically.</p>
+                    <CheckCircle2 className="h-12 w-12 mx-auto text-emerald-400" />
+                    <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>No Pending Table Orders Right Now</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      The table list is auto-refreshing in real time. When a customer places an order from their table, it will appear here immediately.
+                    </p>
                   </div>
                 ) : (
                   availableOrders.map((order) => (
-                    <div key={order.id} className="rounded-xl border p-4 flex items-start justify-between gap-4"
-                      style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}>
+                    <div
+                      key={order.id}
+                      className="rounded-xl border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:border-blue-300 dark:hover:border-blue-700 shadow-sm"
+                      style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}
+                    >
                       <div className="space-y-2 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
+                          <span className="font-black text-sm text-slate-900 dark:text-slate-100 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 px-2.5 py-0.5 rounded-lg">
                             {String(order.tableNumber).startsWith('ORD') || String(order.tableNumber).startsWith('#') ? order.tableNumber : `Table #${order.tableNumber}`}
+                            {order.sectionName ? ` • ${order.sectionName}` : ''}
                           </span>
                           <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${statusColors[order.status] ?? ''}`}>
                             {order.status}
@@ -497,32 +672,43 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                             {order.paymentMethod}
                           </span>
                           {order.elapsedMinutes !== undefined && (
-                            <span className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                            <span className="flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
                               <Clock className="h-3 w-3" />
-                              {order.elapsedMinutes} min ago
+                              {order.elapsedMinutes === 0 ? 'Just now' : `${order.elapsedMinutes} min ago`}
                             </span>
                           )}
                         </div>
-                        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                          {order.items.map((i) => `${i.quantity}× ${i.name}`).join(', ')}
-                        </p>
+
+                        {/* Exact list of items in the available order */}
+                        <div className="text-xs space-y-1 font-medium" style={{ color: 'var(--text-secondary)' }}>
+                          {order.items.map((i, idx) => (
+                            <div key={idx} className="flex items-center gap-2">
+                              <span className="font-bold text-blue-600 dark:text-blue-400">×{i.quantity}</span>
+                              <span>{i.name}</span>
+                              {i.notes && <span className="text-[11px] text-amber-600 font-normal">({i.notes})</span>}
+                            </div>
+                          ))}
+                        </div>
+
                         {order.customerNote && (
                           <div className="flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-1.5">
                             <AlertCircle className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" />
                             <span className="text-xs text-amber-800">"{order.customerNote}"</span>
                           </div>
                         )}
-                        <span className="font-black text-sm text-emerald-600">
+
+                        <div className="font-black text-sm text-emerald-600">
                           KES {order.totalAmount.toLocaleString()}
-                        </span>
+                        </div>
                       </div>
+
                       <button
                         onClick={() => claimOrder(order)}
                         disabled={!!myOrder || actionLoading}
-                        className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+                        className="flex items-center justify-center gap-1.5 rounded-xl px-5 py-2.5 text-xs font-bold text-white transition-all hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 shadow-md shadow-blue-500/20"
                         style={{ background: '#2563EB' }}
                       >
-                        {actionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <>Claim <ArrowRight className="h-3.5 w-3.5" /></>}
+                        {actionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <>Claim & Process <ArrowRight className="h-3.5 w-3.5" /></>}
                       </button>
                     </div>
                   ))
@@ -530,26 +716,33 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
               </div>
             )}
 
-            {/* ── MY ORDER TAB ── */}
+            {/* ── PROCESSING ORDER TAB ── */}
             {activeTab === 'my-order' && (
               <div>
                 {!myOrder ? (
-                  <div className="text-center py-16 space-y-2">
+                  <div className="text-center py-16 space-y-3">
                     <LayoutDashboard className="h-12 w-12 mx-auto" style={{ color: 'var(--text-muted)' }} />
-                    <p className="font-semibold" style={{ color: 'var(--text-secondary)' }}>No active order claimed</p>
-                    <button onClick={() => setActiveTab('available')} className="text-sm text-blue-600 hover:underline">
-                      Browse available orders →
+                    <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>No active order claimed yet</p>
+                    <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                      Go to the Incoming Orders tab to claim a new table order and start processing it.
+                    </p>
+                    <button
+                      onClick={() => setActiveTab('available')}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline pt-2"
+                    >
+                      Browse Incoming Orders →
                     </button>
                   </div>
                 ) : (
-                  <div className="space-y-4 max-w-md mx-auto">
-                    <div className="rounded-xl border p-5 space-y-4" style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}>
+                  <div className="space-y-4 max-w-lg mx-auto">
+                    <div className="rounded-xl border p-5 space-y-4 shadow-sm" style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}>
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="text-lg font-black" style={{ color: 'var(--text-primary)' }}>
                             {String(myOrder.tableNumber).startsWith('ORD') || String(myOrder.tableNumber).startsWith('#') ? myOrder.tableNumber : `Table #${myOrder.tableNumber}`}
+                            {myOrder.sectionName ? ` • ${myOrder.sectionName}` : ''}
                           </h3>
-                          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                             Order #{myOrder.orderNumber || (myOrder.id ? myOrder.id.slice(0, 8).toUpperCase() : '')}
                           </p>
                         </div>
@@ -558,15 +751,41 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                         </span>
                       </div>
 
-                      <div className="space-y-1">
+                      {/* Itemized checklist */}
+                      <div className="space-y-1.5 border-t border-b py-3" style={{ borderColor: 'var(--border)' }}>
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                          Exact Items List (Check as collected)
+                        </div>
                         {myOrder.items.map((item, i) => (
-                          <div key={i} className="text-sm flex justify-between" style={{ color: 'var(--text-secondary)' }}>
-                            <span>{item.quantity}× {item.name}</span>
+                          <div
+                            key={i}
+                            onClick={() => toggleItemChecked(i)}
+                            className={`text-xs flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
+                              checkedItems[i] ? 'bg-emerald-50 text-emerald-800' : 'hover:bg-slate-50'
+                            }`}
+                            style={{ color: checkedItems[i] ? undefined : 'var(--text-secondary)' }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={!!checkedItems[i]}
+                                onChange={() => toggleItemChecked(i)}
+                                className="h-3.5 w-3.5 rounded text-blue-600 focus:ring-blue-500"
+                              />
+                              <span className={checkedItems[i] ? 'line-through opacity-70' : 'font-medium'}>
+                                {item.quantity}× {item.name}
+                              </span>
+                            </div>
+                            {item.subtotal ? (
+                              <span className="font-mono text-[11px] text-slate-400">
+                                KES {item.subtotal.toLocaleString()}
+                              </span>
+                            ) : null}
                           </div>
                         ))}
                       </div>
 
-                      <div className="flex items-center gap-2 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
+                      <div className="flex items-center gap-2 pt-1">
                         {paymentIcons[myOrder.paymentMethod]}
                         <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                           Payment via {myOrder.paymentMethod}
@@ -578,18 +797,18 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                     </div>
 
                     {/* Progress Steps */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 px-2">
                       {(['CLAIMED', 'PREPARING', 'READY', 'DELIVERED'] as const).map((s, i, arr) => (
                         <React.Fragment key={s}>
                           <div className="flex flex-col items-center gap-1">
                             <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold border-2 ${
                               statusFlow.indexOf(myOrder.status) >= i
-                                ? 'bg-blue-600 border-blue-600 text-white'
+                                ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
                                 : 'border-slate-200 text-slate-400'
                             }`}>
                               {i + 1}
                             </div>
-                            <span className="text-[9px] font-medium" style={{ color: 'var(--text-muted)' }}>{s}</span>
+                            <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{s}</span>
                           </div>
                           {i < arr.length - 1 && (
                             <div className="flex-1 h-px mb-4" style={{ background: 'var(--border)' }} />
@@ -601,14 +820,14 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                     <button
                       onClick={advanceOrderStatus}
                       disabled={actionLoading || myOrder.status === 'DELIVERED'}
-                      className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 disabled:opacity-50"
-                      style={{ background: '#2563EB' }}
+                      className="w-full py-3 rounded-xl text-xs sm:text-sm font-bold text-white transition-all shadow-md shadow-blue-500/20 hover:opacity-95 disabled:opacity-50"
+                      style={{ background: myOrder.status === 'READY' ? '#059669' : '#2563EB' }}
                     >
                       {actionLoading
                         ? <span className="flex items-center justify-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Updating…</span>
-                        : myOrder.status === 'CLAIMED' ? 'Mark as Preparing →'
-                        : myOrder.status === 'PREPARING' ? 'Mark as Ready for Pickup →'
-                        : myOrder.status === 'READY' ? 'Mark as Delivered ✓'
+                        : myOrder.status === 'CLAIMED' ? 'Mark as Preparing in Bar/Kitchen →'
+                        : myOrder.status === 'PREPARING' ? 'Mark as Ready for Delivery →'
+                        : myOrder.status === 'READY' ? 'Confirm Delivered to Table ✓'
                         : 'Delivered'}
                     </button>
                   </div>
@@ -616,13 +835,13 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
               </div>
             )}
 
-            {/* ── HISTORY TAB ── */}
+            {/* ── DELIVERED HISTORY TAB ── */}
             {activeTab === 'history' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'var(--border)' }}>
                   <div>
                     <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Delivered Orders</h3>
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Orders delivered by you during your shift</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Orders successfully delivered by you during this shift</p>
                   </div>
                   <span className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 text-xs font-bold">
                     {historyOrders.length} Completed
@@ -633,16 +852,17 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                   <div className="text-center py-16 space-y-2">
                     <History className="h-12 w-12 mx-auto" style={{ color: 'var(--text-muted)' }} />
                     <p className="font-semibold" style={{ color: 'var(--text-secondary)' }}>No delivered orders yet</p>
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>When you complete and deliver orders, they will appear here.</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>When you complete and deliver table orders, they will appear here.</p>
                   </div>
                 ) : (
                   historyOrders.map((order) => (
-                    <div key={order.id} className="rounded-xl border p-4 flex items-start justify-between gap-4"
+                    <div key={order.id} className="rounded-xl border p-4 flex items-start justify-between gap-4 shadow-sm"
                       style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}>
                       <div className="space-y-2 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
                             {String(order.tableNumber).startsWith('ORD') || String(order.tableNumber).startsWith('#') ? order.tableNumber : `Table #${order.tableNumber}`}
+                            {order.sectionName ? ` • ${order.sectionName}` : ''}
                           </span>
                           <span className="rounded-full border px-2 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-700 border-slate-200">
                             Order #{order.orderNumber || (order.id ? order.id.slice(0, 8).toUpperCase() : '')}

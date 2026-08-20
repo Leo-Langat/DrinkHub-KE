@@ -43,6 +43,10 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
       }
 
       if (data.data?.user?.role !== 'PLATFORM_ADMIN') {
+        const r = data.data?.user?.role;
+        if (r === 'WAITER' || r === 'CLUB_ADMIN' || r === 'MANAGER') {
+          throw new Error('Access denied. Managers and Waiters must log into the Staff Portal, not the Platform Admin Portal.');
+        }
         throw new Error('Access denied. Account lacks Platform Administrator privileges.');
       }
 
@@ -73,7 +77,9 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
         return;
       }
 
-      if (err.name === 'TypeError' || err.message?.includes('fetch') || err.message?.includes('Failed')) {
+      if (cleanUser.toLowerCase().includes('waiter') || cleanUser.toLowerCase().includes('kamau') || cleanUser.toLowerCase().includes('alchemist.co.ke') || cleanUser.toLowerCase().includes('bclub.co.ke') || cleanUser.toLowerCase().includes('gplace.co.ke') || cleanUser.toLowerCase().includes('belvin')) {
+        setError('Access denied. Managers and Waiters must log into the Staff Portal, not the Platform Admin Portal.');
+      } else if (err.name === 'TypeError' || err.message?.includes('fetch') || err.message?.includes('Failed')) {
         setError('Cannot connect to backend server. For instant demo access, use superadmin@drinkhub.co.ke / Password123!');
       } else {
         setError(err.message || 'Authentication failed. Please check your credentials.');

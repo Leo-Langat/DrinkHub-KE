@@ -58,11 +58,24 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       }
 
       const userRole = data.data?.user?.role;
-      if (role === 'manager' && userRole !== 'CLUB_ADMIN' && userRole !== 'MANAGER' && userRole !== 'PLATFORM_ADMIN') {
-        throw new Error('Access denied. Account is not assigned a Manager or Admin role.');
+      if (role === 'manager') {
+        if (userRole !== 'CLUB_ADMIN' && userRole !== 'MANAGER' && userRole !== 'PLATFORM_ADMIN') {
+          if (userRole === 'WAITER') {
+            throw new Error('Access denied. Waiter accounts cannot log into the Manager Portal. Please switch to the Waiter tab above.');
+          }
+          throw new Error('Access denied. Account lacks Manager privileges.');
+        }
       }
-      if (role === 'waiter' && userRole !== 'WAITER') {
-        throw new Error('Access denied. Account is not assigned a Waiter role.');
+      if (role === 'waiter') {
+        if (userRole !== 'WAITER') {
+          if (userRole === 'CLUB_ADMIN' || userRole === 'MANAGER') {
+            throw new Error('Access denied. Manager accounts cannot log into the Waiter Portal. Please switch to the Manager tab above.');
+          }
+          if (userRole === 'PLATFORM_ADMIN') {
+            throw new Error('Access denied. Platform Administrator accounts must use the Admin Portal.');
+          }
+          throw new Error('Access denied. Only Waiter accounts can log into the Waiter Portal.');
+        }
       }
 
       if (data.data?.accessToken) {
@@ -86,6 +99,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     } catch (err: any) {
       // If network fails (e.g. backend server offline / sleeping on cold start or running on demo frontend)
       if (role === 'manager') {
+        if (cleanUser.toLowerCase().includes('waiter')) {
+          setError('Access denied. Waiter accounts cannot log into the Manager Portal. Please switch to the Waiter tab above.');
+          return;
+        }
+
         const nameParts = cleanUser.split('@')[0].split(/[._-]/).filter(Boolean);
         const isBelvin = cleanUser.toLowerCase().includes('belvin');
         const formattedName = isBelvin
@@ -131,6 +149,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       }
 
       if (role === 'waiter') {
+        if (cleanUser.toLowerCase().includes('admin') || cleanUser.toLowerCase().includes('manager') || cleanUser.toLowerCase().includes('superadmin') || cleanUser.toLowerCase().includes('belvin')) {
+          setError('Access denied. Manager accounts cannot log into the Waiter Portal. Please switch to the Manager tab above.');
+          return;
+        }
+
         const nameParts = cleanUser.split('@')[0].split(/[._-]/).filter(Boolean);
         const formattedName = nameParts.map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ') || 'Staff Waiter';
         const demoWaiter = {

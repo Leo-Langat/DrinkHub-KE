@@ -52,6 +52,27 @@ async function main() {
     },
   });
 
+  const gplace = await prisma.club.upsert({
+    where: { slug: 'g-place' },
+    update: {},
+    create: {
+      clubUuid: '33333333-3333-3333-3333-333333333333',
+      name: 'G Place Club',
+      slug: 'g-place',
+      logoUrl: 'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?w=400&auto=format&fit=crop&q=80',
+      phone: '+254722334455',
+      email: 'info@gplace.co.ke',
+      city: 'Nairobi',
+      county: 'Nairobi',
+      address: 'Kiambu Road, Nairobi',
+      brandColor: '#2563EB',
+      openingHours: '16:00',
+      closingHours: '04:00',
+      subscriptionStatus: SubscriptionStatus.ACTIVE,
+      isActive: true,
+    },
+  });
+
   console.info('✅ Clubs seeded');
 
   // 2. Seed Users
@@ -107,6 +128,37 @@ async function main() {
       fullName: 'Sarah B-Club Manager',
       phone: '+254722000111',
       role: UserRole.CLUB_ADMIN,
+    },
+  });
+
+  // Assign Belvin Rotich as Manager to G Place Club
+  await prisma.user.upsert({
+    where: { email: 'belvin.rotich@gplace.co.ke' },
+    update: { passwordHash, clubUuid: gplace.clubUuid, fullName: 'Belvin Rotich', role: UserRole.CLUB_ADMIN, isActive: true },
+    create: {
+      userUuid: '33333333-3333-3333-3333-000000000001',
+      clubUuid: gplace.clubUuid,
+      email: 'belvin.rotich@gplace.co.ke',
+      passwordHash,
+      fullName: 'Belvin Rotich',
+      phone: '+254722334455',
+      role: UserRole.CLUB_ADMIN,
+      isActive: true,
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { email: 'belvin@gplace.co.ke' },
+    update: { passwordHash, clubUuid: gplace.clubUuid, fullName: 'Belvin Rotich', role: UserRole.CLUB_ADMIN, isActive: true },
+    create: {
+      userUuid: '33333333-3333-3333-3333-000000000002',
+      clubUuid: gplace.clubUuid,
+      email: 'belvin@gplace.co.ke',
+      passwordHash,
+      fullName: 'Belvin Rotich',
+      phone: '+254722334455',
+      role: UserRole.CLUB_ADMIN,
+      isActive: true,
     },
   });
 
@@ -250,6 +302,107 @@ async function main() {
       description: 'Grilled goat meat served with Kachumbari',
       price: 1800.00,
       sku: 'CHOMA-1KG',
+      isAvailable: true,
+    },
+  });
+
+  // G-Place Venue Tables
+  await prisma.venueTable.upsert({
+    where: { clubUuid_tableNumber: { clubUuid: gplace.clubUuid, tableNumber: 1 } },
+    update: {},
+    create: {
+      tableUuid: '33333333-4444-1111-1111-000000000001',
+      clubUuid: gplace.clubUuid,
+      tableNumber: 1,
+      sectionName: 'Main Lounge',
+      seatingCapacity: 4,
+      status: TableStatus.AVAILABLE,
+    },
+  });
+
+  await prisma.venueTable.upsert({
+    where: { clubUuid_tableNumber: { clubUuid: gplace.clubUuid, tableNumber: 2 } },
+    update: {},
+    create: {
+      tableUuid: '33333333-4444-1111-1111-000000000002',
+      clubUuid: gplace.clubUuid,
+      tableNumber: 2,
+      sectionName: 'VIP Section',
+      seatingCapacity: 6,
+      status: TableStatus.AVAILABLE,
+    },
+  });
+
+  // G-Place Menu Categories
+  const gplaceBeers = await prisma.menuCategory.upsert({
+    where: { clubUuid_name: { clubUuid: gplace.clubUuid, name: 'Whiskey & Spirits' } },
+    update: {},
+    create: {
+      categoryUuid: '33333333-3333-1111-1111-000000000001',
+      clubUuid: gplace.clubUuid,
+      name: 'Whiskey & Spirits',
+      description: 'Premium whiskeys and spirits',
+      displayOrder: 1,
+    },
+  });
+
+  const gplaceBeersCat = await prisma.menuCategory.upsert({
+    where: { clubUuid_name: { clubUuid: gplace.clubUuid, name: 'Cold Beers & Ciders' } },
+    update: {},
+    create: {
+      categoryUuid: '33333333-3333-1111-1111-000000000002',
+      clubUuid: gplace.clubUuid,
+      name: 'Cold Beers & Ciders',
+      description: 'Ice cold lagers and ciders',
+      displayOrder: 2,
+    },
+  });
+
+  // G-Place Products (Jack Daniels, Johnnie Walker Black, Tusker)
+  await prisma.product.upsert({
+    where: { clubUuid_sku: { clubUuid: gplace.clubUuid, sku: 'JD-750' } },
+    update: {},
+    create: {
+      productUuid: '33333333-5555-1111-1111-000000000001',
+      clubUuid: gplace.clubUuid,
+      categoryUuid: gplaceBeers.categoryUuid,
+      name: "Jack Daniel's Old No. 7 (750ml)",
+      description: 'Tennessee sour mash whiskey',
+      price: 4500.00,
+      sku: 'JD-750',
+      imageUrl: 'https://images.unsplash.com/photo-1527281400683-1aae777175f8?w=600&auto=format&fit=crop&q=80',
+      isAvailable: true,
+    },
+  });
+
+  await prisma.product.upsert({
+    where: { clubUuid_sku: { clubUuid: gplace.clubUuid, sku: 'JW-BLACK-750' } },
+    update: {},
+    create: {
+      productUuid: '33333333-5555-1111-1111-000000000002',
+      clubUuid: gplace.clubUuid,
+      categoryUuid: gplaceBeers.categoryUuid,
+      name: 'Johnnie Walker Black Label (750ml)',
+      description: 'Iconic 12 year blended Scotch whisky',
+      price: 5200.00,
+      sku: 'JW-BLACK-750',
+      imageUrl: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?w=600&auto=format&fit=crop&q=80',
+      isAvailable: true,
+    },
+  });
+
+  await prisma.product.upsert({
+    where: { clubUuid_sku: { clubUuid: gplace.clubUuid, sku: 'TUSK-GPLACE' } },
+    update: {},
+    create: {
+      productUuid: '33333333-5555-1111-1111-000000000003',
+      clubUuid: gplace.clubUuid,
+      categoryUuid: gplaceBeersCat.categoryUuid,
+      name: 'Tusker Lager (500ml)',
+      description: 'Ice cold Kenyan lager',
+      price: 350.00,
+      sku: 'TUSK-GPLACE',
+      imageUrl: 'https://images.unsplash.com/photo-1608270586620-248524c67de9?w=600&auto=format&fit=crop&q=80',
       isAvailable: true,
     },
   });

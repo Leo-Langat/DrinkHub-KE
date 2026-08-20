@@ -87,25 +87,34 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       // If network fails (e.g. backend server offline / sleeping on cold start or running on demo frontend)
       if (role === 'manager') {
         const nameParts = cleanUser.split('@')[0].split(/[._-]/).filter(Boolean);
-        const formattedName = nameParts.map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ') || 'Club Manager';
-        const venueName = cleanUser.toLowerCase().includes('alchemist')
-          ? 'Alchemist Bar'
+        const isBelvin = cleanUser.toLowerCase().includes('belvin');
+        const formattedName = isBelvin
+          ? 'Belvin Rotich'
+          : nameParts.map((p: string) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ') || 'Club Manager';
+
+        const isGPlace = isBelvin || cleanUser.toLowerCase().includes('gplace') || cleanUser.toLowerCase().includes('g-place');
+        const venueName = isGPlace
+          ? 'G Place Club'
+          : cleanUser.toLowerCase().includes('alchemist')
+          ? 'The Alchemist Westlands'
           : cleanUser.toLowerCase().includes('quiver')
           ? 'Quiver Lounge'
           : `${formattedName}'s Venue`;
 
+        const venueSlug = isGPlace ? 'g-place' : cleanUser.split('@')[0].toLowerCase();
+
         const demoManager = {
-          userUuid: `usr_${Date.now()}`,
-          uuid: `usr_${Date.now()}`,
-          clubUuid: 'c0000000-0000-0000-0000-000000000001',
+          userUuid: isBelvin ? '33333333-3333-3333-3333-000000000001' : `usr_${Date.now()}`,
+          uuid: isBelvin ? '33333333-3333-3333-3333-000000000001' : `usr_${Date.now()}`,
+          clubUuid: isGPlace ? '33333333-3333-3333-3333-333333333333' : 'c0000000-0000-0000-0000-000000000001',
           club: {
-            uuid: 'c0000000-0000-0000-0000-000000000001',
-            clubUuid: 'c0000000-0000-0000-0000-000000000001',
+            uuid: isGPlace ? '33333333-3333-3333-3333-333333333333' : 'c0000000-0000-0000-0000-000000000001',
+            clubUuid: isGPlace ? '33333333-3333-3333-3333-333333333333' : 'c0000000-0000-0000-0000-000000000001',
             name: venueName,
-            slug: cleanUser.split('@')[0].toLowerCase(),
+            slug: venueSlug,
             city: 'Nairobi',
             county: 'Nairobi',
-            openingHours: '18:00',
+            openingHours: '16:00',
             closingHours: '04:00',
             brandColor: '#2563EB',
           },

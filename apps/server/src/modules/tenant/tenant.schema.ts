@@ -53,16 +53,18 @@ export const updateClubSchema = z.object({
   }),
   body: z.object({
     name: z.string().min(2).optional(),
-    logoUrl: z.string().url().optional().or(z.literal('')),
-    phone: z.string().optional(),
-    email: z.string().email().optional().or(z.literal('')),
+    slug: z.string().min(2).optional(),
+    logoUrl: z.string().url().optional().or(z.literal('')).or(z.null()),
+    phone: z.string().optional().or(z.literal('')).or(z.null()),
+    email: z.string().email().optional().or(z.literal('')).or(z.null()),
     city: z.string().optional(),
     county: z.string().optional(),
-    address: z.string().optional(),
-    gpsCoordinates: z.string().optional(),
+    address: z.string().optional().or(z.literal('')).or(z.null()),
+    gpsCoordinates: z.string().optional().or(z.literal('')).or(z.null()),
     brandColor: z.string().optional(),
     openingHours: z.string().optional(),
     closingHours: z.string().optional(),
+    isActive: z.boolean().optional(),
   }),
 });
 

@@ -625,14 +625,265 @@ const CreateClubStepper = ({ onSuccess, onCancel }: { onSuccess: (club: Club, ma
 };
 
 /* ══════════════════════════════════════
+   EDIT CLUB MODAL
+══════════════════════════════════════ */
+const EditClubModal = ({
+  club,
+  open,
+  onClose,
+  onSaved,
+  showToast,
+}: {
+  club: Club | null;
+  open: boolean;
+  onClose: () => void;
+  onSaved: (updatedClub: Club) => void;
+  showToast: (m: string, t?: 'success' | 'error') => void;
+}) => {
+  const [form, setForm] = useState({
+    name: '',
+    description: '',
+    address: '',
+    city: 'Nairobi',
+    county: 'Nairobi',
+    phone: '',
+    email: '',
+    openingTime: '14:00',
+    closingTime: '04:00',
+    themeColor: '#1E3A5F',
+    logoUrl: '',
+    bannerUrl: '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (club) {
+      setForm({
+        name: club.name || '',
+        description: club.description || '',
+        address: club.address || '',
+        city: club.city || 'Nairobi',
+        county: club.county || 'Nairobi',
+        phone: club.phone || '',
+        email: club.email || '',
+        openingTime: club.openingTime || '14:00',
+        closingTime: club.closingTime || '04:00',
+        themeColor: club.themeColor || '#1E3A5F',
+        logoUrl: club.logoUrl || '',
+        bannerUrl: club.bannerUrl || '',
+      });
+    }
+  }, [club]);
+
+  if (!club) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const res = await fetch(getApiUrl(`/tenants/${club.id}`), {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          name: form.name.trim(),
+          address: form.address.trim(),
+          city: form.city.trim(),
+          county: form.county.trim(),
+          phone: form.phone.trim(),
+          email: form.email.trim(),
+          openingHours: form.openingTime,
+          closingHours: form.closingTime,
+          brandColor: form.themeColor,
+          logoUrl: form.logoUrl.trim() || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error?.message || 'Failed to update club details');
+      }
+
+      const updatedClub: Club = {
+        ...club,
+        name: form.name.trim(),
+        description: form.description.trim(),
+        address: form.address.trim(),
+        city: form.city.trim(),
+        county: form.county.trim(),
+        phone: form.phone.trim(),
+        email: form.email.trim(),
+        openingTime: form.openingTime,
+        closingTime: form.closingTime,
+        themeColor: form.themeColor,
+        logoUrl: form.logoUrl.trim(),
+        bannerUrl: form.bannerUrl.trim(),
+      };
+
+      onSaved(updatedClub);
+      showToast('Club details updated successfully');
+      onClose();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update club', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const counties = ['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Kiambu', 'Eldoret', 'Thika', 'Nyeri', 'Machakos', 'Kajiado', 'Kilifi'];
+
+  return (
+    <Modal open={open} onClose={onClose} title={`Edit Club: ${club.name}`} size="lg">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <FG span={2}>
+            <FL required>Club Name</FL>
+            <SI
+              required
+              value={form.name}
+              onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+              placeholder="e.g. Alchemist Bar"
+            />
+          </FG>
+
+          <FG span={2}>
+            <FL>Description</FL>
+            <STA
+              rows={2}
+              value={form.description}
+              onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+              placeholder="Venue description or tagline…"
+            />
+          </FG>
+
+          <FG>
+            <FL>Physical Address</FL>
+            <SI
+              value={form.address}
+              onChange={e => setForm(p => ({ ...p, address: e.target.value }))}
+              placeholder="e.g. Parklands Road, Westlands"
+            />
+          </FG>
+
+          <FG>
+            <FL>City / Town</FL>
+            <SI
+              value={form.city}
+              onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
+              placeholder="e.g. Nairobi"
+            />
+          </FG>
+
+          <FG>
+            <FL>County</FL>
+            <SS
+              value={form.county}
+              onChange={e => setForm(p => ({ ...p, county: e.target.value }))}
+              options={counties.map(c => ({ v: c, l: c }))}
+            />
+          </FG>
+
+          <FG>
+            <FL>Phone Number</FL>
+            <PhoneInput
+              value={form.phone}
+              onChange={v => setForm(p => ({ ...p, phone: v }))}
+            />
+          </FG>
+
+          <FG span={2}>
+            <FL>Contact Email</FL>
+            <SI
+              type="email"
+              value={form.email}
+              onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+              placeholder="info@venue.co.ke"
+            />
+          </FG>
+
+          <FG>
+            <FL>Opening Time</FL>
+            <SI
+              type="time"
+              value={form.openingTime}
+              onChange={e => setForm(p => ({ ...p, openingTime: e.target.value }))}
+            />
+          </FG>
+
+          <FG>
+            <FL>Closing Time</FL>
+            <SI
+              type="time"
+              value={form.closingTime}
+              onChange={e => setForm(p => ({ ...p, closingTime: e.target.value }))}
+            />
+          </FG>
+        </div>
+
+        <div className="border-t pt-4 space-y-3" style={{ borderColor: 'var(--border)' }}>
+          <h4 className="text-xs font-black uppercase tracking-wider text-slate-500">Branding & Appearance</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FL>Logo Image</FL>
+              <UploadBox label="Upload Logo" preview={form.logoUrl} onUpload={e => readFile(e, v => setForm(p => ({ ...p, logoUrl: v })))} />
+            </div>
+            <div>
+              <FL>Theme Color</FL>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={form.themeColor}
+                    onChange={e => setForm(p => ({ ...p, themeColor: e.target.value }))}
+                    className="h-9 w-9 rounded-lg border border-slate-200 cursor-pointer p-1 bg-white"
+                  />
+                  <input
+                    type="text"
+                    value={form.themeColor}
+                    onChange={e => setForm(p => ({ ...p, themeColor: e.target.value }))}
+                    className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-mono"
+                  />
+                </div>
+                <ThemePreview color={form.themeColor} clubName={form.name} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="px-4 py-2 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition disabled:opacity-50 shadow-md shadow-blue-500/20"
+          >
+            {saving ? <RefreshCcw className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+            {saving ? 'Saving…' : 'Save Club Details'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
+/* ══════════════════════════════════════
    CLUB DETAILS PAGE
 ══════════════════════════════════════ */
-const ClubDetailsPage = ({ club, managers, onBack, onReplaceManager, showToast }: {
+const ClubDetailsPage = ({ club, managers, onBack, onReplaceManager, onUpdateClub, showToast }: {
   club: Club; managers: Manager[]; onBack: () => void;
-  onReplaceManager: (club: Club) => void; showToast: (m: string) => void;
+  onReplaceManager: (club: Club) => void;
+  onUpdateClub: (club: Club) => void;
+  showToast: (m: string, t?: 'success' | 'error') => void;
 }) => {
   const manager = managers.find(m => m.clubId === club.id || (club.managerId && m.id === club.managerId));
   const [showReplace, setShowReplace] = useState(false);
+  const [showEditClub, setShowEditClub] = useState(false);
   const [replaceForm, setReplaceForm] = useState({ firstName: '', lastName: '', email: '', phone: '', tempPwd: generatePassword() });
 
   return (
@@ -667,8 +918,11 @@ const ClubDetailsPage = ({ club, managers, onBack, onReplaceManager, showToast }
           <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>Club Information</h3>
-              <button onClick={() => showToast('Club editor coming soon')} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border hover:bg-slate-50 transition-colors" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-                <Edit2 className="h-3.5 w-3.5" /> Edit
+              <button
+                onClick={() => setShowEditClub(true)}
+                className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors shadow-sm"
+              >
+                <Edit2 className="h-3.5 w-3.5" /> Edit Details
               </button>
             </div>
             <dl className="grid grid-cols-2 gap-4">
@@ -768,6 +1022,17 @@ const ClubDetailsPage = ({ club, managers, onBack, onReplaceManager, showToast }
         </div>
       </div>
 
+      {/* Edit Club Modal */}
+      <EditClubModal
+        club={club}
+        open={showEditClub}
+        onClose={() => setShowEditClub(false)}
+        onSaved={(updated) => {
+          onUpdateClub(updated);
+        }}
+        showToast={showToast}
+      />
+
       {/* Replace Manager Modal */}
       <Modal open={showReplace} onClose={() => setShowReplace(false)} title="Replace Club Manager">
         <div className="space-y-4">
@@ -802,11 +1067,12 @@ const ClubDetailsPage = ({ club, managers, onBack, onReplaceManager, showToast }
 /* ══════════════════════════════════════
    CLUBS PAGE
 ══════════════════════════════════════ */
-const ClubsPage = ({ showToast }: { showToast: (m: string) => void }) => {
+const ClubsPage = ({ showToast }: { showToast: (m: string, t?: 'success' | 'error') => void }) => {
   const [clubs, setClubs] = useState<Club[]>(initClubs);
   const [managers, setManagers] = useState<Manager[]>(initManagers);
   const [view, setView] = useState<'list' | 'create' | 'details'>('list');
   const [selectedClub, setSelectedClub] = useState<Club | null>(null);
+  const [editingClub, setEditingClub] = useState<Club | null>(null);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -871,6 +1137,13 @@ const ClubsPage = ({ showToast }: { showToast: (m: string) => void }) => {
     fetchData();
   }, []);
 
+  const handleClubUpdated = (updated: Club) => {
+    setClubs(prev => prev.map(c => c.id === updated.id ? updated : c));
+    if (selectedClub?.id === updated.id) {
+      setSelectedClub(updated);
+    }
+  };
+
   if (view === 'create') return (
     <CreateClubStepper
       onSuccess={(club, manager) => {
@@ -885,9 +1158,11 @@ const ClubsPage = ({ showToast }: { showToast: (m: string) => void }) => {
 
   if (view === 'details' && selectedClub) return (
     <ClubDetailsPage
-      club={selectedClub} managers={managers}
+      club={selectedClub}
+      managers={managers}
       onBack={() => { setView('list'); setSelectedClub(null); }}
       onReplaceManager={(club) => { setSelectedClub(club); }}
+      onUpdateClub={handleClubUpdated}
       showToast={showToast}
     />
   );
@@ -940,6 +1215,7 @@ const ClubsPage = ({ showToast }: { showToast: (m: string) => void }) => {
                   <td className="px-4 py-3.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{mgr ? `${mgr.firstName} ${mgr.lastName}` : '—'}</td>
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-1.5">
+                      <button onClick={() => setEditingClub(club)} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors" title="Edit Club Details"><Edit2 className="h-3.5 w-3.5" /></button>
                       <button onClick={() => { setSelectedClub(club); setView('details'); }} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="View Details"><Eye className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} /></button>
                       <button onClick={() => { setClubs(p => p.filter(c => c.id !== club.id)); showToast(`${club.name} removed`); }} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Delete"><Trash2 className="h-3.5 w-3.5 text-red-500" /></button>
                     </div>
@@ -950,6 +1226,15 @@ const ClubsPage = ({ showToast }: { showToast: (m: string) => void }) => {
           </tbody>
         </table>
       </div>
+
+      {/* Edit Club Modal */}
+      <EditClubModal
+        club={editingClub}
+        open={!!editingClub}
+        onClose={() => setEditingClub(null)}
+        onSaved={handleClubUpdated}
+        showToast={showToast}
+      />
     </div>
   );
 };
@@ -1062,7 +1347,6 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
           fullName,
           email: editForm.email.trim(),
           phone: editForm.phone.trim(),
-          clubUuid: editForm.clubId || null,
           isActive: editForm.status === 'Active',
         }),
       });
@@ -1072,15 +1356,12 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
         throw new Error(err?.error?.message || 'Failed to update manager details');
       }
 
-      const selectedClub = clubs.find(c => c.id === editForm.clubId);
       setManagers(prev => prev.map(m => m.id === editingManager.id ? {
         ...m,
         firstName: editForm.firstName.trim(),
         lastName: editForm.lastName.trim(),
         email: editForm.email.trim(),
         phone: editForm.phone.trim(),
-        clubId: editForm.clubId,
-        clubName: selectedClub?.name ?? (editForm.clubId ? m.clubName : 'No Venue Assigned'),
         status: editForm.status,
       } : m));
 
@@ -1210,17 +1491,14 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
           </FG>
 
           <FG>
-            <FL>Assigned Venue / Club</FL>
-            <select
-              value={editForm.clubId}
-              onChange={e => setEditForm(p => ({ ...p, clubId: e.target.value }))}
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 transition"
-            >
-              <option value="">No Venue Assigned</option>
-              {clubs.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <FL>Assigned Venue / Club (Fixed)</FL>
+            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 dark:bg-slate-800/60 dark:border-slate-700 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300">
+              <Building2 className="h-4 w-4 text-slate-400" />
+              <span>{editingManager?.clubName || 'No Venue Assigned'}</span>
+              <span className="ml-auto text-[10px] uppercase font-bold text-slate-400 bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded flex items-center gap-1">
+                <Lock className="h-3 w-3" /> Fixed
+              </span>
+            </div>
           </FG>
 
           <FG>

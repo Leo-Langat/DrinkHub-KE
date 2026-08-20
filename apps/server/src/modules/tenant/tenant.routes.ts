@@ -126,6 +126,7 @@ tenantRouter.post('/', authenticate, authorize(['PLATFORM_ADMIN', 'SUPER_ADMIN']
  *         description: Club updated
  */
 tenantRouter.put('/:clubUuid', authenticate, authorize(['PLATFORM_ADMIN', 'SUPER_ADMIN', 'CLUB_ADMIN', 'MANAGER']), validateRequest(updateClubSchema), tenantController.update);
+tenantRouter.patch('/:clubUuid', authenticate, authorize(['PLATFORM_ADMIN', 'SUPER_ADMIN', 'CLUB_ADMIN', 'MANAGER']), validateRequest(updateClubSchema), tenantController.update);
 
 /**
  * @openapi

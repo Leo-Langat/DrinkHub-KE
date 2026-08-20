@@ -12,7 +12,7 @@ INSERT INTO clubs (club_uuid, name, slug, logo_url, phone, email, city, address)
 -- Password Hash corresponds to 'Password123!' hashed with bcrypt
 INSERT INTO users (user_uuid, club_uuid, email, password_hash, full_name, phone, role) VALUES
 ('00000000-0000-0000-0000-000000000001', NULL, 'superadmin@drinkhub.co.ke', '$2b$10$E9V9gI5.Zf8A8.k6jY/Jg.hG8r/m9jZf8A8.k6jY/Jg.hG8r/m9j', 'Platform Admin', '+254700000000', 'PLATFORM_ADMIN'),
-('11111111-1111-1111-1111-000000000001', '11111111-1111-1111-1111-111111111111', 'admin@alchemist.co.ke', '$2b$10$E9V9gI5.Zf8A8.k6jY/Jg.hG8r/m9jZf8A8.k6jY/Jg.hG8r/m9j', 'John Alchemist Manager', '+254711111111', 'CLUB_ADMIN'),
+('11111111-1111-1111-1111-000000000001', '11111111-1111-1111-1111-111111111111', 'belvinrotich@gmail.com', '$2b$10$E9V9gI5.Zf8A8.k6jY/Jg.hG8r/m9jZf8A8.k6jY/Jg.hG8r/m9j', 'Belvin Rotich', '+254711111111', 'CLUB_ADMIN'),
 ('11111111-1111-1111-1111-000000000002', '11111111-1111-1111-1111-111111111111', 'waiter.kamau@alchemist.co.ke', '$2b$10$E9V9gI5.Zf8A8.k6jY/Jg.hG8r/m9jZf8A8.k6jY/Jg.hG8r/m9j', 'Kamau Njoroge', '+254711223344', 'WAITER'),
 ('22222222-2222-2222-2222-000000000001', '22222222-2222-2222-2222-222222222222', 'admin@bclub.co.ke', '$2b$10$E9V9gI5.Zf8A8.k6jY/Jg.hG8r/m9jZf8A8.k6jY/Jg.hG8r/m9j', 'Sarah B-Club Manager', '+254722000111', 'CLUB_ADMIN');
 

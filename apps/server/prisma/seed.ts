@@ -8,6 +8,7 @@ async function main() {
 
   // OWASP: bcrypt cost factor ≥ 12
   const passwordHash = await bcrypt.hash('Password123!', 12);
+  const managerPasswordHash = await bcrypt.hash('Belvin123', 12);
 
   // 1. Seed Clubs
   const alchemist = await prisma.club.upsert({
@@ -68,19 +69,50 @@ async function main() {
     },
   });
 
-  await prisma.user.upsert({
-    where: { email: 'admin@alchemist.co.ke' },
-    update: { passwordHash },  // refresh hash on re-seed
-    create: {
-      userUuid: '11111111-1111-1111-1111-000000000001',
-      clubUuid: alchemist.clubUuid,
-      email: 'admin@alchemist.co.ke',
-      passwordHash,
-      fullName: 'John Alchemist Manager',
-      phone: '+254711111111',
-      role: UserRole.CLUB_ADMIN,
-    },
-  });
+  // Upsert or update belvinrotich@gmail.com with Belvin123 password
+  const existingBelvin = await prisma.user.findUnique({ where: { email: 'belvinrotich@gmail.com' } });
+  if (existingBelvin) {
+    await prisma.user.update({
+      where: { email: 'belvinrotich@gmail.com' },
+      data: {
+        passwordHash: managerPasswordHash,
+        fullName: 'Belvin Rotich',
+        role: UserRole.CLUB_ADMIN,
+        clubUuid: alchemist.clubUuid,
+        mustChangePassword: false,
+      },
+    });
+    try {
+      await prisma.user.deleteMany({ where: { email: 'admin@alchemist.co.ke' } });
+    } catch {}
+  } else {
+    const oldAdmin = await prisma.user.findUnique({ where: { email: 'admin@alchemist.co.ke' } });
+    if (oldAdmin) {
+      await prisma.user.update({
+        where: { email: 'admin@alchemist.co.ke' },
+        data: {
+          email: 'belvinrotich@gmail.com',
+          passwordHash: managerPasswordHash,
+          fullName: 'Belvin Rotich',
+          role: UserRole.CLUB_ADMIN,
+          mustChangePassword: false,
+        },
+      });
+    } else {
+      await prisma.user.create({
+        data: {
+          userUuid: '11111111-1111-1111-1111-000000000001',
+          clubUuid: alchemist.clubUuid,
+          email: 'belvinrotich@gmail.com',
+          passwordHash: managerPasswordHash,
+          fullName: 'Belvin Rotich',
+          phone: '+254711111111',
+          role: UserRole.CLUB_ADMIN,
+          mustChangePassword: false,
+        },
+      });
+    }
+  }
 
   await prisma.user.upsert({
     where: { email: 'waiter.kamau@alchemist.co.ke' },

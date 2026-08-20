@@ -1212,8 +1212,11 @@ const ClubsPage = ({ showToast }: { showToast: (m: string, t?: 'success' | 'erro
                 <tr key={club.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
                   <td className="px-4 py-3.5">
                     <button onClick={() => { setSelectedClub(club); setView('details'); }} className="flex items-center gap-3 hover:text-blue-600 transition-colors text-left">
-                      <div className="h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: club.themeColor }}>
-                        <Wine className="h-4 w-4 text-white" />
+                      <div className="h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden border" style={{ background: club.logoUrl ? undefined : club.themeColor, borderColor: club.logoUrl ? 'var(--border)' : 'transparent' }}>
+                        {club.logoUrl
+                          ? <img src={club.logoUrl} alt={club.name} className="h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; if (e.currentTarget.parentElement) e.currentTarget.parentElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 22L8 2M16 2l-4 8-4-8"/><path d="M4 10h16"/></svg>`; }} />
+                          : <Wine className="h-4 w-4 text-white" />
+                        }
                       </div>
                       <span className="font-semibold text-sm hover:text-blue-600">{club.name}</span>
                     </button>

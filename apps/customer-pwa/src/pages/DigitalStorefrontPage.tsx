@@ -5,6 +5,7 @@ import {
   Clock, AlertCircle, ShoppingCart, MapPin, Wifi, WifiOff,
   Smartphone, Banknote, CreditCard, ArrowLeft, Star, Loader2,
   User, Check, RefreshCw, Flame, Gift, Tag, Copy, Zap, Timer,
+  Wine, ShieldCheck,
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────
@@ -185,10 +186,17 @@ export const DigitalStorefrontPage: React.FC = () => {
         const resolvedClubUuid = club.clubUuid ?? club.uuid ?? club.id ?? null;
         setClubUuid(resolvedClubUuid);
 
+        const fallbackLogo =
+          venueSlug.toLowerCase().includes('g-place') || venueSlug.toLowerCase().includes('gplace')
+            ? 'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?w=400&auto=format&fit=crop&q=80'
+            : venueSlug.toLowerCase().includes('alchemist')
+            ? 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=400&auto=format&fit=crop&q=80'
+            : null;
+
         setBrand({
           name: club.name ?? 'DrinkHub Venue',
           tagline: club.tagline ?? club.county ?? 'Kenya',
-          logoUrl: club.logoUrl ?? null,
+          logoUrl: club.logoUrl || fallbackLogo,
           bannerUrl: club.bannerUrl ?? null,
           primary: club.brandColor ?? club.themeColor ?? '#DC2626',
           primaryDark: adjustColor(club.brandColor ?? club.themeColor ?? '#DC2626', -20),
@@ -1056,15 +1064,27 @@ export const DigitalStorefrontPage: React.FC = () => {
         }
         <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(10,10,15,0.2) 0%, rgba(10,10,15,0.85) 70%, rgba(10,10,15,1) 100%)' }} />
 
-        {/* Online status chip */}
-        <div className="absolute top-4 right-4">
+        {/* Top bar with DrinkHub Company Logo & Venue Status */}
+        <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
+          <div className="flex items-center gap-2 rounded-full px-3.5 py-1.5 backdrop-blur-md border shadow-lg" style={{ background: 'rgba(10,10,15,0.7)', borderColor: 'rgba(255,255,255,0.15)' }}>
+            {/* DrinkHub Official Company Logo Emblem */}
+            <div className="h-6 w-6 rounded-lg bg-gradient-to-tr from-amber-500 via-rose-500 to-blue-600 flex items-center justify-center shadow-md flex-shrink-0">
+              <Wine className="w-3.5 h-3.5 text-white" />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-black text-xs tracking-wider text-white">Drink<span className="text-amber-400">Hub</span></span>
+              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">KE</span>
+            </div>
+          </div>
+
+          {/* Online status chip */}
           {venueOpen ? (
-            <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase backdrop-blur-md" style={{ background: 'rgba(0,0,0,0.45)', color: '#34D399', border: '1px solid rgba(52,211,153,0.3)' }}>
+            <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase backdrop-blur-md shadow-lg" style={{ background: 'rgba(10,10,15,0.7)', color: '#34D399', border: '1px solid rgba(52,211,153,0.3)' }}>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
               Open Now
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase backdrop-blur-md" style={{ background: 'rgba(0,0,0,0.45)', color: '#F87171', border: '1px solid rgba(248,113,113,0.3)' }}>
+            <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase backdrop-blur-md shadow-lg" style={{ background: 'rgba(10,10,15,0.7)', color: '#F87171', border: '1px solid rgba(248,113,113,0.3)' }}>
               <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
               Closed
             </div>
@@ -1074,22 +1094,46 @@ export const DigitalStorefrontPage: React.FC = () => {
         {/* Club identity row */}
         <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
           <div className="flex items-center gap-3">
-            {brand.logoUrl
-              ? <img src={brand.logoUrl} alt={brand.name} className="w-14 h-14 rounded-2xl object-cover border-2" style={{ borderColor: 'rgba(255,255,255,0.15)' }} />
-              : <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl border-2" style={{ background: brand.primary, borderColor: 'rgba(255,255,255,0.15)' }}>🍸</div>
-            }
+            {brand.logoUrl ? (
+              <div className="relative w-14 h-14 rounded-2xl overflow-hidden border-2 shadow-xl flex-shrink-0 bg-slate-900" style={{ borderColor: 'rgba(255,255,255,0.25)' }}>
+                <img
+                  src={brand.logoUrl}
+                  alt={brand.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                    const parent = (e.target as HTMLElement).parentElement;
+                    if (parent) {
+                      parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-black text-white bg-gradient-to-tr from-blue-600 to-indigo-600">${brand.name.charAt(0)}</div>`;
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black text-white border-2 shadow-xl flex-shrink-0 bg-gradient-to-tr from-blue-600 via-indigo-600 to-amber-500"
+                style={{ borderColor: 'rgba(255,255,255,0.25)' }}
+              >
+                {brand.name.charAt(0) || 'D'}
+              </div>
+            )}
             <div>
-              <h1 className="text-xl font-black text-white leading-none">{brand.name}</h1>
-              <div className="flex items-center gap-1.5 mt-1">
-                <MapPin className="w-3 h-3 opacity-50" />
-                <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{brand.tagline}</span>
+              <div className="flex items-center gap-1.5">
+                <h1 className="text-xl font-black text-white leading-none">{brand.name}</h1>
+                <span className="inline-flex items-center gap-0.5 text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  <Check className="w-2.5 h-2.5" /> Verified
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <MapPin className="w-3 h-3 opacity-60 text-amber-400" />
+                <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{brand.tagline}</span>
               </div>
             </div>
           </div>
           {/* Table badge */}
           {table && (
-            <div className="rounded-2xl px-3 py-2 text-center" style={{ background: brand.primary }}>
-              <p className="text-[9px] font-bold uppercase opacity-80 text-white leading-none">Table</p>
+            <div className="rounded-2xl px-3.5 py-2 text-center shadow-lg border border-white/10" style={{ background: brand.primary }}>
+              <p className="text-[9px] font-black uppercase opacity-80 text-white leading-none tracking-wider">Table</p>
               <p className="text-lg font-black text-white leading-tight">#{table}</p>
             </div>
           )}
@@ -1562,6 +1606,21 @@ export const DigitalStorefrontPage: React.FC = () => {
           </div>
           );
         })}
+      </div>
+
+      {/* ── DRINKHUB COMPANY BRANDING FOOTER ── */}
+      <div className="py-12 px-4 text-center border-t border-white/5 mt-10 space-y-2">
+        <div className="inline-flex items-center justify-center gap-2">
+          <div className="h-7 w-7 rounded-lg bg-gradient-to-tr from-amber-500 via-rose-500 to-blue-600 flex items-center justify-center shadow-md">
+            <Wine className="w-4 h-4 text-white" />
+          </div>
+          <span className="font-black text-sm text-white tracking-wider">
+            Drink<span className="text-amber-400">Hub</span> <span className="text-xs text-blue-400">Kenya</span>
+          </span>
+        </div>
+        <p className="text-[11px] text-slate-400">
+          Smart Digital Menu & Table Ordering • {brand.name}
+        </p>
       </div>
 
       {/* ── FLOATING CART BAR ────────────────── */}

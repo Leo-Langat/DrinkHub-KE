@@ -3,8 +3,9 @@
  * Shared across server, staff-portal, admin-portal, and customer-pwa.
  */
 
-export const IDLE_TIMEOUT_MS = 2 * 60 * 60 * 1000;  // 2 hours idle timeout
-export const MAX_SESSION_MS = 24 * 60 * 60 * 1000;  // 24 hours max session (full day shift)
+export const IDLE_TIMEOUT_MS = 20 * 60 * 1000;       // 20 minutes idle timeout
+export const WARN_BEFORE_TIMEOUT_MS = 2 * 60 * 1000; // warn 2 minutes before timeout
+export const MAX_SESSION_MS = 24 * 60 * 60 * 1000;   // 24 hours max session (full day shift)
 
 /**
  * Safely parses JWT payload in browser/Node without external libraries.

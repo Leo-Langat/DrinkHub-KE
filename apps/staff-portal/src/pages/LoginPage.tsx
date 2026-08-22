@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Wine, Eye, EyeOff, ChevronRight, Loader2, User, Briefcase } from 'lucide-react';
+import { Wine, Eye, EyeOff, ChevronRight, Loader2, User, Briefcase, Building2 } from 'lucide-react';
 import { getApiUrl } from '../config/api';
 
-type StaffRole = 'waiter' | 'manager';
+type StaffRole = 'waiter' | 'manager' | 'owner';
 
 interface LoginPageProps {
   onLogin: (role: StaffRole) => void;
@@ -58,10 +58,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       }
 
       const userRole = data.data?.user?.role;
+      if (role === 'owner') {
+        if (userRole !== 'CLUB_ADMIN' && userRole !== 'MANAGER' && userRole !== 'PLATFORM_ADMIN') {
+          if (userRole === 'WAITER') {
+            throw new Error('Access denied. Waiter accounts cannot log into the Owner Portal. Please switch to the Waiter tab.');
+          }
+          throw new Error('Access denied. Account lacks Venue Owner privileges.');
+        }
+      }
       if (role === 'manager') {
         if (userRole !== 'CLUB_ADMIN' && userRole !== 'MANAGER' && userRole !== 'PLATFORM_ADMIN') {
           if (userRole === 'WAITER') {
-            throw new Error('Access denied. Waiter accounts cannot log into the Manager Portal. Please switch to the Waiter tab above.');
+            throw new Error('Access denied. Waiter accounts cannot log into the Manager Portal. Please switch to the Waiter tab.');
           }
           throw new Error('Access denied. Account lacks Manager privileges.');
         }
@@ -69,7 +77,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       if (role === 'waiter') {
         if (userRole !== 'WAITER') {
           if (userRole === 'CLUB_ADMIN' || userRole === 'MANAGER') {
-            throw new Error('Access denied. Manager accounts cannot log into the Waiter Portal. Please switch to the Manager tab above.');
+            throw new Error('Access denied. Management accounts cannot log into the Waiter Portal. Please switch to the Manager or Owner tab.');
           }
           if (userRole === 'PLATFORM_ADMIN') {
             throw new Error('Access denied. Platform Administrator accounts must use the Admin Portal.');
@@ -95,12 +103,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         return;
       }
 
-      onLogin(role);
+      onLogin(role === 'owner' ? 'owner' : (userRole === 'CLUB_ADMIN' && role !== 'waiter' ? 'owner' : role));
     } catch (err: any) {
       // If network fails (e.g. backend server offline / sleeping on cold start or running on demo frontend)
-      if (role === 'manager') {
+      if (role === 'owner' || role === 'manager') {
         if (cleanUser.toLowerCase().includes('waiter')) {
-          setError('Access denied. Waiter accounts cannot log into the Manager Portal. Please switch to the Waiter tab above.');
+          setError('Access denied. Waiter accounts cannot access Management portals. Please switch to the Waiter tab.');
           return;
         }
 
@@ -108,7 +116,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         const isBelvin = cleanUser.toLowerCase().includes('belvin');
         const formattedName = isBelvin
           ? 'Belvin Rotich'
-          : nameParts.map((p: string) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ') || 'Club Manager';
+          : nameParts.map((p: string) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ') || 'Club Owner';
 
         const isGPlace = isBelvin || cleanUser.toLowerCase().includes('gplace') || cleanUser.toLowerCase().includes('g-place');
         const venueName = isGPlace
@@ -144,7 +152,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         localStorage.setItem('drinkhub_token', `manager-token-${Date.now()}`);
         localStorage.setItem('drinkhub_user', JSON.stringify(demoManager));
         localStorage.setItem('drinkhub_login_time', Date.now().toString());
-        onLogin('manager');
+        onLogin(role);
         return;
       }
 
@@ -296,21 +304,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
           {/* Role Selector */}
           <div className="rounded-xl p-1 flex gap-1 border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-            {(['waiter', 'manager'] as const).map((r) => (
+            {(['waiter', 'manager', 'owner'] as const).map((r) => (
               <button
                 key={r}
                 onClick={() => {
                   setRole(r);
                   setError('');
                 }}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all duration-200"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-lg text-xs font-bold transition-all duration-200"
                 style={{
-                  background: role === r ? '#2563EB' : 'transparent',
+                  background: role === r ? (r === 'owner' ? '#D97706' : '#2563EB') : 'transparent',
                   color: role === r ? '#FFFFFF' : 'var(--text-secondary)',
                 }}
               >
-                {r === 'waiter' ? <User className="h-4 w-4" /> : <Briefcase className="h-4 w-4" />}
-                {r === 'waiter' ? 'Waiter' : 'Manager'}
+                {r === 'waiter' ? <User className="h-3.5 w-3.5" /> : r === 'manager' ? <Briefcase className="h-3.5 w-3.5" /> : <Building2 className="h-3.5 w-3.5" />}
+                {r === 'waiter' ? 'Waiter' : r === 'manager' ? 'Manager' : 'Owner'}
               </button>
             ))}
           </div>
@@ -318,7 +326,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           {/* Demo Account Hint */}
           <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-xs text-blue-900">
             <div className="flex items-center justify-between font-semibold mb-1">
-              <span>Demo {role === 'waiter' ? 'Waiter' : 'Manager'} Account:</span>
+              <span>Demo {role === 'waiter' ? 'Waiter' : role === 'manager' ? 'Manager' : 'Venue Owner'} Account:</span>
               <button
                 type="button"
                 onClick={() => {

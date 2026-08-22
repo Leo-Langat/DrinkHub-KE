@@ -3,10 +3,11 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { LoginPage } from './pages/LoginPage';
 import { WaiterDashboard } from './pages/WaiterDashboard';
 import { ManagerDashboard } from './pages/ManagerDashboard';
+import { OwnerDashboard } from './pages/OwnerDashboard';
 import { isJwtExpired, isSessionExpired, IDLE_TIMEOUT_MS, WARN_BEFORE_TIMEOUT_MS, MAX_SESSION_MS, getTokenRemainingTime } from '@drinkhub/shared';
 import { getApiUrl } from './config/api';
 
-type StaffRole = 'waiter' | 'manager';
+type StaffRole = 'waiter' | 'manager' | 'owner';
 interface Session { role: StaffRole }
 
 export const App: React.FC = () => {
@@ -30,7 +31,8 @@ export const App: React.FC = () => {
 
         const user = JSON.parse(userStr);
         if (user.role === 'WAITER') return { role: 'waiter' };
-        if (user.role === 'MANAGER' || user.role === 'CLUB_ADMIN' || user.role === 'PLATFORM_ADMIN') return { role: 'manager' };
+        if (user.role === 'CLUB_ADMIN') return { role: 'owner' };
+        if (user.role === 'MANAGER' || user.role === 'PLATFORM_ADMIN') return { role: 'manager' };
       }
     } catch {
       /* ignore parse error */
@@ -244,16 +246,40 @@ export const App: React.FC = () => {
         </div>
       )}
       <Routes>
-        {session.role === 'waiter' && (
+        {session.role === 'owner' && (
           <>
-            <Route path="/waiter/dashboard" element={<WaiterDashboard onLogout={handleLogout} />} />
-            <Route path="*" element={<Navigate to="/waiter/dashboard" replace />} />
+            <Route
+              path="/owner/dashboard"
+              element={
+                <OwnerDashboard
+                  onLogout={handleLogout}
+                  onSwitchToManager={() => setSession({ role: 'manager' })}
+                />
+              }
+            />
+            <Route path="/manager/dashboard" element={<ManagerDashboard onLogout={handleLogout} />} />
+            <Route path="*" element={<Navigate to="/owner/dashboard" replace />} />
           </>
         )}
         {session.role === 'manager' && (
           <>
             <Route path="/manager/dashboard" element={<ManagerDashboard onLogout={handleLogout} />} />
+            <Route
+              path="/owner/dashboard"
+              element={
+                <OwnerDashboard
+                  onLogout={handleLogout}
+                  onSwitchToManager={() => setSession({ role: 'manager' })}
+                />
+              }
+            />
             <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
+          </>
+        )}
+        {session.role === 'waiter' && (
+          <>
+            <Route path="/waiter/dashboard" element={<WaiterDashboard onLogout={handleLogout} />} />
+            <Route path="*" element={<Navigate to="/waiter/dashboard" replace />} />
           </>
         )}
       </Routes>

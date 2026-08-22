@@ -4,12 +4,14 @@ export class ReportingService {
   async generateAnalyticsReport(clubUuid: string, period: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' = 'WEEKLY') {
     // 1. Resolve clubUuid
     let targetClubUuid = clubUuid;
-    if (!targetClubUuid || targetClubUuid === 'default-club') {
+    const isAll = targetClubUuid === 'ALL' || targetClubUuid === 'all' || targetClubUuid === 'PLATFORM' || targetClubUuid === 'platform';
+
+    if (!isAll && (!targetClubUuid || targetClubUuid === 'default-club')) {
       const firstClub = await prisma.club.findFirst({ where: { deletedAt: null } });
       if (firstClub) targetClubUuid = firstClub.clubUuid;
     }
 
-    const clubFilter = targetClubUuid && targetClubUuid !== 'default-club' ? { clubUuid: targetClubUuid } : {};
+    const clubFilter = !isAll && targetClubUuid && targetClubUuid !== 'default-club' ? { clubUuid: targetClubUuid } : {};
 
     // 2. Fetch all orders for this club with relations
     const orders = await prisma.order.findMany({

@@ -9,6 +9,7 @@ export class TenantRepository implements ITenantRepository {
       include: {
         users: { where: { role: { in: [UserRole.CLUB_ADMIN, UserRole.MANAGER] } } },
         venueTables: { include: { qrCode: true } },
+        _count: { select: { orders: true, venueTables: true, products: true, users: true } },
       },
     });
   }
@@ -19,6 +20,7 @@ export class TenantRepository implements ITenantRepository {
       include: {
         users: { where: { role: { in: [UserRole.CLUB_ADMIN, UserRole.MANAGER] } } },
         venueTables: { include: { qrCode: true } },
+        _count: { select: { orders: true, venueTables: true, products: true, users: true } },
       },
     });
   }
@@ -29,6 +31,7 @@ export class TenantRepository implements ITenantRepository {
       orderBy: { createdAt: 'desc' },
       include: {
         users: { where: { role: { in: [UserRole.CLUB_ADMIN, UserRole.MANAGER] } } },
+        _count: { select: { orders: true, venueTables: true, products: true, users: true } },
       },
     });
   }

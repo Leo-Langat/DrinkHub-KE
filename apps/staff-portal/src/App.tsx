@@ -173,7 +173,7 @@ export const App: React.FC = () => {
     return <LoginPage onLogin={handleLogin} />;
   }
 
-  const roleName = session.role === 'waiter' ? 'Waiter' : 'Manager';
+  const roleName = session.role === 'waiter' ? 'Waiter' : session.role === 'owner' ? 'Owner' : 'Manager';
   const warnMins = Math.floor(idleCountdown / 60);
   const warnSecs = String(idleCountdown % 60).padStart(2, '0');
 

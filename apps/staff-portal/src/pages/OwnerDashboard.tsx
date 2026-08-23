@@ -182,11 +182,20 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
   const [staff, setStaff] = useState<any[]>([]);
   const [menu, setMenu] = useState<any>(null);
   const [club, setClub] = useState<any>(null);
-  const [clubsList, setClubsList] = useState<any[]>([]);
-  const [selectedClubUuid, setSelectedClubUuid] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+
+  /* Read Owner's Club UUID from localStorage */
+  const clubUuid = useMemo(() => {
+    try {
+      const userStr = localStorage.getItem('drinkhub_user');
+      const u = userStr ? JSON.parse(userStr) : null;
+      return u?.clubUuid || u?.club?.clubUuid || u?.club?.uuid || '';
+    } catch {
+      return '';
+    }
+  }, []);
 
   /* Floor Table Selection Modal */
   const [selectedTable, setSelectedTable] = useState<any | null>(null);
@@ -215,34 +224,23 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
     setToast({ msg, type });
   };
 
-  /* Initialize Active Club UUID from session */
-  useEffect(() => {
-    try {
-      const userStr = localStorage.getItem('drinkhub_user');
-      const u = userStr ? JSON.parse(userStr) : null;
-      const cUuid = u?.clubUuid || u?.club?.clubUuid || u?.club?.uuid || '';
-      if (cUuid) setSelectedClubUuid(cUuid);
-    } catch {}
-  }, []);
-
-  /* ─── Fetch All Business Data from Live DB ─── */
+  /* ─── Fetch All Business Data from Live DB (Scoped to Owner's Club) ─── */
   const fetchAllData = useCallback(async (showNotification = false) => {
     try {
       setRefreshing(true);
       const userStr = localStorage.getItem('drinkhub_user');
       const currentUser = userStr ? JSON.parse(userStr) : null;
-      const effectiveClubUuid = selectedClubUuid || currentUser?.clubUuid || '';
+      const targetClubUuid = clubUuid || currentUser?.clubUuid || '';
 
       const headers = authHeaders();
 
-      // Parallel requests to backend APIs
-      const [analyticsRes, ordersRes, staffRes, menuRes, clubRes, allClubsRes] = await Promise.all([
-        fetch(getApiUrl(`/reports/analytics?period=${period}${effectiveClubUuid ? `&clubUuid=${effectiveClubUuid}` : ''}`), { headers }).catch(() => null),
-        fetch(getApiUrl('/orders'), { headers }).catch(() => null),
-        fetch(getApiUrl('/auth/staff'), { headers }).catch(() => null),
+      // Parallel requests strictly scoped to this venue
+      const [analyticsRes, ordersRes, staffRes, menuRes, clubRes] = await Promise.all([
+        fetch(getApiUrl(`/reports/analytics?period=${period}${targetClubUuid ? `&clubUuid=${targetClubUuid}` : ''}`), { headers }).catch(() => null),
+        fetch(getApiUrl(`/orders${targetClubUuid ? `?clubUuid=${targetClubUuid}` : ''}`), { headers }).catch(() => null),
+        fetch(getApiUrl(`/auth/staff${targetClubUuid ? `?clubUuid=${targetClubUuid}` : ''}`), { headers }).catch(() => null),
         fetch(getApiUrl('/menu'), { headers }).catch(() => null),
-        effectiveClubUuid ? fetch(getApiUrl(`/tenants/${effectiveClubUuid}`), { headers }).catch(() => null) : Promise.resolve(null),
-        fetch(getApiUrl('/tenants'), { headers }).catch(() => null),
+        targetClubUuid ? fetch(getApiUrl(`/tenants/${targetClubUuid}`), { headers }).catch(() => null) : Promise.resolve(null),
       ]);
 
       if (analyticsRes?.ok) {
@@ -251,11 +249,20 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
       }
       if (ordersRes?.ok) {
         const d = await ordersRes.json();
-        setOrders(d.data?.orders ?? d.data ?? []);
+        const rawOrders: any[] = d.data?.orders ?? d.data ?? [];
+        // Strictly filter to owner's club
+        const clubOrders = targetClubUuid
+          ? rawOrders.filter(o => !o.clubUuid || o.clubUuid === targetClubUuid)
+          : rawOrders;
+        setOrders(clubOrders);
       }
       if (staffRes?.ok) {
         const d = await staffRes.json();
-        setStaff(d.data?.staff ?? d.data ?? []);
+        const rawStaff: any[] = d.data?.staff ?? d.data ?? [];
+        const clubStaff = targetClubUuid
+          ? rawStaff.filter(s => !s.clubUuid || s.clubUuid === targetClubUuid)
+          : rawStaff;
+        setStaff(clubStaff);
       }
       if (menuRes?.ok) {
         const d = await menuRes.json();
@@ -281,14 +288,10 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
           });
         }
       }
-      if (allClubsRes?.ok) {
-        const d = await allClubsRes.json();
-        setClubsList(d.data ?? []);
-      }
 
-      // Fetch tables
-      if (effectiveClubUuid) {
-        const tablesRes = await fetch(getApiUrl(`/tenants/${effectiveClubUuid}/tables`), { headers }).catch(() => null);
+      // Fetch venue tables
+      if (targetClubUuid) {
+        const tablesRes = await fetch(getApiUrl(`/tenants/${targetClubUuid}/tables`), { headers }).catch(() => null);
         if (tablesRes?.ok) {
           const td = await tablesRes.json();
           setTables(td.data?.tables ?? td.data ?? []);
@@ -297,7 +300,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
 
       setLastUpdated(new Date());
       if (showNotification) {
-        showToast('Business dashboard synchronized with live database');
+        showToast('Venue data synchronized with live database');
       }
     } catch (err: any) {
       console.error('Owner dashboard fetch error:', err);
@@ -305,7 +308,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
       setLoading(false);
       setRefreshing(false);
     }
-  }, [period, selectedClubUuid]);
+  }, [period, clubUuid]);
 
   useEffect(() => {
     fetchAllData();
@@ -326,10 +329,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
       });
 
       socket.on('connect', () => {
-        const userStr = localStorage.getItem('drinkhub_user');
-        const user = userStr ? JSON.parse(userStr) : null;
-        const cUuid = selectedClubUuid || user?.clubUuid;
-        if (cUuid) socket.emit('join:club', cUuid);
+        if (clubUuid) socket.emit('join:club', clubUuid);
       });
 
       socket.on('order:created', () => fetchAllData(false));
@@ -342,7 +342,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
     } catch {
       /* WebSocket optional fallback to polling */
     }
-  }, [selectedClubUuid, fetchAllData]);
+  }, [clubUuid, fetchAllData]);
 
   /* ─── Financial Calculations ─── */
   const completedOrders = useMemo(() => orders.filter(o => o.status === 'COMPLETED' || o.status === 'DELIVERED'), [orders]);
@@ -403,6 +403,22 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
     { name: 'Cash', value: analytics?.paymentBreakdown?.cash?.percentage ?? 4, color: '#F59E0B', count: analytics?.paymentBreakdown?.cash?.count ?? 0 },
   ], [analytics]);
 
+  /* ─── Operating Hours Open/Closed Status ─── */
+  const isOpenNow = useMemo(() => {
+    const openTime = club?.openingHours || '16:00';
+    const closeTime = club?.closingHours || '04:00';
+    const now = new Date();
+    const [openH, openM] = openTime.split(':').map(Number);
+    const [closeH, closeM] = closeTime.split(':').map(Number);
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const openMinutes = openH * 60 + (openM || 0);
+    let closeMinutes = closeH * 60 + (closeM || 0);
+    if (closeMinutes < openMinutes) {
+      return currentMinutes >= openMinutes || currentMinutes <= closeMinutes;
+    }
+    return currentMinutes >= openMinutes && currentMinutes <= closeMinutes;
+  }, [club?.openingHours, club?.closingHours]);
+
   /* ─── Handle Saving Venue Configuration ─── */
   const handleSaveVenueSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -410,7 +426,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
     try {
       const userStr = localStorage.getItem('drinkhub_user');
       const u = userStr ? JSON.parse(userStr) : null;
-      const targetClubUuid = selectedClubUuid || u?.clubUuid || u?.club?.clubUuid;
+      const targetClubUuid = clubUuid || u?.clubUuid || u?.club?.clubUuid;
 
       if (!targetClubUuid) {
         throw new Error('Club UUID not found in session.');
@@ -614,18 +630,17 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Multi-Venue Switcher if multiple clubs available */}
-            {clubsList.length > 1 && (
-              <select
-                value={selectedClubUuid}
-                onChange={e => setSelectedClubUuid(e.target.value)}
-                className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none"
-              >
-                {clubsList.map(c => (
-                  <option key={c.clubUuid} value={c.clubUuid}>{c.name}</option>
-                ))}
-              </select>
-            )}
+            {/* Club-Specific Status Chip */}
+            <div className={`hidden sm:flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold ${
+              isOpenNow
+                ? 'border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                : 'border-rose-200/80 bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800'
+            }`}>
+              <div className={`h-1.5 w-1.5 rounded-full ${isOpenNow ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+              <span>{isOpenNow ? 'Open Now' : 'Closed'}</span>
+              <span className="text-slate-300 dark:text-slate-600">|</span>
+              <span>{club?.openingHours || '16:00'} – {club?.closingHours || '04:00'}</span>
+            </div>
 
             {/* Period Selector */}
             <div className="hidden sm:flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-bold">

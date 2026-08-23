@@ -59,25 +59,19 @@ export class AuthController {
 
       let body = { ...req.body };
 
-      // SECURITY: A MANAGER or CLUB_ADMIN may only create WAITER accounts for their own club.
-      if (callerRole === 'MANAGER' || callerRole === 'CLUB_ADMIN') {
-        if (body.role && body.role !== 'WAITER') {
-          res.status(403).json({
-            success: false,
-            error: { code: 'FORBIDDEN', message: 'Managers can only create WAITER accounts' },
-          });
-          return;
+      // Fallback: If clubUuid wasn't in token payload, fetch from DB user record
+      if (!callerClubUuid && callerUserId) {
+        const callerDbUser = await this.authService.getUserById(callerUserId);
+        if (callerDbUser?.clubUuid) {
+          callerClubUuid = callerDbUser.clubUuid;
         }
+      }
 
-        // Fallback: If clubUuid wasn't in token payload, fetch from DB user record
-        if (!callerClubUuid && callerUserId) {
-          const callerDbUser = await this.authService.getUserById(callerUserId);
-          if (callerDbUser?.clubUuid) {
-            callerClubUuid = callerDbUser.clubUuid;
-          }
-        }
-
-        // Guard: manager must have a club assigned in their account
+      // SECURITY:
+      // - PLATFORM_ADMIN / SUPER_ADMIN can create any role (CLUB_ADMIN, MANAGER, WAITER)
+      // - CLUB_ADMIN (Owner) can create MANAGER or WAITER accounts for their own club
+      // - MANAGER can only create WAITER accounts for their own club
+      if (callerRole === 'CLUB_ADMIN') {
         if (!callerClubUuid) {
           res.status(400).json({
             success: false,
@@ -86,9 +80,35 @@ export class AuthController {
           return;
         }
 
-        // ALWAYS force role=WAITER and clubUuid=manager's club.
-        // Ignore any clubUuid the client may have sent — a waiter must
-        // belong to exactly the same club as the manager who created them.
+        const allowedRoles = ['MANAGER', 'WAITER'];
+        const requestedRole = (body.role || 'MANAGER').toUpperCase();
+        if (!allowedRoles.includes(requestedRole)) {
+          res.status(403).json({
+            success: false,
+            error: { code: 'FORBIDDEN', message: 'Venue owners can only create MANAGER or WAITER accounts' },
+          });
+          return;
+        }
+
+        body.role = requestedRole;
+        body.clubUuid = callerClubUuid;
+      } else if (callerRole === 'MANAGER') {
+        if (!callerClubUuid) {
+          res.status(400).json({
+            success: false,
+            error: { code: 'NO_CLUB', message: 'Your account is not assigned to a club. Contact your administrator.' },
+          });
+          return;
+        }
+
+        if (body.role && body.role !== 'WAITER') {
+          res.status(403).json({
+            success: false,
+            error: { code: 'FORBIDDEN', message: 'Managers can only create WAITER accounts' },
+          });
+          return;
+        }
+
         body.role = 'WAITER';
         body.clubUuid = callerClubUuid;
       }
@@ -181,7 +201,7 @@ export class AuthController {
   listStaff = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userRole = (req.user as any)?.role;
-      const clubUuid = (req.user as any)?.tenantId ?? (req.query.clubUuid as string);
+      const clubUuid = (req.user as any)?.tenantId ?? (req.query.clubUuid as string) ?? (req.headers['x-tenant-id'] as string) ?? (req.user as any)?.clubUuid;
       const { role } = req.query as { role?: string };
 
       let staff: any[];

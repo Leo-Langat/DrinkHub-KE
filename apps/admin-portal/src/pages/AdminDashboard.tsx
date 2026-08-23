@@ -203,7 +203,7 @@ const auditLogs: { id: string; action: string; actor: string; resource: string; 
 ══════════════════════════════════════ */
 const STEPS = [
   { n: 1, label: 'Club Information', icon: <Building2 className="h-4 w-4" /> },
-  { n: 2, label: 'Manager Account', icon: <UserCog className="h-4 w-4" /> },
+  { n: 2, label: 'Venue Owner Account', icon: <UserCog className="h-4 w-4" /> },
   { n: 3, label: 'Subscription', icon: <CreditCard className="h-4 w-4" /> },
 ];
 
@@ -356,7 +356,7 @@ const Step2 = ({ f, set, errors }: { f: CF; set: (k: keyof CF, v: string) => voi
       <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 flex gap-3">
         <Lock className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-blue-700 leading-relaxed">
-          The manager will receive a welcome email with these credentials and will be <strong>required to change their temporary password on first login</strong>.
+          The <strong>venue owner</strong> will receive a welcome email with these credentials, access the <strong>Owner Command Center</strong>, and be <strong>required to change their temporary password on first login</strong>. The owner will then be able to create and assign managers.
         </p>
       </div>
       <div className="grid grid-cols-2 gap-4">

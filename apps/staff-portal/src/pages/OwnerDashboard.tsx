@@ -9,7 +9,7 @@ import {
   Flame, Award, Search, Check, Layers, BarChart3, PieChart as PieIcon,
   SlidersHorizontal, Zap, ArrowRight, ShieldCheck, Activity, Printer,
   Phone, Mail, MapPin, Camera, Image, Upload, Trash2, Edit2, X, Lock,
-  ChevronRight, ExternalLink
+  ChevronRight, ExternalLink, UserPlus, UserCheck, RotateCcw, EyeOff
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis,
@@ -17,6 +17,14 @@ import {
   Pie, Cell,
 } from 'recharts';
 import { getApiUrl } from '../config/api';
+
+/* ─── Password Generator Helper ─── */
+const generatePassword = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+  let pwd = '';
+  for (let i = 0; i < 10; i++) pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+  return pwd;
+};
 
 /* ─── API Auth Helpers ─── */
 const authHeaders = (): Record<string, string> => {
@@ -219,6 +227,18 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
     bannerUrl: '',
   });
   const [savingSettings, setSavingSettings] = useState(false);
+
+  /* Staff & Manager Creation State */
+  const [createStaffModalOpen, setCreateStaffModalOpen] = useState(false);
+  const [staffForm, setStaffForm] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    password: generatePassword(),
+    role: 'MANAGER' as 'MANAGER' | 'WAITER',
+  });
+  const [showStaffPwd, setShowStaffPwd] = useState(false);
+  const [submittingStaff, setSubmittingStaff] = useState(false);
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
@@ -458,6 +478,75 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
     }
   };
 
+  /* ─── Handle Registering a Manager or Waiter ─── */
+  const handleCreateStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingStaff(true);
+    try {
+      const userStr = localStorage.getItem('drinkhub_user');
+      const u = userStr ? JSON.parse(userStr) : null;
+      const targetClubUuid = clubUuid || u?.clubUuid || u?.club?.clubUuid;
+
+      if (!targetClubUuid) {
+        throw new Error('Club UUID not found in session.');
+      }
+
+      if (!staffForm.fullName.trim() || !staffForm.email.trim() || !staffForm.password.trim()) {
+        throw new Error('Please fill in all required fields.');
+      }
+
+      const res = await fetch(getApiUrl('/auth/register'), {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          fullName: staffForm.fullName.trim(),
+          email: staffForm.email.trim(),
+          phone: staffForm.phone.trim(),
+          password: staffForm.password,
+          role: staffForm.role,
+          clubUuid: targetClubUuid,
+          mustChangePassword: true,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error?.message || data?.message || 'Failed to create staff account');
+      }
+
+      showToast(`✅ ${staffForm.role === 'MANAGER' ? 'Manager' : 'Waiter'} account for ${staffForm.fullName} created successfully!`, 'success');
+      setCreateStaffModalOpen(false);
+      setStaffForm({
+        fullName: '',
+        email: '',
+        phone: '',
+        password: generatePassword(),
+        role: 'MANAGER',
+      });
+      fetchAllData(false);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to create staff account', 'error');
+    } finally {
+      setSubmittingStaff(false);
+    }
+  };
+
+  /* ─── Handle Staff Status Toggle ─── */
+  const handleToggleStaffStatus = async (userUuid: string, currentStatus: boolean) => {
+    try {
+      const res = await fetch(getApiUrl(`/auth/staff/${userUuid}/status`), {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ isActive: !currentStatus }),
+      });
+      if (!res.ok) throw new Error('Failed to update status');
+      showToast('Staff status updated successfully!', 'success');
+      fetchAllData(false);
+    } catch (err: any) {
+      showToast(err.message || 'Error updating staff status', 'error');
+    }
+  };
+
   /* ─── Navigation Items ─── */
   const navItems = [
     { key: 'overview', label: 'Executive Overview', icon: <LayoutDashboard className="h-4 w-4" /> },
@@ -536,6 +625,150 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* ─── Create Manager / Staff Modal ─── */}
+      <Modal
+        open={createStaffModalOpen}
+        onClose={() => setCreateStaffModalOpen(false)}
+        title={staffForm.role === 'MANAGER' ? 'Create Venue Manager Account' : 'Register Service Waiter'}
+        size="md"
+      >
+        <form onSubmit={handleCreateStaff} className="space-y-4 text-xs">
+          <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 p-3 flex items-start gap-2.5">
+            <Sparkles className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <p className="text-amber-800 dark:text-amber-300 leading-relaxed font-medium">
+              As the venue owner, you can create and assign <strong>Managers</strong> to oversee daily operations, orders, menu pricing, and table QR codes.
+            </p>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+              Account Role <span className="text-red-500">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setStaffForm({ ...staffForm, role: 'MANAGER' })}
+                className={`py-2 px-3 rounded-xl border font-black text-xs transition ${
+                  staffForm.role === 'MANAGER'
+                    ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 ring-2 ring-amber-500/20'
+                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                🏢 Venue Manager
+              </button>
+              <button
+                type="button"
+                onClick={() => setStaffForm({ ...staffForm, role: 'WAITER' })}
+                className={`py-2 px-3 rounded-xl border font-black text-xs transition ${
+                  staffForm.role === 'WAITER'
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 ring-2 ring-blue-500/20'
+                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                🍸 Floor Waiter
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+              Full Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={staffForm.fullName}
+              onChange={e => setStaffForm({ ...staffForm, fullName: e.target.value })}
+              placeholder="e.g. David Mwangi"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+              Email Address / Login Username <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={staffForm.email}
+              onChange={e => setStaffForm({ ...staffForm, email: e.target.value })}
+              placeholder="e.g. manager@venue.co.ke"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+              Phone Number
+            </label>
+            <div className="flex">
+              <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 select-none">
+                +254
+              </span>
+              <input
+                type="tel"
+                value={staffForm.phone}
+                onChange={e => setStaffForm({ ...staffForm, phone: e.target.value.replace(/^\+?254/, '').replace(/^0/, '') })}
+                placeholder="7XX XXX XXX"
+                className="flex-1 rounded-r-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+              Temporary Password <span className="text-red-500">*</span>
+            </label>
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <input
+                  type={showStaffPwd ? 'text' : 'password'}
+                  required
+                  value={staffForm.password}
+                  onChange={e => setStaffForm({ ...staffForm, password: e.target.value })}
+                  placeholder="Min. 8 characters"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2.5 pr-9 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowStaffPwd(v => !v)}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                >
+                  {showStaffPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStaffForm({ ...staffForm, password: generatePassword() })}
+                className="flex-shrink-0 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5 transition"
+              >
+                <RotateCcw className="h-3.5 w-3.5" /> Generate
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1">Staff will be required to change this temporary password on their first login.</p>
+          </div>
+
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setCreateStaffModalOpen(false)}
+              className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submittingStaff}
+              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black transition shadow-md shadow-amber-500/25 disabled:opacity-50"
+            >
+              <Check className="h-4 w-4" />
+              {submittingStaff ? 'Creating...' : staffForm.role === 'MANAGER' ? 'Create Manager' : 'Create Waiter'}
+            </button>
+          </div>
+        </form>
       </Modal>
 
       {/* ─── Sidebar ─── */}
@@ -1100,32 +1333,168 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
           )}
 
           {/* ========================================================
-              TAB 5: STAFF & WAITER PERFORMANCE
+              TAB 5: VENUE MANAGERS & STAFF TEAM
              ======================================================== */}
           {activeTab === 'staff' && (
             <div className="space-y-6 animate-fade-in">
               <SectionHeader
-                title="Staff Leaderboard & Shift Productivity"
-                subtitle="Live performance metrics for on-duty waiters, order speed, and individual sales volume"
+                title="Venue Management & Staff Team"
+                subtitle="Create venue managers, monitor assigned staff, and audit shift productivity"
                 action={
-                  <button
-                    onClick={() => {
-                      csvExport(
-                        ['Waiter', 'Orders Served', 'Revenue Generated (KES)', 'Avg Speed (Mins)'],
-                        (analytics?.waiterPerformance || []).map((w: any) => [w.name, w.ordersServed, w.revenueGenerated, w.avgFulfillmentMins]),
-                        'waiter_leaderboard.csv'
-                      );
-                      showToast('Staff leaderboard exported');
-                    }}
-                    className="flex items-center gap-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 px-4 py-2 text-xs font-bold hover:opacity-90 transition"
-                  >
-                    <Download className="h-3.5 w-3.5" /> Export Staff CSV
-                  </button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => {
+                        setStaffForm({ fullName: '', email: '', phone: '', password: generatePassword(), role: 'MANAGER' });
+                        setCreateStaffModalOpen(true);
+                      }}
+                      className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white px-4 py-2 text-xs font-black transition shadow-sm shadow-amber-500/20"
+                    >
+                      <UserPlus className="h-3.5 w-3.5" /> Create Venue Manager
+                    </button>
+                    <button
+                      onClick={() => {
+                        setStaffForm({ fullName: '', email: '', phone: '', password: generatePassword(), role: 'WAITER' });
+                        setCreateStaffModalOpen(true);
+                      }}
+                      className="flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-xs font-bold transition shadow-sm"
+                    >
+                      <UserPlus className="h-3.5 w-3.5" /> Add Waiter
+                    </button>
+                    <button
+                      onClick={() => {
+                        csvExport(
+                          ['Staff Name', 'Role', 'Email', 'Phone', 'Orders Completed', 'Revenue Generated (KES)', 'Status'],
+                          staff.map((s: any) => [s.fullName, s.role, s.email, s.phone || '–', s._count?.orders ?? 0, '–', s.isActive ? 'Active' : 'Inactive']),
+                          'venue_staff_team.csv'
+                        );
+                        showToast('Staff roster exported');
+                      }}
+                      className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 px-3.5 py-2 text-xs font-bold transition"
+                    >
+                      <Download className="h-3.5 w-3.5" /> Export Staff CSV
+                    </button>
+                  </div>
                 }
               />
 
+              {/* Card 1: Venue Managers & Administrators */}
               <div className="rounded-2xl border p-6 bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
-                <h3 className="text-sm font-black text-slate-900 dark:text-white">Waiter Performance Ranking</h3>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-amber-500" /> Venue Managers
+                    </h3>
+                    <p className="text-xs text-slate-500">Managers created by the owner to supervise shifts and floor operations</p>
+                  </div>
+                  <span className="text-xs font-bold text-slate-500">
+                    {staff.filter(s => s.role === 'MANAGER' || s.role === 'CLUB_ADMIN').length} Manager(s) Assigned
+                  </span>
+                </div>
+
+                {(() => {
+                  const managers = staff.filter(s => s.role === 'MANAGER' || s.role === 'CLUB_ADMIN');
+                  if (managers.length === 0) {
+                    return (
+                      <div className="p-8 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 text-center space-y-3">
+                        <div className="h-12 w-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
+                          <UserPlus className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-sm text-slate-900 dark:text-white">No Managers Created Yet</h4>
+                          <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                            As the venue owner, click "Create Venue Manager" above to assign an operational manager for {clubName}.
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setStaffForm({ fullName: '', email: '', phone: '', password: generatePassword(), role: 'MANAGER' });
+                            setCreateStaffModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition shadow-sm"
+                        >
+                          <UserPlus className="h-3.5 w-3.5" /> Create First Manager
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-slate-200/80 dark:border-slate-800 text-left text-xs font-bold text-slate-500">
+                            <th className="pb-3 px-3">Manager Name</th>
+                            <th className="pb-3 px-3">Role</th>
+                            <th className="pb-3 px-3">Email / Username</th>
+                            <th className="pb-3 px-3">Phone</th>
+                            <th className="pb-3 px-3">Status</th>
+                            <th className="pb-3 px-3 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                          {managers.map(m => (
+                            <tr key={m.userUuid || m.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
+                              <td className="py-3 px-3 font-black text-xs text-slate-900 dark:text-white">
+                                {m.fullName}
+                              </td>
+                              <td className="py-3 px-3">
+                                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black border ${
+                                  m.role === 'CLUB_ADMIN'
+                                    ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200/80'
+                                    : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200/80'
+                                }`}>
+                                  {m.role === 'CLUB_ADMIN' ? '👑 Owner' : '🏢 Manager'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 font-mono text-xs text-slate-600 dark:text-slate-400">
+                                {m.email}
+                              </td>
+                              <td className="py-3 px-3 font-mono text-xs text-slate-600 dark:text-slate-400">
+                                {m.phone || '–'}
+                              </td>
+                              <td className="py-3 px-3">
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                                  m.isActive !== false
+                                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200'
+                                    : 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200'
+                                }`}>
+                                  <span className={`h-1.5 w-1.5 rounded-full ${m.isActive !== false ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                  {m.isActive !== false ? 'Active' : 'Inactive'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 text-right">
+                                {m.role !== 'CLUB_ADMIN' && (
+                                  <button
+                                    onClick={() => handleToggleStaffStatus(m.userUuid || m.id, m.isActive !== false)}
+                                    className="text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                                  >
+                                    {m.isActive !== false ? 'Deactivate' : 'Activate'}
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Card 2: Waiter Performance Leaderboard */}
+              <div className="rounded-2xl border p-6 bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                      <Award className="h-4 w-4 text-amber-500" /> Waiter Performance & Shift Leaderboard
+                    </h3>
+                    <p className="text-xs text-slate-500">Live rankings of waitstaff sales volume, completed tabs, and table turnover speed</p>
+                  </div>
+                  <span className="text-xs font-bold text-slate-500">
+                    {staff.filter(s => s.role === 'WAITER').length} Waiter(s) on Floor
+                  </span>
+                </div>
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -1135,7 +1504,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
                         <th className="pb-3 px-3">Orders Completed</th>
                         <th className="pb-3 px-3">Total Sales (KES)</th>
                         <th className="pb-3 px-3">Avg Service Speed</th>
-                        <th className="pb-3 px-3">Efficiency</th>
+                        <th className="pb-3 px-3">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
@@ -1145,24 +1514,24 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
                         { name: 'Faith Wanjiku', ordersServed: 25, revenueGenerated: 94000, avgFulfillmentMins: 4.1 },
                         { name: 'Brian Omondi', ordersServed: 21, revenueGenerated: 78000, avgFulfillmentMins: 4.5 },
                       ]).map((w: any, idx: number) => (
-                        <tr key={w.name} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
+                        <tr key={w.name || idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
                           <td className="py-3 px-3 font-bold text-xs text-slate-400">#{idx + 1}</td>
                           <td className="py-3 px-3 font-black text-xs text-slate-900 dark:text-white flex items-center gap-2">
                             {idx === 0 && <Award className="h-4 w-4 text-amber-500 flex-shrink-0" />}
                             {w.name}
                           </td>
                           <td className="py-3 px-3 font-bold text-xs text-slate-700 dark:text-slate-300">
-                            {w.ordersServed} orders
+                            {w.ordersServed || 0} orders
                           </td>
                           <td className="py-3 px-3 font-black text-xs text-emerald-600 dark:text-emerald-400">
-                            KES {Number(w.revenueGenerated).toLocaleString()}
+                            KES {Number(w.revenueGenerated || 0).toLocaleString()}
                           </td>
                           <td className="py-3 px-3 text-xs font-semibold text-slate-600 dark:text-slate-400">
-                            ⚡ {w.avgFulfillmentMins} mins
+                            ⚡ {w.avgFulfillmentMins || '3.5'} mins
                           </td>
                           <td className="py-3 px-3">
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-                              Top Performer
+                              Active Shift
                             </span>
                           </td>
                         </tr>

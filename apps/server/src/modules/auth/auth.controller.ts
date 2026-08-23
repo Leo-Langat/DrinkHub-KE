@@ -201,8 +201,14 @@ export class AuthController {
   listStaff = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userRole = (req.user as any)?.role;
-      const clubUuid = (req.user as any)?.tenantId ?? (req.query.clubUuid as string) ?? (req.headers['x-tenant-id'] as string) ?? (req.user as any)?.clubUuid;
+      const callerClubUuid = (req.user as any)?.tenantId || (req.user as any)?.clubUuid;
+      let clubUuid = callerClubUuid ?? (req.query.clubUuid as string) ?? (req.headers['x-tenant-id'] as string);
       const { role } = req.query as { role?: string };
+
+      // SECURITY: CLUB_ADMIN, MANAGER, WAITER can only see staff for their own club
+      if (userRole === 'CLUB_ADMIN' || userRole === 'MANAGER' || userRole === 'WAITER') {
+        clubUuid = callerClubUuid || clubUuid;
+      }
 
       let staff: any[];
 

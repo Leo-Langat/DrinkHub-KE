@@ -6,7 +6,15 @@ export class MenuController {
 
   getMenu = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const clubUuid = (req.headers['x-tenant-id'] as string) || (req.query.clubUuid as string);
+      const userRole = (req.user as any)?.role;
+      const userClubUuid = req.user?.tenantId || (req.user as any)?.clubUuid;
+      let clubUuid = (req.headers['x-tenant-id'] as string) || (req.query.clubUuid as string) || userClubUuid;
+
+      // SECURITY: A Club Admin (Owner), Manager, or Waiter can ONLY view the menu for their specific club
+      if (userRole === 'CLUB_ADMIN' || userRole === 'MANAGER' || userRole === 'WAITER') {
+        clubUuid = userClubUuid || clubUuid;
+      }
+
       const result = await this.menuService.getMenuForClub(clubUuid);
       res.json({
         success: true,

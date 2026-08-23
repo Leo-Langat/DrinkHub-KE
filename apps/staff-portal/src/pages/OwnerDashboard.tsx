@@ -250,7 +250,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
       setRefreshing(true);
       const userStr = localStorage.getItem('drinkhub_user');
       const currentUser = userStr ? JSON.parse(userStr) : null;
-      const targetClubUuid = clubUuid || currentUser?.clubUuid || '';
+      const targetClubUuid = clubUuid || currentUser?.clubUuid || currentUser?.tenantId || currentUser?.club?.clubUuid || currentUser?.club?.uuid || '';
 
       const headers = authHeaders();
 
@@ -259,7 +259,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
         fetch(getApiUrl(`/reports/analytics?period=${period}${targetClubUuid ? `&clubUuid=${targetClubUuid}` : ''}`), { headers }).catch(() => null),
         fetch(getApiUrl(`/orders${targetClubUuid ? `?clubUuid=${targetClubUuid}` : ''}`), { headers }).catch(() => null),
         fetch(getApiUrl(`/auth/staff${targetClubUuid ? `?clubUuid=${targetClubUuid}` : ''}`), { headers }).catch(() => null),
-        fetch(getApiUrl('/menu'), { headers }).catch(() => null),
+        fetch(getApiUrl(`/menu${targetClubUuid ? `?clubUuid=${targetClubUuid}` : ''}`), { headers }).catch(() => null),
         targetClubUuid ? fetch(getApiUrl(`/tenants/${targetClubUuid}`), { headers }).catch(() => null) : Promise.resolve(null),
       ]);
 
@@ -272,7 +272,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
         const rawOrders: any[] = d.data?.orders ?? d.data ?? [];
         // Strictly filter to owner's club
         const clubOrders = targetClubUuid
-          ? rawOrders.filter(o => !o.clubUuid || o.clubUuid === targetClubUuid)
+          ? rawOrders.filter(o => o.clubUuid === targetClubUuid)
           : rawOrders;
         setOrders(clubOrders);
       }
@@ -280,7 +280,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
         const d = await staffRes.json();
         const rawStaff: any[] = d.data?.staff ?? d.data ?? [];
         const clubStaff = targetClubUuid
-          ? rawStaff.filter(s => !s.clubUuid || s.clubUuid === targetClubUuid)
+          ? rawStaff.filter(s => s.clubUuid === targetClubUuid)
           : rawStaff;
         setStaff(clubStaff);
       }
@@ -417,11 +417,17 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
   }, [analytics, avgOrderValue]);
 
   /* ─── Payment Methods Breakdown ─── */
-  const payData = useMemo(() => [
-    { name: 'M-Pesa STK', value: analytics?.paymentBreakdown?.mpesa?.percentage ?? 84, color: '#10B981', count: analytics?.paymentBreakdown?.mpesa?.count ?? 0 },
-    { name: 'Card POS', value: analytics?.paymentBreakdown?.card?.percentage ?? 12, color: '#2563EB', count: analytics?.paymentBreakdown?.card?.count ?? 0 },
-    { name: 'Cash', value: analytics?.paymentBreakdown?.cash?.percentage ?? 4, color: '#F59E0B', count: analytics?.paymentBreakdown?.cash?.count ?? 0 },
-  ], [analytics]);
+  const payData = useMemo(() => {
+    const mpesaPct = analytics?.paymentBreakdown?.mpesa?.percentage ?? 0;
+    const cardPct = analytics?.paymentBreakdown?.card?.percentage ?? 0;
+    const cashPct = analytics?.paymentBreakdown?.cash?.percentage ?? 0;
+    const hasData = (mpesaPct + cardPct + cashPct) > 0;
+    return [
+      { name: 'M-Pesa STK', value: hasData ? mpesaPct : 0, color: '#10B981', count: analytics?.paymentBreakdown?.mpesa?.count ?? 0 },
+      { name: 'Card POS', value: hasData ? cardPct : 0, color: '#2563EB', count: analytics?.paymentBreakdown?.card?.count ?? 0 },
+      { name: 'Cash', value: hasData ? cashPct : 0, color: '#F59E0B', count: analytics?.paymentBreakdown?.cash?.count ?? 0 },
+    ];
+  }, [analytics]);
 
   /* ─── Operating Hours Open/Closed Status ─── */
   const isOpenNow = useMemo(() => {
@@ -1150,7 +1156,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
                     <Smartphone className="h-4 w-4" /> M-Pesa STK Collections
                   </div>
                   <div className="text-3xl font-black">
-                    KES {Math.round((grossRevenue * (analytics?.paymentBreakdown?.mpesa?.percentage || 85)) / 100).toLocaleString()}
+                    KES {Math.round((grossRevenue * (analytics?.paymentBreakdown?.mpesa?.percentage || 0)) / 100).toLocaleString()}
                   </div>
                   <p className="text-xs text-emerald-200/80">Direct digital settlement to Safaricom Daraja Paybill</p>
                 </div>
@@ -1160,7 +1166,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
                     <CreditCard className="h-4 w-4" /> Card POS Terminals
                   </div>
                   <div className="text-3xl font-black">
-                    KES {Math.round((grossRevenue * (analytics?.paymentBreakdown?.card?.percentage || 10)) / 100).toLocaleString()}
+                    KES {Math.round((grossRevenue * (analytics?.paymentBreakdown?.card?.percentage || 0)) / 100).toLocaleString()}
                   </div>
                   <p className="text-xs text-blue-200/80">Visa & Mastercard floor card transactions</p>
                 </div>
@@ -1170,7 +1176,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
                     <Banknote className="h-4 w-4" /> Cash Collections
                   </div>
                   <div className="text-3xl font-black">
-                    KES {Math.round((grossRevenue * (analytics?.paymentBreakdown?.cash?.percentage || 5)) / 100).toLocaleString()}
+                    KES {Math.round((grossRevenue * (analytics?.paymentBreakdown?.cash?.percentage || 0)) / 100).toLocaleString()}
                   </div>
                   <p className="text-xs text-amber-200/80">Physical cash received and reconciled by waiters</p>
                 </div>
@@ -1223,40 +1229,45 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
               />
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                {(tables.length > 0 ? tables : Array.from({ length: 24 }).map((_, idx) => ({
-                  tableUuid: `t-${idx + 1}`,
-                  tableNumber: idx + 1,
-                  sectionName: idx < 6 ? 'VIP Lounge' : idx < 16 ? 'Main Floor' : 'Terrace Bar',
-                  status: idx % 3 === 0 ? 'OCCUPIED' : idx % 5 === 0 ? 'RESERVED' : 'AVAILABLE',
-                }))).map(t => {
-                  const status = t.status || 'AVAILABLE';
-                  const isOcc = status === 'OCCUPIED';
-                  const isRes = status === 'RESERVED';
-                  return (
-                    <div
-                      key={t.tableUuid || t.tableNumber}
-                      onClick={() => setSelectedTable(t)}
-                      className={`p-4 rounded-2xl border transition-all cursor-pointer hover:scale-[1.02] ${
-                        isOcc
-                          ? 'bg-blue-50/80 border-blue-300 dark:bg-blue-950/40 dark:border-blue-800 shadow-sm'
-                          : isRes
-                          ? 'bg-amber-50/80 border-amber-300 dark:bg-amber-950/40 dark:border-amber-800'
-                          : 'bg-white border-slate-200 dark:bg-slate-900 dark:border-slate-800 hover:border-slate-400'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-black text-sm text-slate-900 dark:text-white">
-                          Table #{t.tableNumber}
-                        </span>
-                        <span className={`h-2 w-2 rounded-full ${isOcc ? 'bg-blue-500 animate-pulse' : isRes ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                {tables.length === 0 ? (
+                  <div className="col-span-full p-8 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 text-center space-y-2">
+                    <Table className="h-8 w-8 text-slate-400 mx-auto" />
+                    <h4 className="font-bold text-sm text-slate-900 dark:text-white">No Tables Configured Yet</h4>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      Tables and QR codes created for {clubName} will appear here in real-time.
+                    </p>
+                  </div>
+                ) : (
+                  tables.map(t => {
+                    const status = t.status || 'AVAILABLE';
+                    const isOcc = status === 'OCCUPIED';
+                    const isRes = status === 'RESERVED';
+                    return (
+                      <div
+                        key={t.tableUuid || t.tableNumber}
+                        onClick={() => setSelectedTable(t)}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer hover:scale-[1.02] ${
+                          isOcc
+                            ? 'bg-blue-50/80 border-blue-300 dark:bg-blue-950/40 dark:border-blue-800 shadow-sm'
+                            : isRes
+                            ? 'bg-amber-50/80 border-amber-300 dark:bg-amber-950/40 dark:border-amber-800'
+                            : 'bg-white border-slate-200 dark:bg-slate-900 dark:border-slate-800 hover:border-slate-400'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-black text-sm text-slate-900 dark:text-white">
+                            Table #{t.tableNumber}
+                          </span>
+                          <span className={`h-2 w-2 rounded-full ${isOcc ? 'bg-blue-500 animate-pulse' : isRes ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                        </div>
+                        <div className="text-[11px] font-bold text-slate-500 truncate">{t.sectionName || 'Floor'}</div>
+                        <div className="mt-2 flex items-center justify-between text-[10px] font-bold">
+                          <StatusBadge status={status} />
+                        </div>
                       </div>
-                      <div className="text-[11px] font-bold text-slate-500 truncate">{t.sectionName || 'Floor'}</div>
-                      <div className="mt-2 flex items-center justify-between text-[10px] font-bold">
-                        <StatusBadge status={status} />
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
           )}
@@ -1301,30 +1312,31 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                      {(analytics?.topProducts && analytics.topProducts.length > 0 ? analytics.topProducts : [
-                        { name: 'Johnnie Walker Black Label 750ml', category: 'Whisky', unitsSold: 42, revenue: 168000 },
-                        { name: 'Hennessy VS 700ml', category: 'Cognac', unitsSold: 28, revenue: 196000 },
-                        { name: 'Tusker Lager 500ml', category: 'Beer', unitsSold: 210, revenue: 73500 },
-                        { name: 'Moët & Chandon Brut Impérial', category: 'Champagne', unitsSold: 16, revenue: 176000 },
-                        { name: 'Guinness Stout 500ml', category: 'Beer', unitsSold: 140, revenue: 49000 },
-                        { name: 'Casamigos Blanco Tequila', category: 'Tequila', unitsSold: 19, revenue: 152000 },
-                      ]).map((p: any, idx: number) => (
-                        <tr key={p.name} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
-                          <td className="py-3 px-3 font-bold text-xs text-slate-400">#{idx + 1}</td>
-                          <td className="py-3 px-3 font-black text-xs text-slate-900 dark:text-white flex items-center gap-2">
-                            {idx === 0 && <Award className="h-4 w-4 text-amber-500 flex-shrink-0" />}
-                            {p.name}
-                          </td>
-                          <td className="py-3 px-3 text-xs font-semibold text-slate-500">{p.category}</td>
-                          <td className="py-3 px-3 font-bold text-xs text-slate-700 dark:text-slate-300">{p.unitsSold} units</td>
-                          <td className="py-3 px-3 font-black text-xs text-emerald-600 dark:text-emerald-400">
-                            KES {Number(p.revenue).toLocaleString()}
-                          </td>
-                          <td className="py-3 px-3 text-xs font-bold text-blue-600 dark:text-blue-400">
-                            ~64% High Margin
+                      {(analytics?.topProducts || []).length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-xs text-slate-400">
+                            No product sales recorded yet for {clubName}. Live item sales will appear here as orders are completed.
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        (analytics?.topProducts || []).map((p: any, idx: number) => (
+                          <tr key={p.name} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
+                            <td className="py-3 px-3 font-bold text-xs text-slate-400">#{idx + 1}</td>
+                            <td className="py-3 px-3 font-black text-xs text-slate-900 dark:text-white flex items-center gap-2">
+                              {idx === 0 && <Award className="h-4 w-4 text-amber-500 flex-shrink-0" />}
+                              {p.name}
+                            </td>
+                            <td className="py-3 px-3 text-xs font-semibold text-slate-500">{p.category}</td>
+                            <td className="py-3 px-3 font-bold text-xs text-slate-700 dark:text-slate-300">{p.unitsSold} units</td>
+                            <td className="py-3 px-3 font-black text-xs text-emerald-600 dark:text-emerald-400">
+                              KES {Number(p.revenue).toLocaleString()}
+                            </td>
+                            <td className="py-3 px-3 text-xs font-bold text-blue-600 dark:text-blue-400">
+                              ~64% High Margin
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1508,34 +1520,37 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                      {(analytics?.waiterPerformance && analytics.waiterPerformance.length > 0 ? analytics.waiterPerformance : [
-                        { name: 'Belvin Rotich', ordersServed: 34, revenueGenerated: 142000, avgFulfillmentMins: 3.2 },
-                        { name: 'Kamau Njoroge', ordersServed: 28, revenueGenerated: 118500, avgFulfillmentMins: 3.8 },
-                        { name: 'Faith Wanjiku', ordersServed: 25, revenueGenerated: 94000, avgFulfillmentMins: 4.1 },
-                        { name: 'Brian Omondi', ordersServed: 21, revenueGenerated: 78000, avgFulfillmentMins: 4.5 },
-                      ]).map((w: any, idx: number) => (
-                        <tr key={w.name || idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
-                          <td className="py-3 px-3 font-bold text-xs text-slate-400">#{idx + 1}</td>
-                          <td className="py-3 px-3 font-black text-xs text-slate-900 dark:text-white flex items-center gap-2">
-                            {idx === 0 && <Award className="h-4 w-4 text-amber-500 flex-shrink-0" />}
-                            {w.name}
-                          </td>
-                          <td className="py-3 px-3 font-bold text-xs text-slate-700 dark:text-slate-300">
-                            {w.ordersServed || 0} orders
-                          </td>
-                          <td className="py-3 px-3 font-black text-xs text-emerald-600 dark:text-emerald-400">
-                            KES {Number(w.revenueGenerated || 0).toLocaleString()}
-                          </td>
-                          <td className="py-3 px-3 text-xs font-semibold text-slate-600 dark:text-slate-400">
-                            ⚡ {w.avgFulfillmentMins || '3.5'} mins
-                          </td>
-                          <td className="py-3 px-3">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-                              Active Shift
-                            </span>
+                      {(analytics?.waiterPerformance || []).length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-xs text-slate-400">
+                            No waiter order completions recorded yet for {clubName}.
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        (analytics?.waiterPerformance || []).map((w: any, idx: number) => (
+                          <tr key={w.name || idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
+                            <td className="py-3 px-3 font-bold text-xs text-slate-400">#{idx + 1}</td>
+                            <td className="py-3 px-3 font-black text-xs text-slate-900 dark:text-white flex items-center gap-2">
+                              {idx === 0 && <Award className="h-4 w-4 text-amber-500 flex-shrink-0" />}
+                              {w.name}
+                            </td>
+                            <td className="py-3 px-3 font-bold text-xs text-slate-700 dark:text-slate-300">
+                              {w.ordersServed || 0} orders
+                            </td>
+                            <td className="py-3 px-3 font-black text-xs text-emerald-600 dark:text-emerald-400">
+                              KES {Number(w.revenueGenerated || 0).toLocaleString()}
+                            </td>
+                            <td className="py-3 px-3 text-xs font-semibold text-slate-600 dark:text-slate-400">
+                              ⚡ {w.avgFulfillmentMins || '3.5'} mins
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                Active Shift
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>

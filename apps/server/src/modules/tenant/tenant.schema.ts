@@ -4,7 +4,8 @@ export const createClubSchema = z.object({
   body: z.object({
     name: z.string().min(2, 'Club name must be at least 2 characters'),
     slug: z.string().min(2, 'Slug must be at least 2 characters'),
-    logoUrl: z.string().url().optional().or(z.literal('')),
+    logoUrl: z.string().url().optional().or(z.literal('')).or(z.null()),
+    bannerUrl: z.string().url().optional().or(z.literal('')).or(z.null()),
     phone: z.string().optional(),
     email: z.string().email().optional().or(z.literal('')),
     city: z.string().optional().default('Nairobi'),
@@ -28,7 +29,8 @@ export const createClubWithManagerSchema = z.object({
     // Club fields
     name: z.string().min(2, 'Club name must be at least 2 characters'),
     slug: z.string().min(2, 'Slug must be at least 2 characters').regex(/^[a-z0-9-]+$/, 'Slug may only contain lowercase letters, numbers, and hyphens'),
-    logoUrl: z.string().url().optional().or(z.literal('')),
+    logoUrl: z.string().url().optional().or(z.literal('')).or(z.null()),
+    bannerUrl: z.string().url().optional().or(z.literal('')).or(z.null()),
     phone: z.string().optional(),
     email: z.string().email().optional().or(z.literal('')),
     city: z.string().optional().default('Nairobi'),
@@ -55,6 +57,7 @@ export const updateClubSchema = z.object({
     name: z.string().min(2).optional(),
     slug: z.string().min(2).optional(),
     logoUrl: z.string().url().optional().or(z.literal('')).or(z.null()),
+    bannerUrl: z.string().url().optional().or(z.literal('')).or(z.null()),
     phone: z.string().optional().or(z.literal('')).or(z.null()),
     email: z.string().email().optional().or(z.literal('')).or(z.null()),
     city: z.string().optional(),

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { io, Socket } from 'socket.io-client';
 import { ThemeToggle } from '@drinkhub/ui';
 import {
   Wine, LayoutDashboard, DollarSign, TrendingUp, Users, ShieldAlert,
@@ -6,7 +7,9 @@ import {
   AlertCircle, ChevronDown, Smartphone, CreditCard, Banknote, Building2,
   Table, Eye, Filter, ArrowUpRight, ArrowDownRight, Sparkles, Percent,
   Flame, Award, Search, Check, Layers, BarChart3, PieChart as PieIcon,
-  SlidersHorizontal, Zap, ArrowRight, ShieldCheck, Activity
+  SlidersHorizontal, Zap, ArrowRight, ShieldCheck, Activity, Printer,
+  Phone, Mail, MapPin, Camera, Image, Upload, Trash2, Edit2, X, Lock,
+  ChevronRight, ExternalLink
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis,
@@ -18,9 +21,17 @@ import { getApiUrl } from '../config/api';
 /* ─── API Auth Helpers ─── */
 const authHeaders = (): Record<string, string> => {
   const token = localStorage.getItem('drinkhub_token');
+  const userStr = localStorage.getItem('drinkhub_user');
+  let clubUuid = '';
+  try {
+    const user = userStr ? JSON.parse(userStr) : null;
+    clubUuid = user?.clubUuid || user?.club?.clubUuid || user?.club?.uuid || '';
+  } catch {}
+
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(clubUuid ? { 'x-tenant-id': clubUuid } : {}),
   };
 };
 
@@ -53,6 +64,29 @@ const Toast = ({ msg, type = 'success', onDone }: { msg: string; type?: 'success
   );
 };
 
+/* ─── Modal Primitive ─── */
+const Modal = ({ open, onClose, title, size = 'md', children }: { open: boolean; onClose: () => void; title: string; size?: 'sm' | 'md' | 'lg'; children: React.ReactNode }) => {
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+  if (!open) return null;
+  const w = size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-3xl' : 'max-w-md';
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in" onClick={onClose}>
+      <div className={`w-full ${w} rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl max-h-[90vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+          <h3 className="text-base font-black text-slate-900 dark:text-white">{title}</h3>
+          <button onClick={onClose} className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+};
+
 /* ─── Section Header ─── */
 const SectionHeader = ({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) => (
   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
@@ -60,7 +94,7 @@ const SectionHeader = ({ title, subtitle, action }: { title: string; subtitle?: 
       <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">{title}</h2>
       {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>}
     </div>
-    {action && <div className="flex items-center gap-2">{action}</div>}
+    {action && <div className="flex items-center gap-2 flex-wrap">{action}</div>}
   </div>
 );
 
@@ -116,6 +150,17 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
+/* ─── Brand Presets Palette ─── */
+const BRAND_PRESETS = [
+  { name: 'DrinkHub Gold', color: '#D97706' },
+  { name: 'Royal Crimson', color: '#DC2626' },
+  { name: 'Nightlife Sapphire', color: '#2563EB' },
+  { name: 'Neon Purple', color: '#7C3AED' },
+  { name: 'Emerald VIP', color: '#059669' },
+  { name: 'Rose Luxury', color: '#E11D48' },
+  { name: 'Midnight Charcoal', color: '#1E293B' },
+];
+
 /* ─── Tab Keys ─── */
 type OwnerTab = 'overview' | 'financials' | 'floor' | 'products' | 'staff' | 'loss-prevention' | 'reports' | 'settings';
 
@@ -137,13 +182,48 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
   const [staff, setStaff] = useState<any[]>([]);
   const [menu, setMenu] = useState<any>(null);
   const [club, setClub] = useState<any>(null);
+  const [clubsList, setClubsList] = useState<any[]>([]);
+  const [selectedClubUuid, setSelectedClubUuid] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
+  /* Floor Table Selection Modal */
+  const [selectedTable, setSelectedTable] = useState<any | null>(null);
+
+  /* Order Filter & Search */
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState('ALL');
+
+  /* Settings Form State */
+  const [settingsForm, setSettingsForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    city: 'Nairobi',
+    county: 'Nairobi',
+    address: '',
+    brandColor: '#2563EB',
+    openingHours: '16:00',
+    closingHours: '04:00',
+    logoUrl: '',
+    bannerUrl: '',
+  });
+  const [savingSettings, setSavingSettings] = useState(false);
+
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
   };
+
+  /* Initialize Active Club UUID from session */
+  useEffect(() => {
+    try {
+      const userStr = localStorage.getItem('drinkhub_user');
+      const u = userStr ? JSON.parse(userStr) : null;
+      const cUuid = u?.clubUuid || u?.club?.clubUuid || u?.club?.uuid || '';
+      if (cUuid) setSelectedClubUuid(cUuid);
+    } catch {}
+  }, []);
 
   /* ─── Fetch All Business Data from Live DB ─── */
   const fetchAllData = useCallback(async (showNotification = false) => {
@@ -151,17 +231,18 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
       setRefreshing(true);
       const userStr = localStorage.getItem('drinkhub_user');
       const currentUser = userStr ? JSON.parse(userStr) : null;
-      const clubUuid = currentUser?.clubUuid || '';
+      const effectiveClubUuid = selectedClubUuid || currentUser?.clubUuid || '';
 
       const headers = authHeaders();
 
       // Parallel requests to backend APIs
-      const [analyticsRes, ordersRes, staffRes, menuRes, clubRes] = await Promise.all([
-        fetch(getApiUrl(`/reports/analytics?period=${period}`), { headers }).catch(() => null),
+      const [analyticsRes, ordersRes, staffRes, menuRes, clubRes, allClubsRes] = await Promise.all([
+        fetch(getApiUrl(`/reports/analytics?period=${period}${effectiveClubUuid ? `&clubUuid=${effectiveClubUuid}` : ''}`), { headers }).catch(() => null),
         fetch(getApiUrl('/orders'), { headers }).catch(() => null),
         fetch(getApiUrl('/auth/staff'), { headers }).catch(() => null),
         fetch(getApiUrl('/menu'), { headers }).catch(() => null),
-        clubUuid ? fetch(getApiUrl(`/tenants/${clubUuid}`), { headers }).catch(() => null) : Promise.resolve(null),
+        effectiveClubUuid ? fetch(getApiUrl(`/tenants/${effectiveClubUuid}`), { headers }).catch(() => null) : Promise.resolve(null),
+        fetch(getApiUrl('/tenants'), { headers }).catch(() => null),
       ]);
 
       if (analyticsRes?.ok) {
@@ -182,12 +263,32 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
       }
       if (clubRes?.ok) {
         const d = await clubRes.json();
-        setClub(d.data?.club ?? d.data ?? null);
+        const loadedClub = d.data?.club ?? d.data ?? null;
+        setClub(loadedClub);
+        if (loadedClub) {
+          setSettingsForm({
+            name: loadedClub.name || '',
+            phone: loadedClub.phone || '',
+            email: loadedClub.email || '',
+            city: loadedClub.city || 'Nairobi',
+            county: loadedClub.county || 'Nairobi',
+            address: loadedClub.address || '',
+            brandColor: loadedClub.brandColor || '#2563EB',
+            openingHours: loadedClub.openingHours || '16:00',
+            closingHours: loadedClub.closingHours || '04:00',
+            logoUrl: loadedClub.logoUrl || '',
+            bannerUrl: loadedClub.bannerUrl || '',
+          });
+        }
+      }
+      if (allClubsRes?.ok) {
+        const d = await allClubsRes.json();
+        setClubsList(d.data ?? []);
       }
 
       // Fetch tables
-      if (clubUuid) {
-        const tablesRes = await fetch(getApiUrl(`/tenants/${clubUuid}/tables`), { headers }).catch(() => null);
+      if (effectiveClubUuid) {
+        const tablesRes = await fetch(getApiUrl(`/tenants/${effectiveClubUuid}/tables`), { headers }).catch(() => null);
         if (tablesRes?.ok) {
           const td = await tablesRes.json();
           setTables(td.data?.tables ?? td.data ?? []);
@@ -196,7 +297,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
 
       setLastUpdated(new Date());
       if (showNotification) {
-        showToast('Business dashboard updated with live database data');
+        showToast('Business dashboard synchronized with live database');
       }
     } catch (err: any) {
       console.error('Owner dashboard fetch error:', err);
@@ -204,14 +305,44 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
       setLoading(false);
       setRefreshing(false);
     }
-  }, [period]);
+  }, [period, selectedClubUuid]);
 
   useEffect(() => {
     fetchAllData();
-    // Live background polling every 8 seconds
+    // 8-second live sync interval
     const interval = setInterval(() => fetchAllData(false), 8000);
     return () => clearInterval(interval);
   }, [fetchAllData]);
+
+  /* ─── Real-Time WebSocket Event Listener ─── */
+  useEffect(() => {
+    try {
+      const envUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
+      const socketUrl = envUrl.replace(/\/api\/v1\/?$/, '');
+      const socket: Socket = io(socketUrl, {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionDelay: 3000,
+      });
+
+      socket.on('connect', () => {
+        const userStr = localStorage.getItem('drinkhub_user');
+        const user = userStr ? JSON.parse(userStr) : null;
+        const cUuid = selectedClubUuid || user?.clubUuid;
+        if (cUuid) socket.emit('join:club', cUuid);
+      });
+
+      socket.on('order:created', () => fetchAllData(false));
+      socket.on('order:status_updated', () => fetchAllData(false));
+      socket.on('payment:completed', () => fetchAllData(false));
+
+      return () => {
+        socket.disconnect();
+      };
+    } catch {
+      /* WebSocket optional fallback to polling */
+    }
+  }, [selectedClubUuid, fetchAllData]);
 
   /* ─── Financial Calculations ─── */
   const completedOrders = useMemo(() => orders.filter(o => o.status === 'COMPLETED' || o.status === 'DELIVERED'), [orders]);
@@ -219,7 +350,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
   const pendingOrders = useMemo(() => orders.filter(o => o.status === 'PENDING' || o.status === 'PREPARING' || o.status === 'CLAIMED' || o.status === 'READY'), [orders]);
 
   const grossRevenue = useMemo(() => completedOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0), [completedOrders]);
-  const estimatedCostOfGoods = useMemo(() => Math.round(grossRevenue * 0.38), [grossRevenue]); // standard beverage cost ratio ~38%
+  const estimatedCostOfGoods = useMemo(() => Math.round(grossRevenue * 0.38), [grossRevenue]); // standard beverage COGS ~38%
   const estimatedNetProfit = useMemo(() => Math.max(0, grossRevenue - estimatedCostOfGoods), [grossRevenue, estimatedCostOfGoods]);
   const avgOrderValue = useMemo(() => completedOrders.length > 0 ? Math.round(grossRevenue / completedOrders.length) : 0, [grossRevenue, completedOrders]);
 
@@ -234,6 +365,19 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
   }, [occupiedTablesCount, tables]);
 
   const totalVoidedValue = useMemo(() => cancelledOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0), [cancelledOrders]);
+
+  /* ─── Filtered Orders Feed ─── */
+  const filteredOrders = useMemo(() => {
+    return orders.filter(o => {
+      const matchStatus = orderStatusFilter === 'ALL' || o.status === orderStatusFilter;
+      const searchLower = orderSearch.toLowerCase();
+      const matchSearch = !searchLower ||
+        String(o.orderNumber || '').toLowerCase().includes(searchLower) ||
+        String(o.tableNumber || o.table?.tableNumber || '').includes(searchLower) ||
+        String(o.waiter?.fullName || o.waiterName || '').toLowerCase().includes(searchLower);
+      return matchStatus && matchSearch;
+    });
+  }, [orders, orderStatusFilter, orderSearch]);
 
   /* ─── Weekly Sales Trend Data ─── */
   const weeklySalesData = useMemo(() => {
@@ -259,6 +403,45 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
     { name: 'Cash', value: analytics?.paymentBreakdown?.cash?.percentage ?? 4, color: '#F59E0B', count: analytics?.paymentBreakdown?.cash?.count ?? 0 },
   ], [analytics]);
 
+  /* ─── Handle Saving Venue Configuration ─── */
+  const handleSaveVenueSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingSettings(true);
+    try {
+      const userStr = localStorage.getItem('drinkhub_user');
+      const u = userStr ? JSON.parse(userStr) : null;
+      const targetClubUuid = selectedClubUuid || u?.clubUuid || u?.club?.clubUuid;
+
+      if (!targetClubUuid) {
+        throw new Error('Club UUID not found in session.');
+      }
+
+      const res = await fetch(getApiUrl(`/tenants/${targetClubUuid}`), {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify(settingsForm),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error?.message || data?.message || 'Failed to update venue configuration');
+      }
+
+      // Update cached club
+      if (u) {
+        const updatedUser = { ...u, club: { ...(u.club || {}), ...settingsForm } };
+        localStorage.setItem('drinkhub_user', JSON.stringify(updatedUser));
+      }
+
+      showToast('✅ Venue profile & branding successfully updated in database!');
+      fetchAllData(false);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to save venue settings', 'error');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   /* ─── Navigation Items ─── */
   const navItems = [
     { key: 'overview', label: 'Executive Overview', icon: <LayoutDashboard className="h-4 w-4" /> },
@@ -268,14 +451,76 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
     { key: 'staff', label: 'Staff Leaderboard', icon: <Users className="h-4 w-4" /> },
     { key: 'loss-prevention', label: 'Loss Prevention & Audit', icon: <ShieldAlert className="h-4 w-4" /> },
     { key: 'reports', label: 'Executive Reports', icon: <BarChart3 className="h-4 w-4" /> },
-    { key: 'settings', label: 'Venue Profile', icon: <Building2 className="h-4 w-4" /> },
+    { key: 'settings', label: 'Venue Profile & Branding', icon: <Building2 className="h-4 w-4" /> },
   ];
 
-  const clubName = club?.name || 'DrinkHub Premium Lounge';
+  const clubName = club?.name || 'DrinkHub Premium Venue';
 
   return (
     <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased font-sans">
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
+
+      {/* ─── Table Detail Modal ─── */}
+      <Modal
+        open={!!selectedTable}
+        onClose={() => setSelectedTable(null)}
+        title={`Table #${selectedTable?.tableNumber || ''} Overview`}
+        size="md"
+      >
+        {selectedTable && (
+          <div className="space-y-4 text-xs">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+              <div>
+                <div className="font-bold text-sm text-slate-900 dark:text-white">Table #{selectedTable.tableNumber}</div>
+                <div className="text-[11px] text-slate-500">{selectedTable.sectionName || 'Main Floor'}</div>
+              </div>
+              <StatusBadge status={selectedTable.status || 'AVAILABLE'} />
+            </div>
+
+            {/* Active Table Orders */}
+            <div>
+              <div className="font-bold text-xs text-slate-500 uppercase tracking-wider mb-2">Orders on this Table</div>
+              {(() => {
+                const tableOrders = orders.filter(o => (o.tableUuid === selectedTable.tableUuid) || (String(o.table?.tableNumber || o.tableNumber) === String(selectedTable.tableNumber)));
+                if (tableOrders.length === 0) {
+                  return <p className="text-slate-400 py-3 text-center">No active or pending orders on this table.</p>;
+                }
+                return (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {tableOrders.map(o => (
+                      <div key={o.orderUuid || o.id} className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between">
+                        <div>
+                          <span className="font-mono font-bold text-blue-600 dark:text-blue-400">#{o.orderNumber || (o.orderUuid?.slice(0, 6).toUpperCase())}</span>
+                          <span className="ml-2 font-bold text-emerald-600">KES {Number(o.totalAmount).toLocaleString()}</span>
+                          <div className="text-[11px] text-slate-500 mt-0.5">Waiter: {o.waiter?.fullName || o.waiterName || 'Staff'}</div>
+                        </div>
+                        <StatusBadge status={o.status} />
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  window.open(`/${club?.slug || 'v'}/table/${selectedTable.tableNumber}`, '_blank');
+                }}
+                className="flex items-center gap-1.5 text-blue-600 hover:underline font-bold"
+              >
+                <ExternalLink className="h-3.5 w-3.5" /> Open Storefront QR Link
+              </button>
+              <button
+                onClick={() => setSelectedTable(null)}
+                className="px-4 py-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* ─── Sidebar ─── */}
       <aside
@@ -363,12 +608,25 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                {clubName} · Last synchronized at {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                {clubName} · Last updated at {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Multi-Venue Switcher if multiple clubs available */}
+            {clubsList.length > 1 && (
+              <select
+                value={selectedClubUuid}
+                onChange={e => setSelectedClubUuid(e.target.value)}
+                className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none"
+              >
+                {clubsList.map(c => (
+                  <option key={c.clubUuid} value={c.clubUuid}>{c.name}</option>
+                ))}
+              </select>
+            )}
+
             {/* Period Selector */}
             <div className="hidden sm:flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-bold">
               {(['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'] as const).map(p => (
@@ -533,14 +791,38 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
                 </div>
               </div>
 
-              {/* Live Floor Activity & Recent Orders Table */}
+              {/* Live Floor Activity & Recent Orders Table with Search/Filter */}
               <div className="rounded-2xl border p-6 bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-black text-slate-900 dark:text-white">Real-Time Floor Activity</h3>
                     <p className="text-xs text-slate-500">Live order feed streaming straight from the floor</p>
                   </div>
-                  <span className="text-xs font-bold text-slate-500">{orders.length} total orders recorded</span>
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Search orders..."
+                        value={orderSearch}
+                        onChange={e => setOrderSearch(e.target.value)}
+                        className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs bg-slate-50 dark:bg-slate-800 outline-none"
+                      />
+                    </div>
+                    <select
+                      value={orderStatusFilter}
+                      onChange={e => setOrderStatusFilter(e.target.value)}
+                      className="rounded-xl border border-slate-200 dark:border-slate-700 text-xs bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 outline-none font-bold"
+                    >
+                      <option value="ALL">All Statuses</option>
+                      <option value="PENDING">Pending</option>
+                      <option value="PREPARING">Preparing</option>
+                      <option value="READY">Ready</option>
+                      <option value="DELIVERED">Delivered</option>
+                      <option value="COMPLETED">Completed</option>
+                      <option value="CANCELLED">Cancelled</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -557,7 +839,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                      {orders.slice(0, 8).map(o => (
+                      {filteredOrders.slice(0, 10).map(o => (
                         <tr key={o.orderUuid || o.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
                           <td className="py-3 px-2 font-mono font-bold text-xs text-blue-600 dark:text-blue-400">
                             #{o.orderNumber || (o.orderUuid ? o.orderUuid.slice(0, 6).toUpperCase() : 'ORD')}
@@ -682,7 +964,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
             <div className="space-y-6 animate-fade-in">
               <SectionHeader
                 title="Live Floor & Table Map"
-                subtitle="Real-time seating map, occupancy status, and table turnover"
+                subtitle="Real-time seating map, occupancy status, and table turnover (Click any table to inspect)"
                 action={
                   <div className="flex items-center gap-3">
                     <span className="text-xs font-bold text-slate-500">
@@ -705,7 +987,8 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
                   return (
                     <div
                       key={t.tableUuid || t.tableNumber}
-                      className={`p-4 rounded-2xl border transition-all ${
+                      onClick={() => setSelectedTable(t)}
+                      className={`p-4 rounded-2xl border transition-all cursor-pointer hover:scale-[1.02] ${
                         isOcc
                           ? 'bg-blue-50/80 border-blue-300 dark:bg-blue-950/40 dark:border-blue-800 shadow-sm'
                           : isRes
@@ -964,6 +1247,14 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
               <SectionHeader
                 title="Executive Business Reports"
                 subtitle="Download ready-to-print comprehensive business audits and spreadsheets"
+                action={
+                  <button
+                    onClick={() => window.print()}
+                    className="flex items-center gap-2 rounded-xl bg-blue-600 text-white px-4 py-2 text-xs font-bold hover:bg-blue-700 transition shadow-sm"
+                  >
+                    <Printer className="h-3.5 w-3.5" /> Print Boardroom Summary
+                  </button>
+                }
               />
 
               <div className="space-y-4">
@@ -1042,66 +1333,204 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ onLogout, onSwit
           )}
 
           {/* ========================================================
-              TAB 8: VENUE PROFILE & SETTINGS
+              TAB 8: VENUE PROFILE & BRANDING SETTINGS (EDITABLE)
              ======================================================== */}
           {activeTab === 'settings' && (
-            <div className="space-y-6 animate-fade-in max-w-2xl">
+            <div className="space-y-6 animate-fade-in max-w-3xl">
               <SectionHeader
                 title="Venue Profile & Executive Configuration"
-                subtitle="Verify venue contact info, brand colors, and operating hours"
+                subtitle="Control venue identity, operating hours, brand theme color, and digital banners"
               />
 
-              <div className="rounded-2xl border p-6 bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
-                <div className="flex items-center gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
-                  <div className="h-14 w-14 rounded-2xl bg-amber-500/15 text-amber-600 flex items-center justify-center flex-shrink-0 font-black text-xl border border-amber-500/30">
-                    {club?.logoUrl ? (
-                      <img src={club.logoUrl} alt={clubName} className="h-full w-full object-cover rounded-2xl" />
-                    ) : (
-                      <Wine className="h-7 w-7" />
-                    )}
+              <form onSubmit={handleSaveVenueSettings} className="space-y-6">
+                {/* Visual Identity Card */}
+                <div className="rounded-2xl border p-6 bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 shadow-sm space-y-5">
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white">Venue Identity & Storefront Appearance</h3>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                        Venue Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={settingsForm.name}
+                        onChange={e => setSettingsForm({ ...settingsForm, name: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                        placeholder="e.g. The Alchemist Westlands"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                        Contact Phone
+                      </label>
+                      <input
+                        type="tel"
+                        value={settingsForm.phone}
+                        onChange={e => setSettingsForm({ ...settingsForm, phone: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                        placeholder="+254 700 000 000"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                        Contact Email
+                      </label>
+                      <input
+                        type="email"
+                        value={settingsForm.email}
+                        onChange={e => setSettingsForm({ ...settingsForm, email: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                        placeholder="info@venue.co.ke"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                        City & County
+                      </label>
+                      <input
+                        type="text"
+                        value={settingsForm.city}
+                        onChange={e => setSettingsForm({ ...settingsForm, city: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                        placeholder="Nairobi"
+                      />
+                    </div>
                   </div>
+
                   <div>
-                    <h3 className="font-black text-base text-slate-900 dark:text-white">{clubName}</h3>
-                    <p className="text-xs text-slate-500">{club?.city || 'Nairobi'}, {club?.county || 'Kenya'} · {club?.address || 'Prime Location'}</p>
-                    <span className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-                      Verified Venue
-                    </span>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                      Physical Location / Address
+                    </label>
+                    <input
+                      type="text"
+                      value={settingsForm.address}
+                      onChange={e => setSettingsForm({ ...settingsForm, address: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                      placeholder="e.g. Parklands Road, Westlands"
+                    />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 text-xs">
-                  <div>
-                    <span className="font-bold text-slate-400 block mb-0.5">Operating Hours</span>
-                    <span className="font-black text-slate-900 dark:text-white">{club?.openingHours || '16:00'} - {club?.closingHours || '04:00'}</span>
+                {/* Operating Hours & Brand Theme Card */}
+                <div className="rounded-2xl border p-6 bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 shadow-sm space-y-5">
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white">Operating Hours & Brand Theme</h3>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                        Opening Time
+                      </label>
+                      <input
+                        type="time"
+                        value={settingsForm.openingHours}
+                        onChange={e => setSettingsForm({ ...settingsForm, openingHours: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                        Closing Time
+                      </label>
+                      <input
+                        type="time"
+                        value={settingsForm.closingHours}
+                        onChange={e => setSettingsForm({ ...settingsForm, closingHours: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
                   </div>
+
+                  {/* Brand Color Picker */}
                   <div>
-                    <span className="font-bold text-slate-400 block mb-0.5">Phone Number</span>
-                    <span className="font-black text-slate-900 dark:text-white">{club?.phone || '+254 700 000 000'}</span>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-2">
+                      Brand Accent Color
+                    </label>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {BRAND_PRESETS.map(p => (
+                        <button
+                          key={p.color}
+                          type="button"
+                          onClick={() => setSettingsForm({ ...settingsForm, brandColor: p.color })}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition ${
+                            settingsForm.brandColor === p.color
+                              ? 'border-amber-500 ring-2 ring-amber-500/30'
+                              : 'border-slate-200 dark:border-slate-700'
+                          }`}
+                        >
+                          <span className="h-3.5 w-3.5 rounded-full" style={{ background: p.color }} />
+                          <span>{p.name}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div>
-                    <span className="font-bold text-slate-400 block mb-0.5">Contact Email</span>
-                    <span className="font-black text-slate-900 dark:text-white">{club?.email || 'owner@venue.co.ke'}</span>
-                  </div>
-                  <div>
-                    <span className="font-bold text-slate-400 block mb-0.5">Brand Theme Color</span>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <div className="h-4 w-4 rounded-full border border-slate-300" style={{ background: club?.brandColor || '#2563EB' }} />
-                      <span className="font-mono font-bold text-slate-900 dark:text-white">{club?.brandColor || '#2563EB'}</span>
+
+                  {/* Logo & Banner URL inputs */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                        Club Logo Image URL
+                      </label>
+                      <input
+                        type="url"
+                        value={settingsForm.logoUrl}
+                        onChange={e => setSettingsForm({ ...settingsForm, logoUrl: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                        placeholder="https://..."
+                      />
+                      {settingsForm.logoUrl && (
+                        <div className="mt-2 h-14 w-14 rounded-xl border p-1 bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
+                          <img src={settingsForm.logoUrl} alt="Logo Preview" className="h-full w-full object-contain rounded-lg" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                        Banner Image URL
+                      </label>
+                      <input
+                        type="url"
+                        value={settingsForm.bannerUrl}
+                        onChange={e => setSettingsForm({ ...settingsForm, bannerUrl: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                        placeholder="https://..."
+                      />
+                      {settingsForm.bannerUrl && (
+                        <div className="mt-2 h-14 w-full rounded-xl border p-1 bg-slate-50 dark:bg-slate-800 overflow-hidden">
+                          <img src={settingsForm.bannerUrl} alt="Banner Preview" className="h-full w-full object-cover rounded-lg" />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                {onSwitchToManager && (
-                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                {/* Submit button */}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="submit"
+                    disabled={savingSettings}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-amber-500 text-white font-black text-xs hover:bg-amber-600 transition shadow-md shadow-amber-500/25 disabled:opacity-50"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    {savingSettings ? 'Saving Configuration...' : 'Save Venue Configuration'}
+                  </button>
+                  {onSwitchToManager && (
                     <button
+                      type="button"
                       onClick={onSwitchToManager}
-                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 transition shadow-sm"
+                      className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                     >
-                      <SlidersHorizontal className="h-4 w-4" /> Open Full Manager Operations Portal
+                      Jump to Manager Operations
                     </button>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              </form>
             </div>
           )}
         </main>

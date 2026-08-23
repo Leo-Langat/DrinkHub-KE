@@ -257,13 +257,29 @@ export const App: React.FC = () => {
                 />
               }
             />
-            <Route path="/manager/dashboard" element={<ManagerDashboard onLogout={handleLogout} />} />
+            <Route
+              path="/manager/dashboard"
+              element={
+                <ManagerDashboard
+                  onLogout={handleLogout}
+                  onSwitchToOwner={() => setSession({ role: 'owner' })}
+                />
+              }
+            />
             <Route path="*" element={<Navigate to="/owner/dashboard" replace />} />
           </>
         )}
         {session.role === 'manager' && (
           <>
-            <Route path="/manager/dashboard" element={<ManagerDashboard onLogout={handleLogout} />} />
+            <Route
+              path="/manager/dashboard"
+              element={
+                <ManagerDashboard
+                  onLogout={handleLogout}
+                  onSwitchToOwner={() => setSession({ role: 'owner' })}
+                />
+              }
+            />
             <Route
               path="/owner/dashboard"
               element={

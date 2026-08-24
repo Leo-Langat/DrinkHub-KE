@@ -580,7 +580,7 @@ const StaffManagementPage = ({ showToast }: { showToast: (m: string) => void }) 
 
   return (
     <div className="space-y-5">
-      <SectionHeader title="Staff Management" subtitle="Manage waiters for your venue — only managers can create staff" action={
+      <SectionHeader title="Staff Management" subtitle="Manage floor waiters and service staff for your venue" action={
         <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold text-white hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>
           <Plus className="h-3.5 w-3.5" /> Add Waiter
         </button>
@@ -3315,8 +3315,15 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void; onSwitchToOwner?
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
       <aside className="flex-shrink-0 flex flex-col sticky top-0 h-screen transition-all duration-200" style={{ width: collapsed ? '64px' : '210px', background: 'var(--bg-sidebar)', borderRight: '1px solid #1E293B' }}>
         <div className="flex items-center gap-3 p-4 border-b" style={{ borderColor: '#1E293B' }}>
-          <button onClick={() => setCollapsed(v => !v)} className="h-8 w-8 rounded-lg bg-blue-600 flex-shrink-0 flex items-center justify-center hover:bg-blue-700 transition-colors"><Wine className="h-4 w-4 text-white" /></button>
-          {!collapsed && <div className="overflow-hidden"><div className="text-sm font-black text-white truncate">{clubName}</div><div className="text-[10px] text-slate-500 truncate">Manager Portal</div></div>}
+          <button onClick={() => setCollapsed(v => !v)} className="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-600 flex-shrink-0 flex items-center justify-center hover:scale-105 transition shadow-md shadow-indigo-500/20"><Wine className="h-4 w-4 text-white" /></button>
+          {!collapsed && (
+            <div className="overflow-hidden">
+              <div className="text-sm font-black text-white truncate">{clubName}</div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1">
+                <Briefcase className="h-3 w-3" /> Operations Command
+              </div>
+            </div>
+          )}
         </div>
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
           {NAV_ITEMS.map(item => (

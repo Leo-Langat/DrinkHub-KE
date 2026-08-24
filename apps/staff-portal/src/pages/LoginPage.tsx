@@ -313,7 +313,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 }}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-lg text-xs font-bold transition-all duration-200"
                 style={{
-                  background: role === r ? (r === 'owner' ? '#D97706' : '#2563EB') : 'transparent',
+                  background: role === r ? (r === 'owner' ? '#D97706' : r === 'waiter' ? '#059669' : '#4F46E5') : 'transparent',
                   color: role === r ? '#FFFFFF' : 'var(--text-secondary)',
                 }}
               >

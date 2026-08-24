@@ -26,13 +26,20 @@ export const App: React.FC = () => {
           localStorage.removeItem('drinkhub_refresh_token');
           localStorage.removeItem('drinkhub_user');
           localStorage.removeItem('drinkhub_login_time');
+          localStorage.removeItem('drinkhub_session_role');
           return null;
+        }
+
+        const savedRole = localStorage.getItem('drinkhub_session_role') as StaffRole | null;
+        if (savedRole && (savedRole === 'waiter' || savedRole === 'manager' || savedRole === 'owner')) {
+          return { role: savedRole };
         }
 
         const user = JSON.parse(userStr);
         if (user.role === 'WAITER') return { role: 'waiter' };
+        if (user.role === 'MANAGER') return { role: 'manager' };
         if (user.role === 'CLUB_ADMIN') return { role: 'owner' };
-        if (user.role === 'MANAGER' || user.role === 'PLATFORM_ADMIN') return { role: 'manager' };
+        if (user.role === 'PLATFORM_ADMIN') return { role: 'manager' };
       }
     } catch {
       /* ignore parse error */
@@ -52,14 +59,21 @@ export const App: React.FC = () => {
     localStorage.removeItem('drinkhub_refresh_token');
     localStorage.removeItem('drinkhub_user');
     localStorage.removeItem('drinkhub_login_time');
+    localStorage.removeItem('drinkhub_session_role');
     setSession(null);
     setIdleWarning(false);
   }, []);
 
   const handleLogin = (role: StaffRole) => {
     lastActivityRef.current = Date.now();
+    localStorage.setItem('drinkhub_session_role', role);
     setSession({ role });
     setIdleWarning(false);
+  };
+
+  const handleSwitchRole = (newRole: StaffRole) => {
+    localStorage.setItem('drinkhub_session_role', newRole);
+    setSession({ role: newRole });
   };
 
   /** Called when user clicks "Stay Logged In" on the warning banner */
@@ -253,7 +267,7 @@ export const App: React.FC = () => {
               element={
                 <OwnerDashboard
                   onLogout={handleLogout}
-                  onSwitchToManager={() => setSession({ role: 'manager' })}
+                  onSwitchToManager={() => handleSwitchRole('manager')}
                 />
               }
             />
@@ -262,7 +276,7 @@ export const App: React.FC = () => {
               element={
                 <ManagerDashboard
                   onLogout={handleLogout}
-                  onSwitchToOwner={() => setSession({ role: 'owner' })}
+                  onSwitchToOwner={() => handleSwitchRole('owner')}
                 />
               }
             />
@@ -276,7 +290,7 @@ export const App: React.FC = () => {
               element={
                 <ManagerDashboard
                   onLogout={handleLogout}
-                  onSwitchToOwner={() => setSession({ role: 'owner' })}
+                  onSwitchToOwner={() => handleSwitchRole('owner')}
                 />
               }
             />
@@ -285,7 +299,7 @@ export const App: React.FC = () => {
               element={
                 <OwnerDashboard
                   onLogout={handleLogout}
-                  onSwitchToManager={() => setSession({ role: 'manager' })}
+                  onSwitchToManager={() => handleSwitchRole('manager')}
                 />
               }
             />

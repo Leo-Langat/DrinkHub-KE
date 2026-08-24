@@ -103,7 +103,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         return;
       }
 
-      onLogin(role === 'owner' ? 'owner' : (userRole === 'CLUB_ADMIN' && role !== 'waiter' ? 'owner' : role));
+      localStorage.setItem('drinkhub_session_role', role);
+      onLogin(role);
     } catch (err: any) {
       // If network fails (e.g. backend server offline / sleeping on cold start or running on demo frontend)
       if (role === 'owner' || role === 'manager') {
@@ -332,8 +333,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 onClick={() => {
                   if (role === 'waiter') {
                     setUsername('waiter.kamau@alchemist.co.ke');
-                  } else {
+                  } else if (role === 'owner') {
                     setUsername('admin@alchemist.co.ke');
+                  } else {
+                    setUsername('manager@alchemist.co.ke');
                   }
                   setPassword('Password123!');
                 }}
@@ -343,7 +346,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               </button>
             </div>
             <p className="text-[11px] text-blue-700">
-              {role === 'waiter' ? 'waiter.kamau@alchemist.co.ke' : 'admin@alchemist.co.ke'} / Password123!
+              {role === 'waiter' ? 'waiter.kamau@alchemist.co.ke' : role === 'owner' ? 'admin@alchemist.co.ke' : 'manager@alchemist.co.ke (or admin@alchemist.co.ke)'} / Password123!
             </p>
           </div>
 

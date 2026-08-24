@@ -3,11 +3,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { LoginPage } from './pages/LoginPage';
 import { WaiterDashboard } from './pages/WaiterDashboard';
 import { ManagerDashboard } from './pages/ManagerDashboard';
-import { OwnerDashboard } from './pages/OwnerDashboard';
 import { isJwtExpired, isSessionExpired, IDLE_TIMEOUT_MS, WARN_BEFORE_TIMEOUT_MS, MAX_SESSION_MS, getTokenRemainingTime } from '@drinkhub/shared';
 import { getApiUrl } from './config/api';
 
-type StaffRole = 'waiter' | 'manager' | 'owner';
+type StaffRole = 'waiter' | 'manager';
 interface Session { role: StaffRole }
 
 export const App: React.FC = () => {
@@ -26,20 +25,12 @@ export const App: React.FC = () => {
           localStorage.removeItem('drinkhub_refresh_token');
           localStorage.removeItem('drinkhub_user');
           localStorage.removeItem('drinkhub_login_time');
-          localStorage.removeItem('drinkhub_session_role');
           return null;
-        }
-
-        const savedRole = localStorage.getItem('drinkhub_session_role') as StaffRole | null;
-        if (savedRole && (savedRole === 'waiter' || savedRole === 'manager' || savedRole === 'owner')) {
-          return { role: savedRole };
         }
 
         const user = JSON.parse(userStr);
         if (user.role === 'WAITER') return { role: 'waiter' };
-        if (user.role === 'MANAGER') return { role: 'manager' };
-        if (user.role === 'CLUB_ADMIN') return { role: 'owner' };
-        if (user.role === 'PLATFORM_ADMIN') return { role: 'manager' };
+        if (user.role === 'MANAGER' || user.role === 'CLUB_ADMIN' || user.role === 'PLATFORM_ADMIN') return { role: 'manager' };
       }
     } catch {
       /* ignore parse error */
@@ -59,21 +50,14 @@ export const App: React.FC = () => {
     localStorage.removeItem('drinkhub_refresh_token');
     localStorage.removeItem('drinkhub_user');
     localStorage.removeItem('drinkhub_login_time');
-    localStorage.removeItem('drinkhub_session_role');
     setSession(null);
     setIdleWarning(false);
   }, []);
 
   const handleLogin = (role: StaffRole) => {
     lastActivityRef.current = Date.now();
-    localStorage.setItem('drinkhub_session_role', role);
     setSession({ role });
     setIdleWarning(false);
-  };
-
-  const handleSwitchRole = (newRole: StaffRole) => {
-    localStorage.setItem('drinkhub_session_role', newRole);
-    setSession({ role: newRole });
   };
 
   /** Called when user clicks "Stay Logged In" on the warning banner */
@@ -187,7 +171,7 @@ export const App: React.FC = () => {
     return <LoginPage onLogin={handleLogin} />;
   }
 
-  const roleName = session.role === 'waiter' ? 'Waiter' : session.role === 'owner' ? 'Owner' : 'Manager';
+  const roleName = session.role === 'waiter' ? 'Waiter' : 'Manager';
   const warnMins = Math.floor(idleCountdown / 60);
   const warnSecs = String(idleCountdown % 60).padStart(2, '0');
 
@@ -260,45 +244,16 @@ export const App: React.FC = () => {
         </div>
       )}
       <Routes>
-        {session.role === 'owner' && (
-          <>
-            <Route
-              path="/owner/dashboard"
-              element={
-                <OwnerDashboard
-                  onLogout={handleLogout}
-                  onSwitchToManager={() => handleSwitchRole('manager')}
-                />
-              }
-            />
-            <Route
-              path="/manager/dashboard"
-              element={
-                <ManagerDashboard
-                  onLogout={handleLogout}
-                />
-              }
-            />
-            <Route path="*" element={<Navigate to="/owner/dashboard" replace />} />
-          </>
-        )}
-        {session.role === 'manager' && (
-          <>
-            <Route
-              path="/manager/dashboard"
-              element={
-                <ManagerDashboard
-                  onLogout={handleLogout}
-                />
-              }
-            />
-            <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
-          </>
-        )}
         {session.role === 'waiter' && (
           <>
             <Route path="/waiter/dashboard" element={<WaiterDashboard onLogout={handleLogout} />} />
             <Route path="*" element={<Navigate to="/waiter/dashboard" replace />} />
+          </>
+        )}
+        {session.role === 'manager' && (
+          <>
+            <Route path="/manager/dashboard" element={<ManagerDashboard onLogout={handleLogout} />} />
+            <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </>
         )}
       </Routes>

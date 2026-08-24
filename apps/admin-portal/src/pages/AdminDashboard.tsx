@@ -203,7 +203,7 @@ const auditLogs: { id: string; action: string; actor: string; resource: string; 
 ══════════════════════════════════════ */
 const STEPS = [
   { n: 1, label: 'Club Information', icon: <Building2 className="h-4 w-4" /> },
-  { n: 2, label: 'Venue Owner Account', icon: <UserCog className="h-4 w-4" /> },
+  { n: 2, label: 'Manager Account', icon: <UserCog className="h-4 w-4" /> },
   { n: 3, label: 'Subscription', icon: <CreditCard className="h-4 w-4" /> },
 ];
 
@@ -356,7 +356,7 @@ const Step2 = ({ f, set, errors }: { f: CF; set: (k: keyof CF, v: string) => voi
       <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 flex gap-3">
         <Lock className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-blue-700 leading-relaxed">
-          The <strong>venue owner</strong> will receive a welcome email with these credentials, access the <strong>Owner Command Center</strong>, and be <strong>required to change their temporary password on first login</strong>. The owner will then be able to create and assign managers.
+          The manager will receive a welcome email with these credentials and will be <strong>required to change their temporary password on first login</strong>.
         </p>
       </div>
       <div className="grid grid-cols-2 gap-4">
@@ -442,7 +442,7 @@ const Step3 = ({ f, set }: { f: CF; set: (k: keyof CF, v: string) => void }) => 
     </div>
     <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
       <p className="text-xs text-emerald-700 font-medium">
-        ✓ After submission, a welcome email will be sent to the venue owner with login credentials and access to the Owner Command Center.
+        ✓ After submission, a welcome email will be sent to the manager with login credentials and the club onboarding guide.
       </p>
     </div>
   </div>
@@ -460,8 +460,8 @@ const SuccessView = ({ f, onViewClub, onCreateAnother }: { f: CF; onViewClub: ()
     </p>
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 text-left w-full max-w-sm mb-6 space-y-3">
       <div className="flex justify-between text-sm"><span className="text-slate-500">Club</span><span className="font-bold text-slate-900">{f.name}</span></div>
-      <div className="flex justify-between text-sm"><span className="text-slate-500">Venue Owner</span><span className="font-bold text-slate-900">{f.mgrFirstName} {f.mgrLastName}</span></div>
-      <div className="flex justify-between text-sm"><span className="text-slate-500">Owner Email</span><span className="font-bold text-slate-900">{f.mgrEmail}</span></div>
+      <div className="flex justify-between text-sm"><span className="text-slate-500">Manager</span><span className="font-bold text-slate-900">{f.mgrFirstName} {f.mgrLastName}</span></div>
+      <div className="flex justify-between text-sm"><span className="text-slate-500">Manager Email</span><span className="font-bold text-slate-900">{f.mgrEmail}</span></div>
       <div className="flex justify-between text-sm"><span className="text-slate-500">Plan</span><span className="font-bold text-blue-600">{f.plan}</span></div>
       <div className="flex justify-between text-sm"><span className="text-slate-500">Status</span><StatusBadge status={f.subStatus} /></div>
     </div>
@@ -603,7 +603,7 @@ const CreateClubStepper = ({ onSuccess, onCancel }: { onSuccess: (club: Club, ma
       <div className="max-w-2xl mx-auto">
         <div className="mb-6">
           <h2 className="text-2xl font-black" style={{ color: 'var(--text-primary)' }}>Create New Club</h2>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Complete all sections to onboard a new venue and assign its venue owner.</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Complete all sections to onboard a new venue and assign its manager.</p>
         </div>
 
         <StepProgress current={step} />
@@ -993,23 +993,23 @@ const ClubDetailsPage = ({ club, managers, onBack, onReplaceManager, onUpdateClu
             </div>
           </div>
 
-          {/* Venue Owner */}
+          {/* Manager */}
           <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>👑 Venue Owner</h3>
+              <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>Club Manager</h3>
               <button onClick={() => setShowReplace(true)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors">
-                <RotateCcw className="h-3.5 w-3.5" /> Replace Owner
+                <RotateCcw className="h-3.5 w-3.5" /> Replace Manager
               </button>
             </div>
             {manager ? (
               <>
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center font-bold text-amber-700 flex-shrink-0">
+                  <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center font-bold text-blue-700 flex-shrink-0">
                     {manager.firstName[0]}{manager.lastName[0]}
                   </div>
                   <div>
                     <div className="font-black text-base" style={{ color: 'var(--text-primary)' }}>{manager.firstName} {manager.lastName}</div>
-                    <div className="text-xs" style={{ color: 'var(--text-muted)' }}>@{manager.username} · <span className="text-amber-600 font-bold">Venue Owner</span></div>
+                    <div className="text-xs" style={{ color: 'var(--text-muted)' }}>@{manager.username}</div>
                   </div>
                   <StatusBadge status={manager.status} />
                 </div>
@@ -1023,11 +1023,11 @@ const ClubDetailsPage = ({ club, managers, onBack, onReplaceManager, onUpdateClu
                     <Key className="h-3.5 w-3.5" /> Reset Password
                   </button>
                   <button onClick={() => showToast(`${manager.firstName}'s account deactivated`)} className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
-                    <UserX className="h-3.5 w-3.5" /> Deactivate Owner
+                    <UserX className="h-3.5 w-3.5" /> Deactivate Manager
                   </button>
                 </div>
               </>
-            ) : <p className="text-sm text-slate-400">No venue owner assigned.</p>}
+            ) : <p className="text-sm text-slate-400">No manager assigned.</p>}
           </div>
         </div>
 
@@ -1076,16 +1076,16 @@ const ClubDetailsPage = ({ club, managers, onBack, onReplaceManager, onUpdateClu
         showToast={showToast}
       />
 
-      {/* Replace Venue Owner Modal */}
-      <Modal open={showReplace} onClose={() => setShowReplace(false)} title="Replace Venue Owner">
+      {/* Replace Manager Modal */}
+      <Modal open={showReplace} onClose={() => setShowReplace(false)} title="Replace Club Manager">
         <div className="space-y-4">
           <div className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-xs text-amber-700">
-            The current venue owner will be deactivated and a new venue owner account (CLUB_ADMIN) will be created for this club. The new owner will then be able to log into the Owner Command Center and create managers.
+            The current manager will be deactivated and a new manager account will be created for this club.
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div><FL required>First Name</FL><SI value={replaceForm.firstName} onChange={e => setReplaceForm(p => ({ ...p, firstName: e.target.value }))} placeholder="First Name" /></div>
             <div><FL required>Last Name</FL><SI value={replaceForm.lastName} onChange={e => setReplaceForm(p => ({ ...p, lastName: e.target.value }))} placeholder="Last Name" /></div>
-            <div className="col-span-2"><FL required>Email</FL><SI type="email" value={replaceForm.email} onChange={e => setReplaceForm(p => ({ ...p, email: e.target.value }))} placeholder="new.owner@club.co.ke" /></div>
+            <div className="col-span-2"><FL required>Email</FL><SI type="email" value={replaceForm.email} onChange={e => setReplaceForm(p => ({ ...p, email: e.target.value }))} placeholder="new.manager@club.co.ke" /></div>
             <div className="col-span-2"><FL required>Phone</FL><PhoneInput value={replaceForm.phone} onChange={v => setReplaceForm(p => ({ ...p, phone: v }))} /></div>
             <div className="col-span-2">
               <FL required>Temporary Password</FL>
@@ -1232,7 +1232,7 @@ const ClubsPage = ({ showToast }: { showToast: (m: string, t?: 'success' | 'erro
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              {['Club', 'City / County', 'Plan', 'Status', 'MRR', 'Orders', 'Venue Owner', 'Actions'].map(h => (
+              {['Club', 'City / County', 'Plan', 'Status', 'MRR', 'Orders', 'Manager', 'Actions'].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-bold" style={{ color: 'var(--text-muted)' }}>{h}</th>
               ))}
             </tr>
@@ -1362,7 +1362,7 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
         return;
       }
       setManagers(prev => prev.map(m => m.id === id ? { ...m, status: newIsActive ? 'Active' : 'Suspended' } : m));
-      showToast(`${mgr.firstName}'s venue owner account ${newIsActive ? 'activated' : 'deactivated'}`);
+      showToast(`${mgr.firstName}'s account ${newIsActive ? 'activated' : 'deactivated'}`);
     } catch {
       showToast('Network error — could not update status', 'error');
     }
@@ -1403,7 +1403,7 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
           console.warn('Backend update notice:', err?.error?.message);
         }
       } catch (netErr) {
-        console.warn('Backend offline, applying venue owner changes locally in demo mode:', netErr);
+        console.warn('Backend offline, applying manager changes locally in demo mode:', netErr);
       }
 
       setManagers(prev => prev.map(m => m.id === editingManager.id ? {
@@ -1415,7 +1415,7 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
         status: editForm.status,
       } : m));
 
-      showToast('Venue owner details updated successfully');
+      showToast('Manager details updated successfully');
       setEditingManager(null);
     } catch (err: any) {
       showToast(err.message || 'Failed to update manager', 'error');
@@ -1426,18 +1426,18 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
 
   return (
     <div className="space-y-5">
-      <SectionHeader title="Venue Owners" subtitle="All registered venue owners (CLUB_ADMIN) — created during club onboarding" action={
-        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-          <Lock className="h-3.5 w-3.5 text-amber-600" />
-          <span className="text-xs text-amber-700 font-medium">Owners manage their club and create managers in their dashboard</span>
+      <SectionHeader title="Managers" subtitle="All club managers — created during club onboarding" action={
+        <div className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+          <Lock className="h-3.5 w-3.5 text-blue-500" />
+          <span className="text-xs text-blue-600 font-medium">Managers are created via Create Club</span>
         </div>
       } />
       <div className="flex items-center gap-3">
         <div className="flex-1 flex items-center gap-2 rounded-lg border px-3.5 py-2" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
           <Search className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search venue owners…" className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--text-primary)' }} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search managers…" className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--text-primary)' }} />
         </div>
-        <button onClick={() => { csvExport(['Name', 'Email', 'Club', 'Status', 'Last Login'], filtered.map(m => [`${m.firstName} ${m.lastName}`, m.email, m.clubName, m.status, m.lastLogin]), 'venue-owners-export.csv'); showToast('Venue owners exported to CSV'); }} className="flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-slate-50 transition-colors" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+        <button onClick={() => { csvExport(['Name', 'Email', 'Club', 'Status', 'Last Login'], filtered.map(m => [`${m.firstName} ${m.lastName}`, m.email, m.clubName, m.status, m.lastLogin]), 'managers-export.csv'); showToast('Managers exported to CSV'); }} className="flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-slate-50 transition-colors" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
           <Download className="h-3.5 w-3.5" /> Export
         </button>
       </div>
@@ -1446,7 +1446,7 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10 backdrop-blur-md">
               <tr className="border-b" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-                {['Venue Owner', 'Club', 'Status', 'Last Login', 'Actions'].map(h => (
+                {['Manager', 'Club', 'Status', 'Last Login', 'Actions'].map(h => (
                   <th key={h} className="px-5 py-3 text-left text-xs font-bold" style={{ color: 'var(--text-muted)' }}>{h}</th>
                 ))}
               </tr>
@@ -1454,18 +1454,18 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-8 text-xs text-slate-400">No venue owners found</td>
+                  <td colSpan={5} className="text-center py-8 text-xs text-slate-400">No managers found</td>
                 </tr>
               ) : filtered.map(m => (
                 <tr key={m.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full bg-amber-100 flex items-center justify-center font-bold text-xs text-amber-700 flex-shrink-0">
-                        {(m.firstName?.[0] || 'O').toUpperCase()}{(m.lastName?.[0] || '').toUpperCase()}
+                      <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center font-bold text-xs text-blue-700 flex-shrink-0">
+                        {(m.firstName?.[0] || 'M').toUpperCase()}{(m.lastName?.[0] || '').toUpperCase()}
                       </div>
                       <div>
                         <div className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{m.firstName} {m.lastName}</div>
-                        <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{m.email} · <span className="text-amber-600 font-bold">Venue Owner</span></div>
+                        <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{m.email}</div>
                         {m.phone && <div className="text-[10px] text-slate-400">{m.phone}</div>}
                       </div>
                     </div>
@@ -1477,10 +1477,10 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => handleOpenEdit(m)}
-                        className="p-1.5 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors"
-                        title="Edit Venue Owner Details"
+                        className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                        title="Edit Manager Details"
                       >
-                        <Edit2 className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                        <Edit2 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                       </button>
                       <button onClick={() => showToast(`Password reset link sent to ${m.email}`)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Reset Password"><Key className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} /></button>
                       <button onClick={() => toggle(m.id)} className="p-1.5 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors" title={m.status === 'Active' ? 'Suspend' : 'Activate'}>
@@ -1495,8 +1495,8 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
         </div>
       </div>
 
-      {/* ── Edit Venue Owner Modal ── */}
-      <Modal open={!!editingManager} onClose={() => setEditingManager(null)} title="Edit Venue Owner Details">
+      {/* ── Edit Manager Modal ── */}
+      <Modal open={!!editingManager} onClose={() => setEditingManager(null)} title="Edit Manager Details">
         <form onSubmit={handleSaveEdit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <FG>
@@ -1526,7 +1526,7 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
               required
               value={editForm.email}
               onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))}
-              placeholder="owner@example.com"
+              placeholder="manager@example.com"
             />
           </FG>
 
@@ -1683,7 +1683,7 @@ const DashboardPage = ({ showToast }: { showToast: (m: string, t?: 'success' | '
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <KPI label="Active Clubs" value={String(activeClubsCount)} change={activeClubsCount > 0 ? `+${activeClubsCount} active` : '0 active'} positive icon={<Building2 className="h-5 w-5 text-blue-500" />} />
         <KPI label="MRR" value={`KES ${totalMrr.toLocaleString()}`} change={totalMrr > 0 ? 'Live MRR' : 'KES 0'} positive icon={<TrendingUp className="h-5 w-5 text-emerald-500" />} />
-        <KPI label="Venue Owners" value={String(totalManagersCount)} change={totalManagersCount > 0 ? `+${totalManagersCount} active` : '0 active'} positive icon={<Users className="h-5 w-5 text-amber-500" />} />
+        <KPI label="Total Managers" value={String(totalManagersCount)} change={totalManagersCount > 0 ? `+${totalManagersCount} active` : '0 active'} positive icon={<Users className="h-5 w-5 text-purple-500" />} />
         <KPI label="Churn Rate" value="0%" change="0%" positive icon={<AlertCircle className="h-5 w-5 text-red-500" />} />
       </div>
       <div className="grid grid-cols-3 gap-4">
@@ -2105,7 +2105,7 @@ type NavKey = 'dashboard' | 'clubs' | 'managers' | 'billing' | 'analytics' | 'sy
 const NAV_ITEMS: { key: NavKey; label: string; icon: React.ReactNode }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
   { key: 'clubs', label: 'Clubs & Venues', icon: <Building2 className="h-4 w-4" /> },
-  { key: 'managers', label: 'Venue Owners', icon: <UserCog className="h-4 w-4" /> },
+  { key: 'managers', label: 'Managers', icon: <UserCog className="h-4 w-4" /> },
   { key: 'billing', label: 'Billing', icon: <CreditCard className="h-4 w-4" /> },
   { key: 'analytics', label: 'Analytics', icon: <TrendingUp className="h-4 w-4" /> },
   { key: 'system', label: 'System', icon: <Server className="h-4 w-4" /> },
@@ -2113,14 +2113,14 @@ const NAV_ITEMS: { key: NavKey; label: string; icon: React.ReactNode }[] = [
   { key: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },
 ];
 
-const PAGE_TITLES: Record<NavKey, string> = { dashboard: 'Platform Overview', clubs: 'Clubs & Venues', managers: 'Venue Owners', billing: 'Billing', analytics: 'Analytics', system: 'System Health', security: 'Security', settings: 'Settings' };
+const PAGE_TITLES: Record<NavKey, string> = { dashboard: 'Platform Overview', clubs: 'Clubs & Venues', managers: 'Managers', billing: 'Billing', analytics: 'Analytics', system: 'System Health', security: 'Security', settings: 'Settings' };
 
 /* ─── Notification Data ─── */
 interface Notif { id: string; title: string; body: string; time: string; read: boolean; icon: React.ReactNode; }
 const INIT_NOTIFS: Notif[] = [
   { id: 'n1', title: 'New club registered', body: 'Skylounge Westlands completed onboarding.', time: '5 min ago', read: false, icon: <Building2 className="h-4 w-4 text-blue-500" /> },
   { id: 'n2', title: 'Subscription expiring', body: 'Quiver Lounge Pro plan expires in 3 days.', time: '1 hr ago', read: false, icon: <CreditCard className="h-4 w-4 text-amber-500" /> },
-  { id: 'n3', title: 'Venue Owner invited', body: 'jane@eden.co.ke accepted the invitation.', time: '3 hrs ago', read: true, icon: <Users className="h-4 w-4 text-amber-500" /> },
+  { id: 'n3', title: 'Manager invited', body: 'jane@eden.co.ke accepted the invitation.', time: '3 hrs ago', read: true, icon: <Users className="h-4 w-4 text-emerald-500" /> },
   { id: 'n4', title: 'System alert', body: 'API latency spike detected — resolved.', time: '6 hrs ago', read: true, icon: <AlertCircle className="h-4 w-4 text-red-500" /> },
 ];
 

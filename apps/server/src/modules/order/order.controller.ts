@@ -6,15 +6,7 @@ export class OrderController {
 
   getOrders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userRole = (req.user as any)?.role;
-      const userClubUuid = req.user?.tenantId || (req.user as any)?.clubUuid;
-      let clubUuid = (req.headers['x-tenant-id'] as string) || (req.query.clubUuid as string) || userClubUuid;
-
-      // SECURITY: A Club Admin (Owner), Manager, or Waiter can ONLY view orders for their specific club
-      if (userRole === 'CLUB_ADMIN' || userRole === 'MANAGER' || userRole === 'WAITER') {
-        clubUuid = userClubUuid || clubUuid;
-      }
-
+      const clubUuid = (req.headers['x-tenant-id'] as string) || (req.query.clubUuid as string) || req.user?.tenantId;
       const status = req.query.status as any;
       const waiterUuid = req.query.waiterUuid as string;
       const orders = await this.orderService.getOrdersForClub(clubUuid, status, waiterUuid);

@@ -382,18 +382,15 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg-body)' }}>
       {/* Top Nav */}
       <nav className="border-b flex items-center justify-between px-4 sm:px-6 py-3 sticky top-0 z-30"
-        style={{ background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', borderColor: '#047857' }}>
+        style={{ background: '#2563EB', borderColor: '#1D4ED8' }}>
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-white/20 flex items-center justify-center">
             <Wine className="h-4 w-4 text-white" />
           </div>
           <div>
             <span className="font-bold text-white text-sm">{clubName}</span>
-            <span className="mx-2 text-emerald-200 text-xs">|</span>
-            <span className="text-emerald-100 text-xs">{displayName}</span>
-            <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-bold tracking-wide">
-              🍸 Waiter Portal
-            </span>
+            <span className="mx-2 text-blue-300 text-xs">|</span>
+            <span className="text-blue-200 text-xs">{displayName} (Waiter Portal)</span>
           </div>
         </div>
 
@@ -452,20 +449,20 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
 
         {/* ── PINNED ACTIVE PROCESSING ORDER CARD (Always visible when waiter has an active order) ── */}
         {myOrder && (
-          <div className="rounded-2xl border-2 border-emerald-500 bg-gradient-to-r from-emerald-50/80 to-teal-50/80 dark:from-emerald-950/40 dark:to-teal-950/40 p-5 shadow-lg shadow-emerald-500/10 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-200 dark:border-emerald-800/60 pb-3">
+          <div className="rounded-2xl border-2 border-blue-500 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 dark:from-blue-950/40 dark:to-indigo-950/40 p-5 shadow-lg shadow-blue-500/10 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-blue-200 dark:border-blue-800/60 pb-3">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 shadow-md">
+                <div className="h-10 w-10 rounded-xl bg-blue-600 text-white flex items-center justify-center flex-shrink-0 shadow-md">
                   <ClipboardList className="h-5 w-5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    <span className="text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
                       Currently Processing
                     </span>
                     <span className="flex h-2 w-2 relative">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
                     </span>
                   </div>
                   <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">
@@ -491,7 +488,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                 <span>Items in this Order (Tick as prepared)</span>
                 <span>Qty & Price</span>
               </div>
-              <div className="bg-white dark:bg-slate-900 rounded-xl border border-emerald-100 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
+              <div className="bg-white dark:bg-slate-900 rounded-xl border border-blue-100 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
                 {myOrder.items.map((item, idx) => (
                   <div
                     key={idx}
@@ -505,7 +502,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                         type="checkbox"
                         checked={!!checkedItems[idx]}
                         onChange={() => toggleItemChecked(idx)}
-                        className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                       />
                       <div>
                         <span className={`text-sm font-semibold ${checkedItems[idx] ? 'line-through text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}>
@@ -520,7 +517,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                     </div>
 
                     <div className="text-right flex-shrink-0">
-                      <span className="inline-block px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 font-black text-xs">
+                      <span className="inline-block px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 font-black text-xs">
                         × {item.quantity}
                       </span>
                       {item.subtotal ? (
@@ -545,7 +542,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
             )}
 
             {/* Total and Advance Action Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-emerald-200 dark:border-emerald-800/60">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-blue-200 dark:border-blue-800/60">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 font-medium">
                   {paymentIcons[myOrder.paymentMethod]}
@@ -560,8 +557,8 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
               <button
                 onClick={advanceOrderStatus}
                 disabled={actionLoading || myOrder.status === 'DELIVERED'}
-                className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white transition-all shadow-md shadow-emerald-500/20 disabled:opacity-50 hover:brightness-110 active:scale-[0.98]"
-                style={{ background: '#059669' }}
+                className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white transition-all shadow-md shadow-blue-500/20 disabled:opacity-50 hover:brightness-110 active:scale-[0.98]"
+                style={{ background: myOrder.status === 'READY' ? '#059669' : '#2563EB' }}
               >
                 {actionLoading ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> Updating Status…</>
@@ -598,15 +595,15 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                   onClick={() => setActiveTab(tab.key)}
                   className="flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-bold transition-all border-b-2 -mb-px"
                   style={{
-                    borderBottomColor: activeTab === tab.key ? '#059669' : 'transparent',
-                    color: activeTab === tab.key ? '#059669' : 'var(--text-secondary)',
+                    borderBottomColor: activeTab === tab.key ? '#2563EB' : 'transparent',
+                    color: activeTab === tab.key ? '#2563EB' : 'var(--text-secondary)',
                     background: 'transparent',
                   }}
                 >
                   {tab.icon}
                   {tab.label}
                   {'count' in tab && tab.count > 0 && (
-                    <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[10px] font-black px-1.5 py-0.5">
+                    <span className="rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-[10px] font-black px-1.5 py-0.5">
                       {tab.count}
                     </span>
                   )}
@@ -708,8 +705,8 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                       <button
                         onClick={() => claimOrder(order)}
                         disabled={!!myOrder || actionLoading}
-                        className="flex items-center justify-center gap-1.5 rounded-xl px-5 py-2.5 text-xs font-bold text-white transition-all hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 shadow-md shadow-emerald-500/20"
-                        style={{ background: '#059669' }}
+                        className="flex items-center justify-center gap-1.5 rounded-xl px-5 py-2.5 text-xs font-bold text-white transition-all hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 shadow-md shadow-blue-500/20"
+                        style={{ background: '#2563EB' }}
                       >
                         {actionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <>Claim & Process <ArrowRight className="h-3.5 w-3.5" /></>}
                       </button>
@@ -806,7 +803,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                           <div className="flex flex-col items-center gap-1">
                             <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold border-2 ${
                               statusFlow.indexOf(myOrder.status) >= i
-                                ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
+                                ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
                                 : 'border-slate-200 text-slate-400'
                             }`}>
                               {i + 1}
@@ -823,8 +820,8 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                     <button
                       onClick={advanceOrderStatus}
                       disabled={actionLoading || myOrder.status === 'DELIVERED'}
-                      className="w-full py-3 rounded-xl text-xs sm:text-sm font-bold text-white transition-all shadow-md shadow-emerald-500/20 hover:opacity-95 disabled:opacity-50"
-                      style={{ background: myOrder.status === 'READY' ? '#059669' : '#059669' }}
+                      className="w-full py-3 rounded-xl text-xs sm:text-sm font-bold text-white transition-all shadow-md shadow-blue-500/20 hover:opacity-95 disabled:opacity-50"
+                      style={{ background: myOrder.status === 'READY' ? '#059669' : '#2563EB' }}
                     >
                       {actionLoading
                         ? <span className="flex items-center justify-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Updating…</span>
@@ -902,7 +899,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: '#E2E8F0' }}>
               <div className="flex items-center gap-2.5">
-                <div className="h-9 w-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <div className="h-9 w-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
                   <Lock className="h-5 w-5" />
                 </div>
                 <div>
@@ -942,7 +939,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                     value={pwForm.currentPassword}
                     onChange={(e) => setPwForm((p) => ({ ...p, currentPassword: e.target.value }))}
                     placeholder="Enter current password"
-                    className="w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all pr-10"
+                    className="w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-10"
                     style={{ borderColor: '#CBD5E1' }}
                   />
                   <button
@@ -968,7 +965,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                     value={pwForm.newPassword}
                     onChange={(e) => setPwForm((p) => ({ ...p, newPassword: e.target.value }))}
                     placeholder="Min 6 characters"
-                    className="w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all pr-10"
+                    className="w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-10"
                     style={{ borderColor: '#CBD5E1' }}
                   />
                   <button
@@ -994,7 +991,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                     value={pwForm.confirmPassword}
                     onChange={(e) => setPwForm((p) => ({ ...p, confirmPassword: e.target.value }))}
                     placeholder="Re-type new password"
-                    className="w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all pr-10"
+                    className="w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-10"
                     style={{ borderColor: '#CBD5E1' }}
                   />
                   <button
@@ -1019,8 +1016,8 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                 <button
                   type="submit"
                   disabled={pwLoading}
-                  className="flex-1 rounded-xl py-2.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20"
-                  style={{ background: '#059669' }}
+                  className="flex-1 rounded-xl py-2.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  style={{ background: '#2563EB' }}
                 >
                   {pwLoading ? (
                     <>

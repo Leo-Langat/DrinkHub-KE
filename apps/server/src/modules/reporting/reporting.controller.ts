@@ -6,23 +6,7 @@ export class ReportingController {
 
   getAnalytics = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userRole = (req.user as any)?.role;
-      const userClubUuid = req.user?.tenantId || (req.user as any)?.clubUuid;
-      let clubUuid = (req.headers['x-tenant-id'] as string) || (req.query.clubUuid as string) || userClubUuid;
-
-      // SECURITY: A Club Admin (Owner), Manager, or Waiter can ONLY query analytics for their specific club
-      if (userRole === 'CLUB_ADMIN' || userRole === 'MANAGER' || userRole === 'WAITER') {
-        clubUuid = userClubUuid || clubUuid;
-      }
-
-      if (!clubUuid) {
-        res.status(400).json({
-          success: false,
-          error: { code: 'MISSING_CLUB', message: 'Club UUID is required to fetch analytics.' },
-        });
-        return;
-      }
-
+      const clubUuid = (req.headers['x-tenant-id'] as string) || (req.query.clubUuid as string) || req.user?.tenantId || (req.user as any)?.clubUuid || 'default-club';
       const period = (req.query.period as any) || 'MONTHLY';
       const format = (req.query.format as string) || 'JSON';
 

@@ -3224,7 +3224,7 @@ interface MgrNotif { id: string; title: string; body: string; time: string; read
 const INIT_MGR_NOTIFS: MgrNotif[] = [];
 
 /*           Main Export           */
-export const ManagerDashboard: React.FC<{ onLogout: () => void; onSwitchToOwner?: () => void }> = ({ onLogout, onSwitchToOwner }) => {
+export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const [page, setPage] = React.useState<NavKey>('dashboard');
   const [collapsed, setCollapsed] = React.useState(false);
   const [toast, setToast] = React.useState<{ msg: string; type: 'success' | 'error' } | null>(null);
@@ -3336,17 +3336,6 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void; onSwitchToOwner?
           ))}
         </nav>
         <div className="p-2 border-t space-y-1.5" style={{ borderColor: '#1E293B' }}>
-          {onSwitchToOwner && (
-            <button
-              onClick={onSwitchToOwner}
-              title={collapsed ? 'Owner Executive Center' : undefined}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-bold bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 transition-colors"
-              style={{ justifyContent: collapsed ? 'center' : 'flex-start' }}
-            >
-              <Sparkles className="h-4 w-4 flex-shrink-0" />
-              {!collapsed && <span>Owner Executive Center</span>}
-            </button>
-          )}
           <button onClick={onLogout} title={collapsed ? 'Sign Out' : undefined} className="w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm text-red-500 hover:bg-red-500/10 transition-colors" style={{ justifyContent: collapsed ? 'center' : 'flex-start' }}>
             <LogOut className="h-4 w-4 flex-shrink-0" />{!collapsed && 'Sign Out'}
           </button>
@@ -3449,12 +3438,6 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void; onSwitchToOwner?
 
                   {/* Actions */}
                   <div className="p-1.5 space-y-0.5">
-                    {onSwitchToOwner && (
-                      <button onClick={() => { setProfileOpen(false); onSwitchToOwner(); }}
-                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold transition-colors bg-amber-50 text-amber-700 hover:bg-amber-100 text-left">
-                        <Sparkles className="h-3.5 w-3.5 text-amber-600" /> Owner Executive Center
-                      </button>
-                    )}
                     {[
                       { icon: <LayoutDashboard className="h-3.5 w-3.5" />, label: 'Dashboard', nav: 'dashboard' as NavKey },
                       { icon: <Users className="h-3.5 w-3.5" />, label: 'Staff Management', nav: 'staff' as NavKey },

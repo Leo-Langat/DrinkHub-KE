@@ -276,7 +276,6 @@ export const App: React.FC = () => {
               element={
                 <ManagerDashboard
                   onLogout={handleLogout}
-                  onSwitchToOwner={() => handleSwitchRole('owner')}
                 />
               }
             />
@@ -290,16 +289,6 @@ export const App: React.FC = () => {
               element={
                 <ManagerDashboard
                   onLogout={handleLogout}
-                  onSwitchToOwner={() => handleSwitchRole('owner')}
-                />
-              }
-            />
-            <Route
-              path="/owner/dashboard"
-              element={
-                <OwnerDashboard
-                  onLogout={handleLogout}
-                  onSwitchToManager={() => handleSwitchRole('manager')}
                 />
               }
             />

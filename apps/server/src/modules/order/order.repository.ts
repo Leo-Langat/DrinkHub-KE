@@ -10,7 +10,12 @@ export class OrderRepository implements IOrderRepository {
         table: true,
         waiter: true,
         offer: true,
-        orderItems: { include: { product: true } },
+        orderItems: {
+          include: {
+            product: true,
+            modifiers: true,
+          },
+        },
         payments: true,
       },
     });
@@ -28,7 +33,12 @@ export class OrderRepository implements IOrderRepository {
         table: true,
         waiter: true,
         offer: true,
-        orderItems: { include: { product: true } },
+        orderItems: {
+          include: {
+            product: true,
+            modifiers: true,
+          },
+        },
         payments: true,
       },
     });
@@ -44,7 +54,17 @@ export class OrderRepository implements IOrderRepository {
   }
 
   async createOrder(clubUuid: string, data: any): Promise<Order> {
-    const { tableUuid, items, notes, customerSessionUuid, offerUuid, ageVerified } = data;
+    const {
+      tableUuid,
+      items,
+      notes,
+      customerSessionUuid,
+      offerUuid,
+      ageVerified,
+      orderType,
+      customerName,
+      customerPhone,
+    } = data;
 
     let subtotal = 0;
     const orderItemsData = [];
@@ -54,8 +74,27 @@ export class OrderRepository implements IOrderRepository {
       const product = await prisma.product.findUnique({ where: { productUuid: item.productUuid } });
       if (product) {
         productsMap.set(item.productUuid, product);
-        const itemSubtotal = Number(product.price) * item.quantity;
+        
+        // Compute modifiers price delta
+        let modifiersDelta = 0;
+        const itemModifiersData: any[] = [];
+        if (Array.isArray(item.modifiers)) {
+          for (const mod of item.modifiers) {
+            const delta = Number(mod.priceDelta || 0);
+            modifiersDelta += delta;
+            itemModifiersData.push({
+              groupName: mod.groupName || 'Option',
+              optionName: mod.optionName || '',
+              priceDelta: delta,
+              modifierOptionUuid: mod.modifierOptionUuid || null,
+            });
+          }
+        }
+
+        const unitEffectivePrice = Number(product.price) + modifiersDelta;
+        const itemSubtotal = unitEffectivePrice * item.quantity;
         subtotal += itemSubtotal;
+
         orderItemsData.push({
           clubUuid,
           productUuid: item.productUuid,
@@ -63,6 +102,7 @@ export class OrderRepository implements IOrderRepository {
           unitPrice: product.price,
           subtotal: itemSubtotal,
           notes: item.notes,
+          modifiers: itemModifiersData.length > 0 ? { create: itemModifiersData } : undefined,
         });
       }
     }
@@ -95,7 +135,6 @@ export class OrderRepository implements IOrderRepository {
           } catch {}
         }
 
-        // Check if offer targets an item in the cart
         const hasMatchingProduct = prodId 
           ? items.some((it: any) => it.productUuid === prodId)
           : items.some((it: any) => {
@@ -123,7 +162,6 @@ export class OrderRepository implements IOrderRepository {
       }
 
       if (matchedOffer.offerType === 'BUY_ONE_GET_ONE') {
-        // Find targeted or eligible items and discount free pairs
         for (const item of items) {
           const p = productsMap.get(item.productUuid);
           const isEligible = !prodId || item.productUuid === prodId;
@@ -158,12 +196,22 @@ export class OrderRepository implements IOrderRepository {
     discountAmount = Math.max(0, Math.min(subtotal, discountAmount));
     const totalAmount = Math.max(0, subtotal - discountAmount);
 
+    // Auto-generate pickup number for takeaway/counter orders
+    const resolvedOrderType = orderType || (tableUuid ? 'DINE_IN' : 'TAKEAWAY');
+    const pickupNumber = resolvedOrderType !== 'DINE_IN'
+      ? `#A${Math.floor(100 + Math.random() * 900)}`
+      : null;
+
     return prisma.order.create({
       data: {
         clubUuid,
-        tableUuid,
-        customerSessionUuid,
+        tableUuid: tableUuid || null,
+        customerSessionUuid: customerSessionUuid || null,
         offerUuid: resolvedOfferUuid,
+        orderType: resolvedOrderType,
+        pickupNumber,
+        customerName: customerName || null,
+        customerPhone: customerPhone || null,
         orderNumber: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
         subtotalAmount: subtotal,
         discountAmount,
@@ -178,16 +226,18 @@ export class OrderRepository implements IOrderRepository {
       include: {
         table: true,
         offer: true,
-        orderItems: { include: { product: true } },
+        orderItems: {
+          include: {
+            product: true,
+            modifiers: true,
+          },
+        },
         payments: true,
       },
     });
   }
 
   async claimOrder(orderUuid: string, waiterUuid: string): Promise<Order> {
-    // Atomic conditional update — prevents double-claiming under concurrent requests.
-    // updateMany only updates if the row still has status=PENDING; count=0 means
-    // another request already claimed it (or the status changed), so we throw.
     const result = await prisma.$transaction(async (tx) => {
       const updated = await tx.order.updateMany({
         where: { orderUuid, status: 'PENDING' },
@@ -198,13 +248,17 @@ export class OrderRepository implements IOrderRepository {
         throw new Error('ORDER_ALREADY_CLAIMED');
       }
 
-      // Return the full order object with relations after claiming
       return tx.order.findUnique({
         where: { orderUuid },
         include: {
           table: true,
           waiter: true,
-          orderItems: { include: { product: true } },
+          orderItems: {
+            include: {
+              product: true,
+              modifiers: true,
+            },
+          },
           payments: true,
         },
       });
@@ -224,7 +278,12 @@ export class OrderRepository implements IOrderRepository {
       include: {
         table: true,
         waiter: true,
-        orderItems: { include: { product: true } },
+        orderItems: {
+          include: {
+            product: true,
+            modifiers: true,
+          },
+        },
         payments: true,
       },
     });

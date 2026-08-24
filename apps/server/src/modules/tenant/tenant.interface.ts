@@ -1,18 +1,26 @@
-import { Club, User, VenueTable, QrCode } from '@prisma/client';
+import { Club, User, VenueTable, QrCode, VenueType } from '@prisma/client';
 
 export interface CreateClubWithManagerInput {
-  // Club fields
+  // Venue fields
   name: string;
   slug: string;
+  venueType?: VenueType;
+  tagline?: string;
   city?: string;
   county?: string;
   address?: string;
   phone?: string;
   email?: string;
   logoUrl?: string;
+  bannerUrl?: string;
   brandColor?: string;
   openingHours?: string;
   closingHours?: string;
+  currency?: string;
+  serviceFeePercent?: number;
+  taxPercent?: number;
+  allowTakeaway?: boolean;
+  allowDineIn?: boolean;
   gpsCoordinates?: string;
   // Manager fields (already hashed)
   managerPasswordHash: string;

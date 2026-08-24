@@ -230,7 +230,7 @@ const StepProgress = ({ current }: { current: number }) => (
 );
 
 type CF = {
-  name: string; description: string; address: string; city: string; county: string;
+  name: string; description: string; venueType: string; address: string; city: string; county: string;
   phone: string; email: string; openingTime: string; closingTime: string;
   logoUrl: string; bannerUrl: string; themeColor: string;
   mgrFirstName: string; mgrLastName: string; mgrEmail: string; mgrPhone: string;
@@ -239,8 +239,8 @@ type CF = {
 };
 
 const defaultForm: CF = {
-  name: '', description: '', address: '', city: '', county: 'Nairobi', phone: '', email: '',
-  openingTime: '18:00', closingTime: '02:00', logoUrl: '', bannerUrl: '', themeColor: '#1D4ED8',
+  name: '', description: '', venueType: 'BAR_LOUNGE', address: '', city: '', county: 'Nairobi', phone: '', email: '',
+  openingTime: '08:00', closingTime: '23:00', logoUrl: '', bannerUrl: '', themeColor: '#1D4ED8',
   mgrFirstName: '', mgrLastName: '', mgrEmail: '', mgrPhone: '', mgrUsername: '', tempPwd: '',
   plan: 'Pro', trialDays: '14', subStatus: 'Trial', startDate: new Date().toISOString().split('T')[0], expiryDate: '',
 };
@@ -280,13 +280,46 @@ const ThemePreview = ({ color, clubName }: { color: string; clubName: string }) 
 const Step1 = ({ f, set, errors }: { f: CF; set: (k: keyof CF, v: string) => void; errors: Partial<Record<keyof CF, string>> }) => (
   <div className="space-y-6">
     <div className="grid grid-cols-2 gap-4">
-      <div className="col-span-2">
-        <FL required>Club Name</FL>
-        <SI value={f.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Quiver Lounge Kilimani" error={errors.name} />
+      <div>
+        <FL required>Venue Type</FL>
+        <SS
+          value={f.venueType}
+          onChange={e => {
+            const vType = e.target.value;
+            set('venueType', vType);
+            if (vType === 'COFFEE_SHOP') {
+              set('openingTime', '06:30'); set('closingTime', '21:00'); set('themeColor', '#78350F');
+            } else if (vType === 'CAFE') {
+              set('openingTime', '07:00'); set('closingTime', '22:00'); set('themeColor', '#059669');
+            } else if (vType === 'RESTAURANT') {
+              set('openingTime', '11:30'); set('closingTime', '23:30'); set('themeColor', '#B91C1C');
+            } else if (vType === 'BAKERY') {
+              set('openingTime', '06:00'); set('closingTime', '20:00'); set('themeColor', '#D97706');
+            } else if (vType === 'NIGHTCLUB') {
+              set('openingTime', '18:00'); set('closingTime', '05:00'); set('themeColor', '#DC2626');
+            } else {
+              set('openingTime', '16:00'); set('closingTime', '04:00'); set('themeColor', '#2563EB');
+            }
+          }}
+          options={[
+            { v: 'COFFEE_SHOP', l: '☕ Coffee Shop' },
+            { v: 'CAFE', l: '🥐 Cafe & Bistro' },
+            { v: 'RESTAURANT', l: '🍽️ Restaurant & Grill' },
+            { v: 'BAR_LOUNGE', l: '🍸 Bar & Lounge' },
+            { v: 'NIGHTCLUB', l: '🔥 Nightclub' },
+            { v: 'BAKERY', l: '🥖 Bakery & Pastry' },
+            { v: 'FAST_CASUAL', l: '⚡ Fast Casual' },
+            { v: 'HOTEL_DINING', l: '🏨 Hotel Dining' },
+          ]}
+        />
+      </div>
+      <div>
+        <FL required>Venue / Brand Name</FL>
+        <SI value={f.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Java House / The Rustic Table" error={errors.name} />
       </div>
       <div className="col-span-2">
-        <FL>Description</FL>
-        <STA value={f.description} onChange={e => set('description', e.target.value)} rows={2} placeholder="Brief description of the venue…" />
+        <FL>Description / Tagline</FL>
+        <STA value={f.description} onChange={e => set('description', e.target.value)} rows={2} placeholder="Brief description of the venue, specialties, or ambiance…" />
       </div>
       <div>
         <FL>Physical Address</FL>
@@ -515,6 +548,8 @@ const CreateClubStepper = ({ onSuccess, onCancel }: { onSuccess: (club: Club, ma
             body: JSON.stringify({
               name: form.name,
               slug: slug || `club-${Date.now()}`,
+              venueType: form.venueType,
+              tagline: form.description,
               brandColor: form.themeColor,
               city: form.city,
               county: form.county,

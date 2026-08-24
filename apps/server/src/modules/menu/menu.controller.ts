@@ -192,4 +192,103 @@ export class MenuController {
       next(error);
     }
   };
+
+  // ─── Modifier Groups ────────────────────────────────────────────────────────
+  getModifierGroups = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const clubUuid = req.user?.tenantId || (req.headers['x-tenant-id'] as string) || (req.query.clubUuid as string);
+      const groups = await this.menuService.getModifierGroups(clubUuid!);
+      res.json({
+        success: true,
+        data: groups,
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  createModifierGroup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const clubUuid = req.user?.tenantId || (req.headers['x-tenant-id'] as string);
+      const group = await this.menuService.createModifierGroup(clubUuid!, req.body);
+      res.status(201).json({
+        success: true,
+        data: group,
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateModifierGroup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { modifierGroupUuid } = req.params;
+      const group = await this.menuService.updateModifierGroup(modifierGroupUuid, req.body);
+      res.json({
+        success: true,
+        data: group,
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  deleteModifierGroup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { modifierGroupUuid } = req.params;
+      await this.menuService.deleteModifierGroup(modifierGroupUuid);
+      res.json({
+        success: true,
+        data: { message: 'Modifier group deleted successfully' },
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  createModifierOption = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { modifierGroupUuid } = req.params;
+      const option = await this.menuService.createModifierOption(modifierGroupUuid, req.body);
+      res.status(201).json({
+        success: true,
+        data: option,
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateModifierOption = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { modifierOptionUuid } = req.params;
+      const option = await this.menuService.updateModifierOption(modifierOptionUuid, req.body);
+      res.json({
+        success: true,
+        data: option,
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  deleteModifierOption = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { modifierOptionUuid } = req.params;
+      await this.menuService.deleteModifierOption(modifierOptionUuid);
+      res.json({
+        success: true,
+        data: { message: 'Option deleted successfully' },
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

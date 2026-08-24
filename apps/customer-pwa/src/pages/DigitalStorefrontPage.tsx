@@ -5,7 +5,7 @@ import {
   Clock, AlertCircle, ShoppingCart, MapPin, Wifi, WifiOff,
   Smartphone, Banknote, CreditCard, ArrowLeft, Star, Loader2,
   User, Check, RefreshCw, Flame, Gift, Tag, Copy, Zap, Timer,
-  Wine, ShieldCheck,
+  Wine, Coffee, Utensils, Store, ShieldCheck,
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────
@@ -25,6 +25,7 @@ const getApiUrl = (path: string): string => {
 interface BrandingConfig {
   name: string;
   tagline: string;
+  venueType: string;
   logoUrl: string | null;
   bannerUrl: string | null;
   primary: string;
@@ -32,6 +33,27 @@ interface BrandingConfig {
   accent: string;
   openingHours: string;
   closingHours: string;
+  allowTakeaway: boolean;
+  allowDineIn: boolean;
+}
+
+interface ModifierOption {
+  modifierOptionUuid?: string;
+  name: string;
+  priceDelta: number;
+  isDefault?: boolean;
+  isAvailable?: boolean;
+}
+
+interface ModifierGroup {
+  modifierGroupUuid?: string;
+  name: string;
+  description?: string;
+  selectionType?: 'SINGLE' | 'MULTIPLE';
+  isRequired?: boolean;
+  minSelections?: number;
+  maxSelections?: number;
+  options: ModifierOption[];
 }
 
 interface MenuItem {
@@ -43,6 +65,24 @@ interface MenuItem {
   img: string | null;
   badge?: string;
   isAvailable: boolean;
+  prepStation?: string;
+  dietaryTags?: string[];
+  modifierGroups?: ModifierGroup[];
+}
+
+interface SelectedModifier {
+  groupName: string;
+  optionName: string;
+  priceDelta: number;
+  modifierOptionUuid?: string;
+}
+
+interface CartItem {
+  cartItemId: string; // unique key: itemId + serialized modifiers
+  item: MenuItem;
+  qty: number;
+  selectedModifiers: SelectedModifier[];
+  unitEffectivePrice: number;
 }
 
 interface Offer {
@@ -60,18 +100,19 @@ interface Offer {
   isActive?: boolean;
 }
 
-type CartMap = Record<string, number>;
-
 const DEFAULT_BRAND: BrandingConfig = {
   name: 'DrinkHub Venue',
   tagline: 'Nairobi, Kenya',
+  venueType: 'BAR_LOUNGE',
   logoUrl: null,
   bannerUrl: null,
   primary: '#DC2626',
   primaryDark: '#991B1B',
   accent: '#F59E0B',
-  openingHours: '14:00',
-  closingHours: '04:00',
+  openingHours: '08:00',
+  closingHours: '23:00',
+  allowTakeaway: true,
+  allowDineIn: true,
 };
 
 /* ─────────────────────────────────────────────
@@ -91,8 +132,13 @@ export const DigitalStorefrontPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Order fulfillment mode: Dine-In vs Takeaway / Counter Pickup
+  const [orderType, setOrderType] = useState<'DINE_IN' | 'TAKEAWAY'>(table ? 'DINE_IN' : 'TAKEAWAY');
+  const [customerName, setCustomerName] = useState('');
+
   const [cat, setCat] = useState<string>('All');
-  const [cart, setCart] = useState<CartMap>({});
+  const [dietaryFilter, setDietaryFilter] = useState<string>('All');
+  const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [screen, setScreen] = useState<'menu' | 'cart' | 'checkout' | 'success'>('menu');
   const [ageOk, setAgeOk] = useState(false);
   const [payment, setPayment] = useState<'mpesa' | 'card' | 'cash'>('mpesa');
@@ -104,11 +150,15 @@ export const DigitalStorefrontPage: React.FC = () => {
   const menuSectionRef = useRef<HTMLDivElement>(null);
   const [heroOpacity, setHeroOpacity] = useState(1);
 
+  // Customizer Modal State
+  const [customizingItem, setCustomizingItem] = useState<MenuItem | null>(null);
+  const [customizerSelections, setCustomizerSelections] = useState<Record<string, string[]>>({});
+
   // Offers Banner Carousel
   const [activeOfferIdx, setActiveOfferIdx] = useState(0);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-  // Auto-rotate offers every 5 seconds if multiple offers exist
+  // Auto-rotate offers
   useEffect(() => {
     if (offers.length <= 1) return;
     const timer = setInterval(() => {
@@ -137,21 +187,15 @@ export const DigitalStorefrontPage: React.FC = () => {
         if (isMounted && order) {
           setActiveOrder(order);
 
-          // Auto-dismiss and return user to menu 5 seconds after delivery confirmation
           if (order.status === 'DELIVERED' || order.status === 'COMPLETED') {
             setTimeout(() => {
-              if (isMounted) {
-                setActiveOrder(null);
-                setActiveOrderUuid(null);
-                localStorage.removeItem('drinkhub_active_order_uuid');
+              if (isMounted && screen === 'success') {
                 setScreen('menu');
               }
-            }, 5000);
+            }, 6000);
           }
         }
-      } catch {
-        /* keep previous order state */
-      }
+      } catch (_e) {}
     };
 
     pollOrderStatus();
@@ -160,23 +204,65 @@ export const DigitalStorefrontPage: React.FC = () => {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [activeOrderUuid]);
+  }, [activeOrderUuid, screen]);
 
-  /* ── Fetch venue & menu on mount ─────────── */
+  // Online / offline listeners
   useEffect(() => {
-    if (!venueSlug) {
-      setLoadError('No venue specified. Please scan your table QR code again.');
-      setLoading(false);
-      return;
+    const onOnline = () => setIsOnline(true);
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
+
+  // Parallax hero scroll effect
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const top = e.currentTarget.scrollTop;
+    setHeroOpacity(Math.max(0, 1 - top / 200));
+  }, []);
+
+  /* ── Check if venue is currently open ── */
+  const isVenueOpen = useCallback((): boolean => {
+    try {
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+      const [openH, openM] = brand.openingHours.split(':').map(Number);
+      const [closeH, closeM] = brand.closingHours.split(':').map(Number);
+
+      const openMinutes = openH * 60 + (openM || 0);
+      let closeMinutes = closeH * 60 + (closeM || 0);
+
+      // Nightclub / late lounge rollover past midnight (e.g. 16:00 -> 04:00)
+      if (closeMinutes < openMinutes) {
+        if (currentMinutes >= openMinutes || currentMinutes < closeMinutes) {
+          return true;
+        }
+        return false;
+      }
+
+      return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+    } catch {
+      return true;
     }
+  }, [brand.openingHours, brand.closingHours]);
+
+  const venueOpen = isVenueOpen();
+
+  /* ── Fetch Venue Data & Menu ─────────────── */
+  useEffect(() => {
+    if (!venueSlug) return;
+    let isMounted = true;
 
     const fetchData = async () => {
+      setLoading(true);
+      setLoadError(null);
       try {
-        setLoading(true);
-        setLoadError(null);
-
-        // 1. Fetch venue branding
-        const tenantRes = await fetch(getApiUrl(`/tenants/${venueSlug}`));
+        // 1. Fetch Venue Details
+        const tenantRes = await fetch(getApiUrl(`/tenants/slug/${venueSlug}`));
         if (!tenantRes.ok) {
           const err = await tenantRes.json().catch(() => ({}));
           throw new Error(err?.error?.message || `Venue "${venueSlug}" not found.`);
@@ -187,25 +273,30 @@ export const DigitalStorefrontPage: React.FC = () => {
         setClubUuid(resolvedClubUuid);
 
         const fallbackLogo =
-          venueSlug.toLowerCase().includes('g-place') || venueSlug.toLowerCase().includes('gplace')
-            ? 'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?w=400&auto=format&fit=crop&q=80'
-            : venueSlug.toLowerCase().includes('alchemist')
-            ? 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=400&auto=format&fit=crop&q=80'
+          venueSlug.toLowerCase().includes('java')
+            ? 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=200'
+            : venueSlug.toLowerCase().includes('artcaffe')
+            ? 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=200'
+            : venueSlug.toLowerCase().includes('carnivore')
+            ? 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200'
             : null;
 
         setBrand({
           name: club.name ?? 'DrinkHub Venue',
           tagline: club.tagline ?? club.county ?? 'Kenya',
+          venueType: club.venueType ?? 'BAR_LOUNGE',
           logoUrl: club.logoUrl || fallbackLogo,
           bannerUrl: club.bannerUrl ?? null,
           primary: club.brandColor ?? club.themeColor ?? '#DC2626',
           primaryDark: adjustColor(club.brandColor ?? club.themeColor ?? '#DC2626', -20),
           accent: '#F59E0B',
-          openingHours: club.openingHours ?? '14:00',
-          closingHours: club.closingHours ?? '04:00',
+          openingHours: club.openingHours ?? '08:00',
+          closingHours: club.closingHours ?? '23:00',
+          allowTakeaway: club.allowTakeaway !== false,
+          allowDineIn: club.allowDineIn !== false,
         });
 
-        // Resolve table UUID from venueTables/tables array
+        // Resolve table UUID from venueTables array
         const tablesList: any[] = club.venueTables ?? club.tables ?? [];
         if (table && tablesList.length > 0) {
           const match = tablesList.find(
@@ -232,294 +323,257 @@ export const DigitalStorefrontPage: React.FC = () => {
         const rawCategories: any[] = menuPayload.categories ?? [];
         const rawOfferList: any[] = menuPayload.offers ?? [];
 
-        rawCategories.forEach((cat: any) => {
-          if (cat.name && !cats.includes(cat.name)) cats.push(cat.name);
-          (cat.products ?? []).forEach((p: any) => {
+        rawCategories.forEach((catObj: any) => {
+          if (catObj.name && !cats.includes(catObj.name)) cats.push(catObj.name);
+          (catObj.products ?? []).forEach((p: any) => {
             items.push({
               id: p.productUuid ?? p.uuid ?? p.id,
               name: p.name,
-              category: cat.name,
+              category: catObj.name,
               price: Number(p.price),
               desc: p.description ?? '',
               img: p.imageUrl ?? null,
               badge: p.badge ?? undefined,
               isAvailable: p.isAvailable !== false,
+              prepStation: p.prepStation || 'GENERAL',
+              dietaryTags: p.dietaryTags || [],
+              modifierGroups: (p.modifierGroups || []).map((mg: any) => ({
+                modifierGroupUuid: mg.modifierGroupUuid,
+                name: mg.name,
+                description: mg.description,
+                selectionType: mg.selectionType,
+                isRequired: mg.isRequired,
+                minSelections: mg.minSelections,
+                maxSelections: mg.maxSelections,
+                options: (mg.options || []).map((opt: any) => ({
+                  modifierOptionUuid: opt.modifierOptionUuid,
+                  name: opt.name,
+                  priceDelta: Number(opt.priceDelta || 0),
+                  isDefault: opt.isDefault,
+                  isAvailable: opt.isAvailable !== false,
+                })),
+              })),
             });
           });
         });
 
         rawOfferList.forEach((o: any) => {
           if (o.isActive !== false) {
-            let cleanDesc = o.description ?? '';
-            let img: string | null = null;
-            let badgeText: string | null = null;
-            let origPrice: number | null = null;
-            let dealPrice: number | null = null;
-            let prodId: string | null = null;
-
-            if (o.description && typeof o.description === 'string' && o.description.startsWith('{') && o.description.endsWith('}')) {
-              try {
-                const parsed = JSON.parse(o.description);
-                cleanDesc = parsed.desc ?? '';
-                img = parsed.imageUrl ?? null;
-                badgeText = parsed.badge ?? null;
-                origPrice = parsed.originalPrice ? Number(parsed.originalPrice) : null;
-                dealPrice = parsed.dealPrice ? Number(parsed.dealPrice) : null;
-                prodId = parsed.productId ?? null;
-              } catch {}
-            }
-
-            // Fallback: match offer title with menu items to auto-attach item photo & price!
-            if (!img || !origPrice) {
-              const match = items.find(item =>
-                o.title.toLowerCase().includes(item.name.toLowerCase()) ||
-                item.name.toLowerCase().includes(o.title.toLowerCase())
-              );
-              if (match) {
-                if (!img) img = match.img;
-                if (!origPrice) origPrice = match.price;
-                if (!prodId) prodId = match.id;
-              }
-            }
-
-            // Fallback visuals if no custom image was set
-            if (!img) {
-              const t = o.title.toLowerCase();
-              if (t.includes('whisky') || t.includes('whiskey') || t.includes('scotch') || t.includes('bourbon')) {
-                img = 'https://images.unsplash.com/photo-1527281400683-1aae777175f8?w=600&auto=format&fit=crop&q=80';
-              } else if (t.includes('cocktail') || t.includes('sour') || t.includes('mojito') || t.includes('margarita')) {
-                img = 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=600&auto=format&fit=crop&q=80';
-              } else if (t.includes('beer') || t.includes('cider') || t.includes('lager') || t.includes('draught')) {
-                img = 'https://images.unsplash.com/photo-1608270190989-c5c8297b83d8?w=600&auto=format&fit=crop&q=80';
-              } else if (t.includes('wine') || t.includes('champagne') || t.includes('prosecco')) {
-                img = 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&auto=format&fit=crop&q=80';
-              } else if (t.includes('grill') || t.includes('rib') || t.includes('burger') || t.includes('meat') || t.includes('wings')) {
-                img = 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80';
-              } else {
-                img = 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=600&auto=format&fit=crop&q=80';
-              }
-            }
-
-            const isBogo = o.offerType === 'BUY_ONE_GET_ONE';
-            const isFixed = o.offerType === 'FIXED_AMOUNT_DISCOUNT';
-            const discVal = Number(o.discountValue ?? 0);
-            const badge = badgeText || (isBogo
-              ? '🎁 BUY 1 GET 1'
-              : isFixed && discVal > 0
-                ? `💰 KES ${discVal.toLocaleString()} OFF`
-                : discVal > 0
-                  ? `⚡ ${discVal}% OFF`
-                  : '🔥 TODAY\'S SPECIAL');
-
-            // Calculate deal price if originalPrice exists
-            if (origPrice && !dealPrice) {
-              if (isFixed) dealPrice = Math.max(0, origPrice - discVal);
-              else if (discVal > 0 && !isBogo) dealPrice = Math.round(origPrice * (1 - discVal / 100));
-              else if (isBogo) dealPrice = origPrice;
-            }
-
             rawOffers.push({
               id: o.offerUuid ?? o.uuid ?? o.id,
               title: o.title,
-              description: cleanDesc || null,
-              promoCode: o.promoCode ?? null,
-              discountValue: discVal,
+              description: o.description,
+              promoCode: o.promoCode,
+              discountValue: Number(o.discountValue || 0),
               offerType: o.offerType,
-              badge,
-              imageUrl: img,
-              originalPrice: origPrice,
-              dealPrice: dealPrice,
-              productId: prodId,
-              isActive: o.isActive !== false,
+              imageUrl: o.imageUrl,
+              originalPrice: o.originalPrice ? Number(o.originalPrice) : null,
+              dealPrice: o.dealPrice ? Number(o.dealPrice) : null,
+              productId: o.productId,
             });
           }
         });
 
-        // Insert '🔥 Deals' tab if there are active offers
-        if (rawOffers.length > 0 && !cats.includes('🔥 Deals')) {
+        if (rawOffers.length > 0) {
           cats.splice(1, 0, '🔥 Deals');
         }
 
-        // Also ensure any offer without an existing product has a menu item so customer can order it
-        rawOffers.forEach((o: Offer) => {
-          const hasMatch = items.some(
-            (it) => it.id === o.productId ||
-            it.name.toLowerCase().includes(o.title.toLowerCase()) ||
-            o.title.toLowerCase().includes(it.name.toLowerCase())
-          );
-          if (!hasMatch) {
-            items.push({
-              id: o.productId || o.id,
-              name: o.title,
-              category: '🔥 Deals',
-              price: o.dealPrice || o.originalPrice || o.discountValue || 1000,
-              desc: o.description || 'Special Exclusive Deal',
-              img: o.imageUrl ?? null,
-              badge: o.badge || 'DEAL',
-              isAvailable: true,
-            });
-          }
-        });
-
-        setCategories(cats);
-        setMenuItems(items);
-        setOffers(rawOffers);
+        if (isMounted) {
+          setCategories(cats);
+          setMenuItems(items);
+          setOffers(rawOffers);
+        }
       } catch (err: any) {
-        setLoadError(err.message || 'Failed to load menu. Please try again.');
+        if (isMounted) setLoadError(err.message || 'Failed to connect to DrinkHub.');
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchData();
+    return () => {
+      isMounted = false;
+    };
   }, [venueSlug, table]);
 
-  /* ── Inject brand CSS vars ────────────────── */
-  useEffect(() => {
-    const r = document.documentElement;
-    r.style.setProperty('--primary', brand.primary);
-    r.style.setProperty('--primary-dark', brand.primaryDark);
-    r.style.setProperty('--accent', brand.accent);
-  }, [brand]);
-
-  /* ── Compute venue open/closed from operating hours ── */
-  const isVenueOpen = useCallback((): boolean => {
-    try {
-      const now = new Date();
-      const oh = brand.openingHours || '00:00';
-      const ch = brand.closingHours || '23:59';
-      const [oH, oM] = oh.split(':').map(Number);
-      const [cH, cM] = ch.split(':').map(Number);
-      const nowMins = now.getHours() * 60 + now.getMinutes();
-      const openMins = oH * 60 + oM;
-      const closeMins = cH * 60 + cM;
-      // Handle overnight hours (e.g. 18:00 – 02:00)
-      if (closeMins <= openMins) {
-        return nowMins >= openMins || nowMins < closeMins;
-      }
-      return nowMins >= openMins && nowMins < closeMins;
-    } catch {
-      return true;
-    }
-  }, [brand.openingHours, brand.closingHours]);
-
-  const venueOpen = isVenueOpen();
-
-  /* ── Offer Matcher & Item Pricing Helper ──── */
+  /* ── Get Match Offer For Item ─────────────── */
   const getOfferForItem = useCallback((item: MenuItem): Offer | null => {
-    if (!offers || offers.length === 0) return null;
-    // 1. Direct productId match
-    const directMatch = offers.find(o => o.productId === item.id || o.id === item.id);
-    if (directMatch) return directMatch;
-
-    // 2. Name / title match
-    const itName = item.name.toLowerCase().trim();
-    const nameMatch = offers.find(o => {
-      const offTitle = o.title.toLowerCase().trim();
-      return offTitle.includes(itName) || itName.includes(offTitle);
-    });
-    if (nameMatch) return nameMatch;
-
-    return null;
+    return offers.find((o) => {
+      if (o.productId && o.productId === item.id) return true;
+      if (o.title.toLowerCase().includes(item.name.toLowerCase()) || item.name.toLowerCase().includes(o.title.toLowerCase())) {
+        return true;
+      }
+      return false;
+    }) ?? null;
   }, [offers]);
 
-  const getItemPricing = useCallback((item: MenuItem, quantity: number = 1) => {
-    const offer = getOfferForItem(item);
-    if (!offer) {
+  /* ── Customizer / Modifiers Helpers ───────── */
+  const openCustomizer = (item: MenuItem) => {
+    const initialSelections: Record<string, string[]> = {};
+    (item.modifierGroups || []).forEach((group) => {
+      const defaultOpt = group.options.find((opt) => opt.isDefault) || (group.isRequired && group.options[0]);
+      if (defaultOpt) {
+        initialSelections[group.name] = [defaultOpt.name];
+      } else {
+        initialSelections[group.name] = [];
+      }
+    });
+    setCustomizerSelections(initialSelections);
+    setCustomizingItem(item);
+  };
+
+  const toggleOption = (group: ModifierGroup, optName: string) => {
+    setCustomizerSelections((prev) => {
+      const current = prev[group.name] || [];
+      if (group.selectionType === 'SINGLE') {
+        return { ...prev, [group.name]: [optName] };
+      }
+      // MULTIPLE
+      const exists = current.includes(optName);
+      const next = exists ? current.filter((n) => n !== optName) : [...current, optName];
+      return { ...prev, [group.name]: next };
+    });
+  };
+
+  const getCustomizedPrice = (): number => {
+    if (!customizingItem) return 0;
+    let total = customizingItem.price;
+    (customizingItem.modifierGroups || []).forEach((group) => {
+      const selected = customizerSelections[group.name] || [];
+      group.options.forEach((opt) => {
+        if (selected.includes(opt.name)) {
+          total += opt.priceDelta;
+        }
+      });
+    });
+    return total;
+  };
+
+  const saveCustomizedItemToCart = () => {
+    if (!customizingItem) return;
+
+    const selectedMods: SelectedModifier[] = [];
+    (customizingItem.modifierGroups || []).forEach((group) => {
+      const selected = customizerSelections[group.name] || [];
+      group.options.forEach((opt) => {
+        if (selected.includes(opt.name)) {
+          selectedMods.push({
+            groupName: group.name,
+            optionName: opt.name,
+            priceDelta: opt.priceDelta,
+            modifierOptionUuid: opt.modifierOptionUuid,
+          });
+        }
+      });
+    });
+
+    const key = `${customizingItem.id}-${JSON.stringify(selectedMods.map((m) => m.optionName).sort())}`;
+    const unitPrice = getCustomizedPrice();
+
+    setCart((prev) => {
+      const existing = prev[key];
       return {
-        originalPrice: item.price,
-        unitPrice: item.price,
-        totalPrice: item.price * quantity,
-        discountAmount: 0,
-        offer: null,
-        isBogo: false,
+        ...prev,
+        [key]: {
+          cartItemId: key,
+          item: customizingItem,
+          qty: (existing?.qty || 0) + 1,
+          selectedModifiers: selectedMods,
+          unitEffectivePrice: unitPrice,
+        },
       };
+    });
+
+    setCustomizingItem(null);
+  };
+
+  /* ── Quick Add / Dec / Cart helpers ───────── */
+  const handleQuickAdd = (item: MenuItem) => {
+    if (item.modifierGroups && item.modifierGroups.length > 0) {
+      openCustomizer(item);
+      return;
     }
+    const key = item.id;
+    setCart((prev) => {
+      const existing = prev[key];
+      return {
+        ...prev,
+        [key]: {
+          cartItemId: key,
+          item,
+          qty: (existing?.qty || 0) + 1,
+          selectedModifiers: [],
+          unitEffectivePrice: item.price,
+        },
+      };
+    });
+  };
 
-    const isBogo = offer.offerType === 'BUY_ONE_GET_ONE';
-    const isFixed = offer.offerType === 'FIXED_AMOUNT_DISCOUNT';
-    const discVal = Number(offer.discountValue || 0);
+  const decCartItem = (key: string) => {
+    setCart((prev) => {
+      const existing = prev[key];
+      if (!existing) return prev;
+      if (existing.qty <= 1) {
+        const copy = { ...prev };
+        delete copy[key];
+        return copy;
+      }
+      return {
+        ...prev,
+        [key]: { ...existing, qty: existing.qty - 1 },
+      };
+    });
+  };
 
-    let unitPrice = item.price;
-    let totalPrice = item.price * quantity;
-    let discountAmount = 0;
+  const addCartItem = (key: string) => {
+    setCart((prev) => {
+      const existing = prev[key];
+      if (!existing) return prev;
+      return {
+        ...prev,
+        [key]: { ...existing, qty: existing.qty + 1 },
+      };
+    });
+  };
 
-    if (isBogo) {
-      // Buy 1 Get 1 Free: customer pays for ceil(quantity / 2)
-      const billableQty = Math.ceil(quantity / 2);
-      totalPrice = item.price * billableQty;
-      discountAmount = (item.price * quantity) - totalPrice;
-      unitPrice = quantity > 1 ? Math.round(totalPrice / quantity) : item.price;
-    } else if (isFixed && discVal > 0) {
-      unitPrice = Math.max(0, item.price - discVal);
-      totalPrice = unitPrice * quantity;
-      discountAmount = (item.price - unitPrice) * quantity;
-    } else if (discVal > 0) {
-      unitPrice = Math.round(item.price * (1 - discVal / 100));
-      totalPrice = unitPrice * quantity;
-      discountAmount = (item.price - unitPrice) * quantity;
-    }
+  /* ── Filtered items ───────────────────────── */
+  const filtered = menuItems.filter((item) => {
+    // 1. Category check
+    const matchCat =
+      cat === 'All'
+        ? true
+        : cat === '🔥 Deals' || cat === 'Offers' || cat === 'Deals'
+        ? getOfferForItem(item) !== null || item.category === '🔥 Deals'
+        : item.category === cat;
 
-    return {
-      originalPrice: item.price,
-      unitPrice,
-      totalPrice,
-      discountAmount,
-      offer,
-      isBogo,
-    };
-  }, [getOfferForItem]);
+    // 2. Dietary filter check
+    const matchDietary =
+      dietaryFilter === 'All'
+        ? true
+        : (item.dietaryTags || []).includes(dietaryFilter);
 
-  /* ── Cart helpers ─────────────────────────── */
-  const filtered = cat === 'All'
-    ? menuItems
-    : cat === '🔥 Deals' || cat === 'Offers' || cat === 'Deals'
-      ? menuItems.filter((m) => getOfferForItem(m) !== null || m.category === '🔥 Deals')
-      : menuItems.filter((m) => m.category === cat);
-  const cartCount = Object.values(cart).reduce((s, n) => s + n, 0);
-
-  const cartCalculations = Object.entries(cart).map(([id, qty]) => {
-    const item = menuItems.find((m) => m.id === id);
-    if (!item) return null;
-    const pricing = getItemPricing(item, qty);
-    return {
-      item,
-      qty,
-      ...pricing,
-    };
-  }).filter(Boolean) as {
-    item: MenuItem;
-    qty: number;
-    originalPrice: number;
-    unitPrice: number;
-    totalPrice: number;
-    discountAmount: number;
-    offer: Offer | null;
-    isBogo: boolean;
-  }[];
-
-  const cartSubtotal = cartCalculations.reduce((s, c) => s + (c.originalPrice * c.qty), 0);
-  const cartTotalDiscount = cartCalculations.reduce((s, c) => s + c.discountAmount, 0);
-  const cartFinalTotal = Math.max(0, cartSubtotal - cartTotalDiscount);
-  const appliedOffer = cartCalculations.find(c => c.offer)?.offer ?? null;
-
-  const add = (id: string) => setCart((p) => ({ ...p, [id]: (p[id] ?? 0) + 1 }));
-  const dec = (id: string) => setCart((p) => {
-    if ((p[id] ?? 0) <= 1) { const c = { ...p }; delete c[id]; return c; }
-    return { ...p, [id]: p[id] - 1 };
+    return matchCat && matchDietary;
   });
 
-  /* ── Place order (real API) ───────────────── */
+  const cartCount = Object.values(cart).reduce((sum, c) => sum + c.qty, 0);
+  const cartSubtotal = Object.values(cart).reduce((sum, c) => sum + (c.unitEffectivePrice * c.qty), 0);
+  const cartFinalTotal = cartSubtotal;
+
+  /* ── Place order ──────────────────────────── */
   const placeOrder = async () => {
     if (!isOnline) return;
-    if (!ageOk) return;
+    if (!ageOk && brand.venueType === 'NIGHTCLUB') return;
     setPlacing(true);
     setPlaceError(null);
     try {
-      const items = Object.entries(cart).map(([productUuid, quantity]) => ({ productUuid, quantity }));
-      
+      const items = Object.values(cart).map((c) => ({
+        productUuid: c.item.id,
+        quantity: c.qty,
+        modifiers: c.selectedModifiers,
+      }));
+
       let formattedPhone: string | undefined = undefined;
-      if (payment === 'mpesa' && phone) {
+      if (phone) {
         const cleanDigits = phone.replace(/\D/g, '');
         formattedPhone = cleanDigits.startsWith('254')
           ? `+${cleanDigits}`
@@ -530,13 +584,14 @@ export const DigitalStorefrontPage: React.FC = () => {
 
       const body: Record<string, any> = {
         ...(clubUuid ? { clubUuid } : {}),
+        orderType,
+        customerName: customerName || undefined,
         ageVerified: true,
         items,
         paymentMethod: payment.toUpperCase(),
       };
-      if (tableUuid) body.tableUuid = tableUuid;
+      if (orderType === 'DINE_IN' && tableUuid) body.tableUuid = tableUuid;
       if (formattedPhone) body.phoneNumber = formattedPhone;
-      if (appliedOffer) body.offerUuid = appliedOffer.id;
 
       const res = await fetch(getApiUrl('/orders'), {
         method: 'POST',
@@ -548,7 +603,7 @@ export const DigitalStorefrontPage: React.FC = () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message || 'Failed to place order.');
-      
+
       const placedOrder = data.data?.order ?? data.data;
       const resolvedUuid = placedOrder.orderUuid ?? placedOrder.uuid ?? placedOrder.id;
       setActiveOrderUuid(resolvedUuid);
@@ -581,7 +636,7 @@ export const DigitalStorefrontPage: React.FC = () => {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: 'var(--bg)' }}>
         <Loader2 className="w-10 h-10 animate-spin" style={{ color: 'var(--primary)' }} />
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Loading menu…</p>
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Loading live menu…</p>
       </div>
     );
   }
@@ -605,7 +660,9 @@ export const DigitalStorefrontPage: React.FC = () => {
   /* ────── SUCCESS / LIVE ORDER STATUS SCREEN ────── */
   if (screen === 'success') {
     const currentStatus = activeOrder?.status || 'PENDING';
-    const stepIndex = 
+    const isTakeaway = activeOrder?.orderType === 'TAKEAWAY' || activeOrder?.orderType === 'COUNTER_PICKUP';
+    const pickupNumber = activeOrder?.pickupNumber || '#A101';
+    const stepIndex =
       currentStatus === 'CLAIMED' ? 1 :
       currentStatus === 'PREPARING' ? 2 :
       currentStatus === 'READY' ? 3 :
@@ -617,7 +674,6 @@ export const DigitalStorefrontPage: React.FC = () => {
     return (
       <div className="min-h-screen flex flex-col justify-between py-6 px-4 fade-up" style={{ background: 'var(--bg)' }}>
         <div className="max-w-md mx-auto w-full space-y-6">
-          
           {/* Header */}
           <div className="flex items-center justify-between pt-2">
             <button
@@ -629,42 +685,46 @@ export const DigitalStorefrontPage: React.FC = () => {
             </button>
             <div className="text-right">
               <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                Live Updates Active
+                Live Kitchen/Barista Stream
               </span>
             </div>
           </div>
 
-          {/* ── 4-STEP TRACKER CARD (Exact Image Design) ── */}
+          {/* ── TRACKER CARD ── */}
           <div className="card p-6 rounded-2xl border space-y-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            
-            {/* Status Pulse Banner */}
-            <div className="text-center space-y-1.5">
+            <div className="text-center space-y-2">
+              {isTakeaway && (
+                <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                  <span className="text-xs font-bold uppercase tracking-wider">Pickup Ticket</span>
+                  <strong className="text-lg font-black text-amber-400">{pickupNumber}</strong>
+                </div>
+              )}
+
               <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-black bg-blue-500/10 text-blue-400 border border-blue-500/30">
                 <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
-                {currentStatus === 'PENDING' ? 'Order Placed · Awaiting Waiter' :
-                 currentStatus === 'CLAIMED' ? 'Order Claimed by Waiter' :
-                 currentStatus === 'PREPARING' ? 'Drinks & Food In Preparation' :
-                 currentStatus === 'READY' ? 'Order Ready for Delivery' :
-                 'Order Delivered · Cheers! 🥂'}
+                {currentStatus === 'PENDING' ? 'Order Received · Queued' :
+                 currentStatus === 'CLAIMED' ? 'Claimed by Server / Barista' :
+                 currentStatus === 'PREPARING' ? 'Preparing Your Items' :
+                 currentStatus === 'READY' ? (isTakeaway ? 'Ready for Pickup at Counter!' : 'Ready for Table Delivery') :
+                 'Order Complete · Enjoy! 🎉'}
               </div>
+
               <h2 className="text-xl font-black" style={{ color: 'var(--text)' }}>
                 {activeOrder?.orderNumber ? `Order #${activeOrder.orderNumber}` : 'Order Status'}
               </h2>
-              {displayTable && (
+
+              {!isTakeaway && displayTable && (
                 <p className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
                   Table #{displayTable}
                 </p>
               )}
             </div>
 
-            {/* ── Exact 4-Step Stepper Component from Uploaded Image ── */}
+            {/* Stepper Component */}
             <div className="py-4 px-2">
               <div className="flex items-center justify-between relative">
-                {/* Background Line */}
                 <div className="absolute top-[22px] left-6 right-6 h-0.5 -translate-y-1/2 bg-slate-700/60 -z-0" />
-                
-                {/* Active Progress Fill Line */}
-                <div 
+                <div
                   className="absolute top-[22px] left-6 h-0.5 -translate-y-1/2 bg-blue-600 transition-all duration-700 -z-0"
                   style={{
                     width: stepIndex <= 1 ? '0%' : stepIndex === 2 ? '33%' : stepIndex === 3 ? '66%' : 'calc(100% - 48px)',
@@ -672,14 +732,13 @@ export const DigitalStorefrontPage: React.FC = () => {
                 />
 
                 {[
-                  { num: 1, label: 'CLAIMED' },
+                  { num: 1, label: 'QUEUED' },
                   { num: 2, label: 'PREPARING' },
                   { num: 3, label: 'READY' },
-                  { num: 4, label: 'DELIVERED' },
+                  { num: 4, label: isTakeaway ? 'PICKED UP' : 'SERVED' },
                 ].map(({ num, label }) => {
                   const isReached = stepIndex >= num;
                   const isCurrent = stepIndex === num;
-
                   return (
                     <div key={num} className="flex flex-col items-center gap-2 z-10">
                       <div
@@ -703,66 +762,30 @@ export const DigitalStorefrontPage: React.FC = () => {
                 })}
               </div>
             </div>
-
-            {/* Waiter Info if assigned */}
-            {activeOrder?.waiter && (
-              <div className="flex items-center gap-3 p-3 rounded-xl border bg-blue-500/5 border-blue-500/20 text-left">
-                <div className="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-sm">
-                  <User className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-blue-400">Assigned Waiter</p>
-                  <p className="text-xs font-bold" style={{ color: 'var(--text)' }}>{activeOrder.waiter.fullName}</p>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* ── Order Summary Card ── */}
           <div className="card p-5 text-left space-y-3 rounded-2xl border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Ordered Items</p>
-
-            {/* Applied offer banner on receipt */}
-            {activeOrder?.offer && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold" style={{ background: 'rgba(251,191,36,0.12)', color: '#F59E0B', border: '1px solid rgba(251,191,36,0.3)' }}>
-                <Flame className="w-3.5 h-3.5 flex-shrink-0" />
-                Deal Applied: {activeOrder.offer.title}
-              </div>
-            )}
-
             <div className="max-h-48 overflow-y-auto space-y-2.5 pr-1" style={{ scrollbarWidth: 'thin' }}>
-              {orderItemsList.length > 0 ? (
-                orderItemsList.map((item: any, idx: number) => (
-                  <div key={idx} className="flex justify-between items-center text-sm">
+              {orderItemsList.map((item: any, idx: number) => (
+                <div key={idx} className="space-y-0.5 text-sm">
+                  <div className="flex justify-between items-center">
                     <span style={{ color: 'var(--text-secondary)' }}>
-                      {item.quantity}× {item.product?.name ?? item.name ?? 'Drink / Food Item'}
+                      {item.quantity}× {item.product?.name ?? item.name ?? 'Item'}
                     </span>
                     <span className="font-bold" style={{ color: 'var(--text)' }}>
                       KES {Number(item.subtotal ?? (item.unitPrice ? item.unitPrice * item.quantity : 0)).toLocaleString()}
                     </span>
                   </div>
-                ))
-              ) : (
-                Object.entries(cart).map(([id, qty]) => {
-                  const item = menuItems.find((m) => m.id === id);
-                  if (!item) return null;
-                  return (
-                    <div key={id} className="flex justify-between items-center text-sm">
-                      <span style={{ color: 'var(--text-secondary)' }}>{qty}× {item.name}</span>
-                      <span className="font-bold" style={{ color: 'var(--text)' }}>KES {(item.price * qty).toLocaleString()}</span>
-                    </div>
-                  );
-                })
-              )}
+                  {item.modifiers && item.modifiers.length > 0 && (
+                    <p className="text-[11px] text-amber-400/90 pl-3">
+                      ↳ {item.modifiers.map((m: any) => `${m.optionName}`).join(', ')}
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
-
-            {/* Discount row on receipt */}
-            {Number(activeOrder?.discountAmount) > 0 && (
-              <div className="flex justify-between items-center text-sm border-t pt-2" style={{ borderColor: 'var(--border)' }}>
-                <span className="font-bold text-emerald-400">Discount Applied</span>
-                <span className="font-black text-emerald-400">-KES {Number(activeOrder.discountAmount).toLocaleString()}</span>
-              </div>
-            )}
 
             <div className="flex justify-between pt-3 border-t font-bold" style={{ borderColor: 'var(--border)' }}>
               <span style={{ color: 'var(--text)' }}>Total Amount</span>
@@ -772,7 +795,6 @@ export const DigitalStorefrontPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Action buttons */}
           <div className="space-y-2.5 pt-2">
             <button
               onClick={() => setScreen('menu')}
@@ -781,22 +803,7 @@ export const DigitalStorefrontPage: React.FC = () => {
             >
               <Plus className="w-4 h-4" /> Browse Menu / Order More
             </button>
-            {stepIndex === 4 && (
-              <button
-                onClick={() => {
-                  localStorage.removeItem('drinkhub_active_order_uuid');
-                  setActiveOrderUuid(null);
-                  setActiveOrder(null);
-                  setScreen('menu');
-                }}
-                className="w-full py-3 text-xs font-semibold rounded-xl border text-slate-300 hover:bg-slate-800 transition-colors"
-                style={{ borderColor: 'var(--border)' }}
-              >
-                Start a New Order
-              </button>
-            )}
           </div>
-
         </div>
       </div>
     );
@@ -812,18 +819,69 @@ export const DigitalStorefrontPage: React.FC = () => {
           </button>
           <div>
             <h2 className="font-black text-base leading-none" style={{ color: 'var(--text)' }}>Checkout</h2>
-            {table && <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Table #{table}</p>}
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              {orderType === 'DINE_IN' ? (table ? `Table #${table}` : 'Dine-In Table') : 'Takeaway / Counter Pickup'}
+            </p>
           </div>
         </div>
 
         <div className="max-w-md mx-auto px-4 py-6 space-y-5">
+          {/* Order Mode Pill Selector */}
+          {brand.allowTakeaway && (
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Order Type</p>
+              <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-slate-900 border border-slate-800">
+                <button
+                  onClick={() => setOrderType('DINE_IN')}
+                  className={`py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                    orderType === 'DINE_IN'
+                      ? 'bg-amber-500 text-slate-950 shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Utensils className="w-4 h-4" />
+                  <span>Dine-In Table {table ? `#${table}` : ''}</span>
+                </button>
+                <button
+                  onClick={() => setOrderType('TAKEAWAY')}
+                  className={`py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                    orderType === 'TAKEAWAY'
+                      ? 'bg-amber-500 text-slate-950 shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Store className="w-4 h-4" />
+                  <span>Takeaway / Pickup</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Customer Name for Takeaway */}
+          {orderType === 'TAKEAWAY' && (
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Customer Name (For Pickup Call)</p>
+              <div className="flex items-center gap-3 rounded-2xl border px-4 py-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <User className="w-4 h-4 opacity-50" />
+                <input
+                  type="text"
+                  placeholder="e.g. Sarah K."
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className="flex-1 bg-transparent text-sm outline-none placeholder:opacity-40"
+                  style={{ color: 'var(--text)' }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Payment method */}
           <div>
             <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>Payment Method</p>
             <div className="grid grid-cols-3 gap-2">
               {([
-                { key: 'mpesa', label: 'M-Pesa', icon: <Smartphone className="w-5 h-5" /> },
-                { key: 'card', label: 'Card', icon: <CreditCard className="w-5 h-5" /> },
+                { key: 'mpesa', label: 'M-Pesa STK', icon: <Smartphone className="w-5 h-5" /> },
+                { key: 'card', label: 'Card POS', icon: <CreditCard className="w-5 h-5" /> },
                 { key: 'cash', label: 'Cash', icon: <Banknote className="w-5 h-5" /> },
               ] as const).map(({ key, label, icon }) => (
                 <button
@@ -846,7 +904,7 @@ export const DigitalStorefrontPage: React.FC = () => {
           {/* M-Pesa phone */}
           {payment === 'mpesa' && (
             <div className="space-y-2">
-              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>M-Pesa Number</p>
+              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>M-Pesa Mobile Number</p>
               <div className="flex items-center gap-3 rounded-2xl border px-4 py-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
                 <span className="text-sm font-bold" style={{ color: 'var(--text-secondary)' }}>+254</span>
                 <input
@@ -858,76 +916,43 @@ export const DigitalStorefrontPage: React.FC = () => {
                   style={{ color: 'var(--text)' }}
                 />
               </div>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>You'll receive an STK Push prompt on this number.</p>
-            </div>
-          )}
-
-          {payment === 'card' && (
-            <div className="rounded-2xl border p-4 space-y-1" style={{ background: 'var(--surface)', borderColor: 'rgba(251,191,36,0.3)' }}>
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                <p className="text-sm font-bold text-amber-400">POS Machine Required</p>
-              </div>
-              <p className="text-xs pl-6" style={{ color: 'var(--text-secondary)' }}>
-                {table ? `Your waiter will bring the POS terminal to Table #${table}.` : 'Your waiter will bring the POS terminal to you.'}
-              </p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>You will receive an instant Safaricom PIN prompt on your phone.</p>
             </div>
           )}
 
           {/* Order summary */}
           <div className="card p-5 space-y-3">
-            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Order Summary</p>
-
-            {/* Active offer banner in checkout */}
-            {appliedOffer && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold" style={{ background: 'rgba(251,191,36,0.12)', color: '#F59E0B', border: '1px solid rgba(251,191,36,0.3)' }}>
-                <Flame className="w-3.5 h-3.5 flex-shrink-0" />
-                {appliedOffer.badge || appliedOffer.title} — Deal Active!
-              </div>
-            )}
-
+            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Order Items</p>
             <div className="max-h-48 overflow-y-auto space-y-2 pr-1" style={{ scrollbarWidth: 'thin' }}>
-              {cartCalculations.map((c) => (
-                <div key={c.item.id} className="space-y-0.5">
+              {Object.values(cart).map((c) => (
+                <div key={c.cartItemId} className="space-y-0.5">
                   <div className="flex justify-between items-center text-sm">
                     <span style={{ color: 'var(--text-secondary)' }}>{c.qty}× {c.item.name}</span>
-                    <div className="text-right">
-                      {c.discountAmount > 0 && (
-                        <span className="text-xs line-through block" style={{ color: 'var(--text-muted)' }}>KES {(c.originalPrice * c.qty).toLocaleString()}</span>
-                      )}
-                      <span className="font-bold" style={{ color: c.discountAmount > 0 ? '#F59E0B' : 'var(--text)' }}>KES {c.totalPrice.toLocaleString()}</span>
-                    </div>
+                    <span className="font-bold" style={{ color: 'var(--text)' }}>KES {(c.unitEffectivePrice * c.qty).toLocaleString()}</span>
                   </div>
-                  {c.offer && (
-                    <div className="flex items-center gap-1 text-[10px] font-bold" style={{ color: '#34D399' }}>
-                      <Tag className="w-2.5 h-2.5" />
-                      {c.isBogo ? 'Buy 1 Get 1 Free' : c.offer.badge || c.offer.title}
-                    </div>
+                  {c.selectedModifiers.length > 0 && (
+                    <p className="text-[11px] text-amber-400 pl-3">
+                      ↳ {c.selectedModifiers.map((m) => m.optionName).join(', ')}
+                    </p>
                   )}
                 </div>
               ))}
             </div>
 
-            {cartTotalDiscount > 0 && (
-              <div className="flex justify-between items-center text-sm border-t pt-2" style={{ borderColor: 'var(--border)' }}>
-                <span className="font-bold text-emerald-400">🎉 You're saving</span>
-                <span className="font-black text-emerald-400">-KES {cartTotalDiscount.toLocaleString()}</span>
-              </div>
-            )}
-
             <div className="flex justify-between pt-3 border-t font-bold" style={{ borderColor: 'var(--border)' }}>
-              <span style={{ color: 'var(--text)' }}>Total</span>
+              <span style={{ color: 'var(--text)' }}>Total Payable</span>
               <span style={{ color: brand.accent }}>KES {cartFinalTotal.toLocaleString()}</span>
             </div>
           </div>
 
-          {/* 18+ */}
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input type="checkbox" checked={ageOk} onChange={(e) => setAgeOk(e.target.checked)} className="mt-0.5 flex-shrink-0" />
-            <span className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              I confirm I am <strong style={{ color: 'var(--text)' }}>over 18 years old</strong> and will provide valid identification upon request.
-            </span>
-          </label>
+          {brand.venueType === 'NIGHTCLUB' && (
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input type="checkbox" checked={ageOk} onChange={(e) => setAgeOk(e.target.checked)} className="mt-0.5 flex-shrink-0" />
+              <span className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                I confirm I am <strong style={{ color: 'var(--text)' }}>over 18 years old</strong>.
+              </span>
+            </label>
+          )}
 
           {placeError && (
             <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
@@ -935,32 +960,14 @@ export const DigitalStorefrontPage: React.FC = () => {
             </div>
           )}
 
-          {!venueOpen && (
-            <div className="flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-bold mb-1" style={{ background: 'rgba(239,68,68,0.1)', color: '#F87171', border: '1px solid rgba(239,68,68,0.25)' }}>
-              🔒 <span>{brand.name} is currently closed. Opens at {brand.openingHours}.</span>
-            </div>
-          )}
-
           <button
-            disabled={!ageOk || placing || !venueOpen || (payment === 'mpesa' && phone.length < 9)}
+            disabled={placing || !venueOpen || (payment === 'mpesa' && phone.length < 9)}
             onClick={placeOrder}
             className="btn-primary w-full py-4 text-sm font-black flex items-center justify-center gap-2 text-white"
-            style={{ background: ageOk && venueOpen ? brand.primary : undefined }}
+            style={{ background: brand.primary }}
           >
-            {placing ? (
-              <span className="flex items-center gap-2">
-                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4" />
-                </svg>
-                Placing Order…
-              </span>
-            ) : !venueOpen ? (
-              <>🔒 Closed · Opens at {brand.openingHours}</>
-            ) : (
-              <>Confirm Order · KES {cartFinalTotal.toLocaleString()}</>
-            )}
+            {placing ? 'Placing Order…' : `Confirm Order · KES ${cartFinalTotal.toLocaleString()}`}
           </button>
-
         </div>
       </div>
     );
@@ -976,48 +983,35 @@ export const DigitalStorefrontPage: React.FC = () => {
           </button>
           <div>
             <h2 className="font-black text-base leading-none" style={{ color: 'var(--text)' }}>Your Order</h2>
-            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{table ? `Table #${table} · ` : ''}{cartCount} item{cartCount !== 1 ? 's' : ''}</p>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{cartCount} item{cartCount !== 1 ? 's' : ''}</p>
           </div>
         </div>
 
         <div className="max-w-md mx-auto px-4 py-6 space-y-3 pb-40">
-          {/* Active offer banner in cart */}
-          {appliedOffer && (
-            <div className="flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-bold" style={{ background: 'rgba(251,191,36,0.12)', color: '#F59E0B', border: '1px solid rgba(251,191,36,0.3)' }}>
-              <Flame className="w-4 h-4 flex-shrink-0" />
-              <span>{appliedOffer.badge || appliedOffer.title} — Active!</span>
-            </div>
-          )}
-
-          {/* Scrollable Cart Items Container */}
           <div className="max-h-[58vh] overflow-y-auto space-y-3 pr-1 scrollbar-thin" style={{ scrollbarWidth: 'thin' }}>
-            {cartCalculations.map((c) => (
-              <div key={c.item.id} className="card flex items-center gap-4 p-4">
+            {Object.values(cart).map((c) => (
+              <div key={c.cartItemId} className="card flex items-center gap-4 p-4">
                 {c.item.img
                   ? <img src={c.item.img} alt={c.item.name} className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
-                  : <div className="w-16 h-16 rounded-xl flex-shrink-0 flex items-center justify-center text-2xl" style={{ background: 'var(--surface-2)' }}>🍸</div>
+                  : <div className="w-16 h-16 rounded-xl flex-shrink-0 flex items-center justify-center text-2xl" style={{ background: 'var(--surface-2)' }}>☕</div>
                 }
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-sm truncate" style={{ color: 'var(--text)' }}>{c.item.name}</p>
-                  {c.offer && (
-                    <div className="flex items-center gap-1 mt-0.5 text-[10px] font-bold" style={{ color: '#34D399' }}>
-                      <Tag className="w-2.5 h-2.5" />
-                      {c.isBogo ? 'Buy 1 Get 1 Free' : c.offer.badge || c.offer.title}
-                    </div>
+                  {c.selectedModifiers.length > 0 && (
+                    <p className="text-[11px] text-amber-400 truncate">
+                      {c.selectedModifiers.map((m) => m.optionName).join(', ')}
+                    </p>
                   )}
-                  <div className="flex items-center gap-2 mt-1">
-                    {c.discountAmount > 0 && (
-                      <span className="text-xs line-through" style={{ color: 'var(--text-muted)' }}>KES {(c.originalPrice * c.qty).toLocaleString()}</span>
-                    )}
-                    <span className="font-black text-sm" style={{ color: c.discountAmount > 0 ? '#F59E0B' : brand.accent }}>KES {c.totalPrice.toLocaleString()}</span>
-                  </div>
+                  <span className="font-black text-sm block mt-1" style={{ color: brand.accent }}>
+                    KES {(c.unitEffectivePrice * c.qty).toLocaleString()}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <button onClick={() => dec(c.item.id)} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
+                  <button onClick={() => decCartItem(c.cartItemId)} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
                     <Minus className="w-4 h-4" style={{ color: 'var(--text)' }} />
                   </button>
                   <span className="w-5 text-center font-black text-sm" style={{ color: 'var(--text)' }}>{c.qty}</span>
-                  <button onClick={() => add(c.item.id)} className="w-8 h-8 rounded-xl flex items-center justify-center text-white" style={{ background: brand.primary }}>
+                  <button onClick={() => addCartItem(c.cartItemId)} className="w-8 h-8 rounded-xl flex items-center justify-center text-white" style={{ background: brand.primary }}>
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
@@ -1028,12 +1022,6 @@ export const DigitalStorefrontPage: React.FC = () => {
 
         <div className="fixed bottom-0 inset-x-0 p-4 border-t" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
           <div className="max-w-md mx-auto space-y-2">
-            {cartTotalDiscount > 0 && (
-              <div className="flex justify-between items-center text-sm">
-                <span className="font-bold text-emerald-400">🎉 Savings</span>
-                <span className="font-black text-emerald-400">-KES {cartTotalDiscount.toLocaleString()}</span>
-              </div>
-            )}
             <div className="flex justify-between items-center">
               <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>Total</span>
               <span className="text-xl font-black" style={{ color: brand.accent }}>KES {cartFinalTotal.toLocaleString()}</span>
@@ -1049,7 +1037,7 @@ export const DigitalStorefrontPage: React.FC = () => {
 
   /* ────── MENU SCREEN (MAIN) ────── */
   return (
-    <div className="h-screen overflow-y-auto pb-28" style={{ background: 'var(--bg)', scrollbarWidth: 'none' }}>
+    <div className="h-screen overflow-y-auto pb-28" onScroll={handleScroll} style={{ background: 'var(--bg)', scrollbarWidth: 'none' }}>
 
       {/* ── HERO BANNER ─────────────────────── */}
       <div ref={heroRef} className="relative h-56 overflow-hidden">
@@ -1064,56 +1052,42 @@ export const DigitalStorefrontPage: React.FC = () => {
         }
         <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(10,10,15,0.2) 0%, rgba(10,10,15,0.85) 70%, rgba(10,10,15,1) 100%)' }} />
 
-        {/* Top bar with DrinkHub Company Logo & Venue Status */}
+        {/* Top bar with DrinkHub Emblem & Venue Type */}
         <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
           <div className="flex items-center gap-2 rounded-full px-3.5 py-1.5 backdrop-blur-md border shadow-lg" style={{ background: 'rgba(10,10,15,0.7)', borderColor: 'rgba(255,255,255,0.15)' }}>
-            {/* DrinkHub Official Company Logo Emblem */}
             <div className="h-6 w-6 rounded-lg bg-gradient-to-tr from-amber-500 via-rose-500 to-blue-600 flex items-center justify-center shadow-md flex-shrink-0">
-              <Wine className="w-3.5 h-3.5 text-white" />
+              {brand.venueType === 'COFFEE_SHOP' || brand.venueType === 'CAFE' ? (
+                <Coffee className="w-3.5 h-3.5 text-white" />
+              ) : brand.venueType === 'RESTAURANT' ? (
+                <Utensils className="w-3.5 h-3.5 text-white" />
+              ) : (
+                <Wine className="w-3.5 h-3.5 text-white" />
+              )}
             </div>
             <div className="flex items-center gap-1.5">
               <span className="font-black text-xs tracking-wider text-white">Drink<span className="text-amber-400">Hub</span></span>
-              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">KE</span>
+              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                {brand.venueType.replace('_', ' ')}
+              </span>
             </div>
           </div>
 
-          {/* Online status chip */}
-          {venueOpen ? (
-            <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase backdrop-blur-md shadow-lg" style={{ background: 'rgba(10,10,15,0.7)', color: '#34D399', border: '1px solid rgba(52,211,153,0.3)' }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
-              Open Now
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase backdrop-blur-md shadow-lg" style={{ background: 'rgba(10,10,15,0.7)', color: '#F87171', border: '1px solid rgba(248,113,113,0.3)' }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
-              Closed
-            </div>
-          )}
+          {/* Open/closed indicator */}
+          <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase backdrop-blur-md shadow-lg" style={{ background: 'rgba(10,10,15,0.7)', color: venueOpen ? '#34D399' : '#F87171', border: `1px solid ${venueOpen ? 'rgba(52,211,153,0.3)' : 'rgba(248,113,113,0.3)'}` }}>
+            <span className={`w-1.5 h-1.5 rounded-full ${venueOpen ? 'bg-emerald-400 animate-ping' : 'bg-red-400'} inline-block`} />
+            {venueOpen ? 'Open Now' : 'Closed'}
+          </div>
         </div>
 
-        {/* Club identity row */}
+        {/* Venue Identity Row */}
         <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
           <div className="flex items-center gap-3">
             {brand.logoUrl ? (
               <div className="relative w-14 h-14 rounded-2xl overflow-hidden border-2 shadow-xl flex-shrink-0 bg-slate-900" style={{ borderColor: 'rgba(255,255,255,0.25)' }}>
-                <img
-                  src={brand.logoUrl}
-                  alt={brand.name}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
-                    const parent = (e.target as HTMLElement).parentElement;
-                    if (parent) {
-                      parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-black text-white bg-gradient-to-tr from-blue-600 to-indigo-600">${brand.name.charAt(0)}</div>`;
-                    }
-                  }}
-                />
+                <img src={brand.logoUrl} alt={brand.name} className="w-full h-full object-cover" />
               </div>
             ) : (
-              <div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black text-white border-2 shadow-xl flex-shrink-0 bg-gradient-to-tr from-blue-600 via-indigo-600 to-amber-500"
-                style={{ borderColor: 'rgba(255,255,255,0.25)' }}
-              >
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black text-white border-2 shadow-xl flex-shrink-0 bg-gradient-to-tr from-amber-600 to-rose-600">
                 {brand.name.charAt(0) || 'D'}
               </div>
             )}
@@ -1130,7 +1104,7 @@ export const DigitalStorefrontPage: React.FC = () => {
               </div>
             </div>
           </div>
-          {/* Table badge */}
+
           {table && (
             <div className="rounded-2xl px-3.5 py-2 text-center shadow-lg border border-white/10" style={{ background: brand.primary }}>
               <p className="text-[9px] font-black uppercase opacity-80 text-white leading-none tracking-wider">Table</p>
@@ -1140,27 +1114,7 @@ export const DigitalStorefrontPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── CLOSED NOTICE BANNER ── */}
-      {!venueOpen && (
-        <div className="px-4 pt-4 fade-up">
-          <div
-            className="rounded-2xl p-4 flex items-center gap-3 border"
-            style={{
-              background: 'linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(239,68,68,0.06) 100%)',
-              borderColor: 'rgba(239,68,68,0.3)',
-            }}
-          >
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg" style={{ background: 'rgba(239,68,68,0.15)' }}>🔒</div>
-            <div className="flex-1 min-w-0">
-              <p className="font-black text-sm" style={{ color: '#F87171' }}>We're Currently Closed</p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                {brand.name} is open from {brand.openingHours} to {brand.closingHours}. You can still browse the menu.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* ── ACTIVE ORDER BANNER ── */}
       {activeOrder && activeOrder.status !== 'CANCELLED' && (
         <div className="px-4 pt-3 fade-up">
           <div
@@ -1185,343 +1139,67 @@ export const DigitalStorefrontPage: React.FC = () => {
                   </p>
                 </div>
                 <p className="text-[11px] mt-0.5 text-blue-200">
-                  {activeOrder.status === 'PENDING' ? 'Waiting for waiter to claim...' :
-                   activeOrder.status === 'CLAIMED' ? (activeOrder.waiter ? `Claimed by ${activeOrder.waiter.fullName}` : 'Claimed by waiter') :
-                   activeOrder.status === 'PREPARING' ? 'Preparing drinks & food...' :
-                   activeOrder.status === 'READY' ? 'Ready for pickup & delivery' :
-                   'Delivered to your table ✓'}
+                  {activeOrder.status === 'PENDING' ? 'Kitchen / Barista preparing your order...' :
+                   activeOrder.status === 'READY' ? 'Order ready for pickup!' : 'Order in progress'}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-1 text-xs font-bold text-blue-400">
-              {activeOrder.status !== 'DELIVERED' && (
-                <>
-                  <span>View Tracker</span>
-                  <ChevronRight className="w-4 h-4" />
-                </>
-              )}
+              <span>Track Live</span>
+              <ChevronRight className="w-4 h-4" />
             </div>
           </div>
         </div>
       )}
 
-      {/* ── FUTURISTIC MOVING SPECIAL DEALS & OFFERS BANNER ─────────────────────── */}
-      {offers.length > 0 && (
-        <div className="px-4 pt-4 fade-up">
-          <div
-            onClick={() => {
-              setCat('🔥 Deals');
-              menuSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-            }}
-            className="group relative overflow-hidden rounded-3xl border transition-all duration-500 shadow-2xl cursor-pointer active:scale-[0.99] hover:border-amber-400/70"
-            style={{
-              borderColor: 'rgba(245, 158, 11, 0.45)',
-              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 27, 75, 0.92) 50%, rgba(15, 23, 42, 0.98) 100%)',
-              boxShadow: '0 8px 32px -4px rgba(245, 158, 11, 0.25), 0 0 20px 0 rgba(239, 68, 68, 0.15)',
-            }}
-          >
-            {/* Ambient cyber neon glow & particle shimmer backdrop */}
-            <div
-              className="absolute -top-20 -right-20 w-60 h-60 rounded-full blur-3xl pointer-events-none opacity-40 animate-pulse"
-              style={{ background: 'radial-gradient(circle, #F59E0B 0%, #EC4899 50%, transparent 70%)' }}
-            />
-            <div
-              className="absolute -bottom-20 -left-20 w-60 h-60 rounded-full blur-3xl pointer-events-none opacity-30 animate-pulse"
-              style={{ background: 'radial-gradient(circle, #3B82F6 0%, #8B5CF6 50%, transparent 70%)', animationDelay: '1.5s' }}
-            />
-
-            {/* Top Animated Cyber Slide Timer Progress Line */}
-            {offers.length > 1 && (
-              <div className="absolute top-0 inset-x-0 h-1 bg-slate-800/80 overflow-hidden">
-                <div
-                  key={activeOfferIdx}
-                  className="h-full bg-gradient-to-r from-amber-400 via-rose-500 to-amber-400 animate-[progress_5s_linear_infinite]"
-                  style={{ width: '100%' }}
-                />
-              </div>
-            )}
-
-            <div className="relative p-4 sm:p-5 space-y-3.5">
-              {/* Header row with Cyber Beacon and slider navigation */}
-              <div className="flex items-center justify-between">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black tracking-wider uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-500/20 backdrop-blur-md">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
-                  </span>
-                  <Zap className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Exclusive Deal of the Day · Tap to View All</span>
-                </div>
-
-                {/* Slider Controls */}
-                <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                  {offers.length > 1 && (
-                    <>
-                      <button
-                        onClick={() => setActiveOfferIdx((prev) => (prev - 1 + offers.length) % offers.length)}
-                        className="w-6 h-6 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 text-white transition-all backdrop-blur-md"
-                        aria-label="Previous deal"
-                      >
-                        <ChevronLeft className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setActiveOfferIdx((prev) => (prev + 1) % offers.length)}
-                        className="w-6 h-6 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 text-white transition-all backdrop-blur-md"
-                        aria-label="Next deal"
-                      >
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Current Featured Offer Card */}
-              {(() => {
-                const current = offers[activeOfferIdx % offers.length];
-                if (!current) return null;
-
-                const matchItem = menuItems.find(
-                  (m) =>
-                    m.id === current.productId ||
-                    m.id === current.id ||
-                    current.title.toLowerCase().includes(m.name.toLowerCase()) ||
-                    m.name.toLowerCase().includes(current.title.toLowerCase())
-                );
-
-                return (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-4">
-                      {/* Left: Offer Details & Actions */}
-                      <div className="space-y-2 flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[10px] font-black px-2.5 py-0.5 rounded-md bg-gradient-to-r from-amber-500 to-rose-500 text-white shadow-md shadow-amber-500/30 uppercase tracking-wide">
-                            {current.badge || '🔥 TODAY\'S SPECIAL'}
-                          </span>
-                        </div>
-
-                        <h3 className="font-black text-base sm:text-lg text-white leading-tight truncate tracking-tight">
-                          {current.title}
-                        </h3>
-
-                        {current.description && (
-                          <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed opacity-90">
-                            {current.description}
-                          </p>
-                        )}
-
-                        {/* Pricing Tag */}
-                        <div className="flex items-center gap-2 pt-0.5 flex-wrap">
-                          {current.dealPrice ? (
-                            <div className="flex items-baseline gap-2">
-                              <span className="text-base font-black text-amber-400">
-                                KES {current.dealPrice.toLocaleString()}
-                              </span>
-                              {current.originalPrice && current.originalPrice > current.dealPrice && (
-                                <span className="text-xs font-semibold text-slate-400 line-through opacity-75">
-                                  KES {current.originalPrice.toLocaleString()}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-xs font-black text-amber-400">
-                              {current.offerType === 'BUY_ONE_GET_ONE' ? 'Buy 1 Get 1 Free' : `${current.discountValue}% Off`}
-                            </span>
-                          )}
-
-                          {/* Interactive Promo Code Pill */}
-                          {current.promoCode && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (current.promoCode) {
-                                  navigator.clipboard?.writeText(current.promoCode);
-                                  setCopiedCode(current.promoCode);
-                                  setTimeout(() => setCopiedCode(null), 2500);
-                                }
-                              }}
-                              title="Click to copy promo code"
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-amber-400/40 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-[11px] font-mono font-bold tracking-wide transition-all active:scale-95 shadow-sm"
-                            >
-                              <Copy className="w-3 h-3 text-amber-400" />
-                              <span>{copiedCode === current.promoCode ? 'Copied! 🎉' : current.promoCode}</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Right: Floating Product Image with Holographic Glow */}
-                      <div className="relative flex-shrink-0">
-                        {/* Holographic glowing ambient back-ring */}
-                        <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 blur-md opacity-70 animate-pulse pointer-events-none scale-105" />
-                        
-                        <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl bg-slate-900 flex items-center justify-center group-hover:scale-105 transition-transform duration-500">
-                          {current.imageUrl ? (
-                            <img
-                              src={current.imageUrl}
-                              alt={current.title}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-amber-950/80 to-purple-950/80 text-3xl">
-                              🍸
-                            </div>
-                          )}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
-                          <span className="absolute bottom-1 right-1 text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-md text-amber-300 border border-white/10">
-                            Special
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Quick Order Actions Row Inside Banner */}
-                    <div className="flex items-center gap-2 pt-1 border-t border-white/10 flex-wrap">
-                      {matchItem ? (
-                        (cart[matchItem.id] ?? 0) > 0 ? (
-                          <div
-                            className="flex items-center gap-2 rounded-xl p-1 bg-white/10 backdrop-blur-md border border-white/20"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <button
-                              onClick={() => dec(matchItem.id)}
-                              className="w-7 h-7 rounded-lg flex items-center justify-center bg-black/40 text-white hover:bg-black/60 transition-colors"
-                            >
-                              <Minus className="w-3.5 h-3.5" />
-                            </button>
-                            <span className="w-4 text-center text-xs font-black text-white">
-                              {cart[matchItem.id]}
-                            </span>
-                            <button
-                              onClick={() => add(matchItem.id)}
-                              className="w-7 h-7 rounded-lg flex items-center justify-center bg-amber-500 text-white hover:bg-amber-600 font-bold transition-colors"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              add(matchItem.id);
-                            }}
-                            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-white font-black text-xs shadow-lg shadow-amber-500/30 flex items-center gap-1.5 transition-all active:scale-95"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            Order This Deal
-                          </button>
-                        )
-                      ) : (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setCat('🔥 Deals');
-                            menuSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-                          }}
-                          className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-white font-black text-xs shadow-lg shadow-amber-500/30 flex items-center gap-1.5 transition-all active:scale-95"
-                        >
-                          <Zap className="w-3.5 h-3.5" />
-                          View Deals Menu
-                        </button>
-                      )}
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCat('🔥 Deals');
-                          menuSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                        className="px-3 py-1.5 rounded-xl border border-white/20 bg-white/5 hover:bg-white/15 text-slate-200 text-xs font-bold transition-all flex items-center gap-1"
-                      >
-                        <span>All Deals ({offers.length})</span>
-                        <ChevronRight className="w-3 h-3 opacity-70" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Bottom Pagination Dots */}
-              {offers.length > 1 && (
-                <div className="flex items-center justify-center gap-1.5 pt-1" onClick={(e) => e.stopPropagation()}>
-                  {offers.map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setActiveOfferIdx(i)}
-                      className={`h-1.5 rounded-full transition-all duration-300 ${
-                        activeOfferIdx === i
-                          ? 'w-6 bg-gradient-to-r from-amber-400 to-rose-500 shadow-sm shadow-amber-500/50'
-                          : 'w-1.5 bg-white/20 hover:bg-white/40'
-                      }`}
-                      aria-label={`Deal ${i + 1}`}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+      {/* ── DIETARY FILTER PILLS ── */}
+      <div className="px-4 pt-4 pb-1">
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          {[
+            { key: 'All', label: 'All Diets' },
+            { key: 'VEGETARIAN', label: '🥗 Vegetarian' },
+            { key: 'VEGAN', label: '🌱 100% Vegan' },
+            { key: 'GLUTEN_FREE', label: '🌾 Gluten-Free' },
+            { key: 'HALAL', label: '✨ Halal' },
+            { key: 'SPICY', label: '🌶️ Spicy' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setDietaryFilter(key)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                dietaryFilter === key
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/50'
+                  : 'bg-slate-900/60 text-slate-400 border-slate-800'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
 
       {/* ── CATEGORY PILLS ───────────────────── */}
-      <div ref={menuSectionRef} className="px-4 pt-5 pb-1 fade-up-delay-1">
+      <div ref={menuSectionRef} className="px-4 pt-2 pb-1 fade-up-delay-1">
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
-          {categories.map((c) => {
-            const isDeals = c === '🔥 Deals' || c === 'Offers';
-            return (
-              <button
-                key={c}
-                onClick={() => setCat(c)}
-                className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  isDeals && cat !== c ? 'animate-pulse' : ''
-                }`}
-                style={{
-                  background: cat === c
-                    ? (isDeals ? 'linear-gradient(135deg, #F59E0B, #EF4444)' : brand.primary)
-                    : (isDeals ? 'rgba(245, 158, 11, 0.15)' : 'var(--surface)'),
-                  color: cat === c ? '#fff' : (isDeals ? '#F59E0B' : 'var(--text-secondary)'),
-                  border: `1px solid ${cat === c ? 'transparent' : (isDeals ? 'rgba(245, 158, 11, 0.4)' : 'var(--border)')}`,
-                  boxShadow: isDeals && cat === c ? '0 4px 15px rgba(245, 158, 11, 0.4)' : undefined,
-                }}
-              >
-                {c}
-                {isDeals && offers.length > 0 && (
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                    cat === c ? 'bg-black/30 text-white' : 'bg-amber-500 text-slate-950'
-                  }`}>
-                    {offers.length}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+          {categories.map((c) => (
+            <button
+              key={c}
+              onClick={() => setCat(c)}
+              className="flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all"
+              style={{
+                background: cat === c ? brand.primary : 'var(--surface)',
+                color: cat === c ? '#fff' : 'var(--text-secondary)',
+                border: `1px solid ${cat === c ? 'transparent' : 'var(--border)'}`,
+              }}
+            >
+              {c}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* ── MENU ITEMS ───────────────────────── */}
       <div className="px-4 pt-3 space-y-3 fade-up-delay-2">
-        {/* Special Header when in Deals Tab */}
-        {cat === '🔥 Deals' && (
-          <div
-            className="rounded-2xl p-3.5 mb-2 flex items-center justify-between border"
-            style={{
-              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(239, 68, 68, 0.1) 100%)',
-              borderColor: 'rgba(245, 158, 11, 0.35)',
-            }}
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="text-xl">🔥</span>
-              <div>
-                <p className="text-xs font-black text-amber-400">Exclusive Deals & Offers</p>
-                <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>Special prices & discounts applied automatically to your cart</p>
-              </div>
-            </div>
-            <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-500 text-slate-950">
-              {filtered.length} Deals
-            </span>
-          </div>
-        )}
-
         <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
           {filtered.length} item{filtered.length !== 1 ? 's' : ''}
         </p>
@@ -1529,99 +1207,141 @@ export const DigitalStorefrontPage: React.FC = () => {
         {filtered.length === 0 && (
           <div className="text-center py-16">
             <ShoppingCart className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No items available in this category.</p>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No items found in this category or dietary filter.</p>
           </div>
         )}
 
         {filtered.filter((i) => i.isAvailable).map((item) => {
-          const itemOffer = getOfferForItem(item);
-          const itemPricing = itemOffer ? getItemPricing(item, 1) : null;
+          const hasModifiers = item.modifierGroups && item.modifierGroups.length > 0;
           return (
-          <div key={item.id} className="card flex items-center gap-4 p-4 transition-all active:scale-[0.98]">
-            <div className="relative flex-shrink-0">
-              {item.img
-                ? <img src={item.img} alt={item.name} className="w-20 h-20 rounded-xl object-cover" />
-                : <div className="w-20 h-20 rounded-xl flex items-center justify-center text-3xl" style={{ background: 'var(--surface)' }}>🍸</div>
-              }
-              {itemOffer && (
-                <span
-                  className="absolute -top-2 -right-2 text-[8px] font-black rounded-full px-1.5 py-0.5 text-white animate-pulse"
-                  style={{ background: 'linear-gradient(135deg, #F59E0B, #EF4444)' }}
-                >
-                  {itemOffer.badge ? itemOffer.badge.slice(0, 8) : 'DEAL'}
-                </span>
-              )}
-              {!itemOffer && item.badge && (
-                <span
-                  className="absolute -top-2 -right-2 text-[8px] font-black rounded-full px-1.5 py-0.5 text-white"
-                  style={{ background: brand.primary }}
-                >
-                  {item.badge}
-                </span>
-              )}
-            </div>
+            <div key={item.id} className="card flex items-center gap-4 p-4 transition-all active:scale-[0.98]">
+              <div className="relative flex-shrink-0">
+                {item.img
+                  ? <img src={item.img} alt={item.name} className="w-20 h-20 rounded-xl object-cover" />
+                  : <div className="w-20 h-20 rounded-xl flex items-center justify-center text-3xl" style={{ background: 'var(--surface)' }}>
+                      {item.prepStation === 'BARISTA' ? '☕' : item.prepStation === 'KITCHEN' ? '🍳' : '🍸'}
+                    </div>
+                }
+              </div>
 
-            <div className="flex-1 min-w-0 space-y-1">
-              <p className="font-bold text-sm leading-tight truncate" style={{ color: 'var(--text)' }}>{item.name}</p>
-              {item.desc && <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{item.desc}</p>}
-              {/* Offer label */}
-              {itemOffer && (
-                <div className="flex items-center gap-1 text-[10px] font-bold" style={{ color: '#34D399' }}>
-                  <Tag className="w-2.5 h-2.5" />
-                  {itemOffer.offerType === 'BUY_ONE_GET_ONE' ? 'Buy 1 Get 1 Free' : itemOffer.badge || itemOffer.title}
-                </div>
-              )}
-              <div className="flex items-center justify-between pt-1">
+              <div className="flex-1 min-w-0 space-y-1">
                 <div className="flex items-center gap-2">
-                  {itemPricing && itemPricing.discountAmount > 0 && (
-                    <span className="text-xs line-through" style={{ color: 'var(--text-muted)' }}>KES {item.price.toLocaleString()}</span>
+                  <p className="font-bold text-sm leading-tight truncate" style={{ color: 'var(--text)' }}>{item.name}</p>
+                </div>
+                {item.desc && <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{item.desc}</p>}
+                
+                {/* Modifiers & Station Badge */}
+                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                  {item.prepStation && item.prepStation !== 'GENERAL' && (
+                    <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                      {item.prepStation}
+                    </span>
                   )}
-                  <span className="font-black text-sm" style={{ color: itemPricing && itemPricing.discountAmount > 0 ? '#F59E0B' : brand.accent }}>
-                    KES {itemPricing ? itemPricing.unitPrice.toLocaleString() : item.price.toLocaleString()}
-                  </span>
+                  {hasModifiers && (
+                    <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      Customizable
+                    </span>
+                  )}
+                  {(item.dietaryTags || []).map((tag) => (
+                    <span key={tag} className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      {tag.replace('_', ' ')}
+                    </span>
+                  ))}
                 </div>
 
-                {(cart[item.id] ?? 0) > 0 ? (
-                  <div className="flex items-center gap-2 rounded-xl p-1" style={{ background: 'var(--surface-2)' }}>
-                    <button onClick={() => dec(item.id)} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--surface)' }}>
-                      <Minus className="w-3.5 h-3.5" style={{ color: 'var(--text)' }} />
-                    </button>
-                    <span className="w-4 text-center text-xs font-black" style={{ color: 'var(--text)' }}>{cart[item.id]}</span>
-                    <button onClick={() => add(item.id)} className="w-7 h-7 rounded-lg flex items-center justify-center text-white" style={{ background: brand.primary }}>
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ) : (
+                <div className="flex items-center justify-between pt-1">
+                  <span className="font-black text-sm" style={{ color: brand.accent }}>
+                    KES {item.price.toLocaleString()}
+                  </span>
+
                   <button
-                    onClick={() => add(item.id)}
-                    className="btn-primary px-4 py-2 flex items-center gap-1.5"
+                    onClick={() => handleQuickAdd(item)}
+                    className="btn-primary px-3.5 py-1.5 text-xs font-bold flex items-center gap-1.5 rounded-xl shadow-md"
                     style={{ background: brand.primary }}
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    Add
+                    {hasModifiers ? 'Customize' : 'Add'}
                   </button>
-                )}
+                </div>
               </div>
             </div>
-          </div>
           );
         })}
       </div>
 
-      {/* ── DRINKHUB COMPANY BRANDING FOOTER ── */}
-      <div className="py-12 px-4 text-center border-t border-white/5 mt-10 space-y-2">
-        <div className="inline-flex items-center justify-center gap-2">
-          <div className="h-7 w-7 rounded-lg bg-gradient-to-tr from-amber-500 via-rose-500 to-blue-600 flex items-center justify-center shadow-md">
-            <Wine className="w-4 h-4 text-white" />
+      {/* ── MODIFIER CUSTOMIZER MODAL ────────── */}
+      {customizingItem && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-5 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-lg font-black text-white">{customizingItem.name}</h3>
+                <p className="text-xs text-slate-400">Customize size, milk, and options</p>
+              </div>
+              <button
+                onClick={() => setCustomizingItem(null)}
+                className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Groups */}
+            <div className="space-y-4">
+              {(customizingItem.modifierGroups || []).map((group) => {
+                const selected = customizerSelections[group.name] || [];
+                return (
+                  <div key={group.name} className="space-y-2 p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-black text-amber-400 uppercase tracking-wider">{group.name}</p>
+                      <span className="text-[10px] text-slate-400 font-bold">
+                        {group.selectionType === 'SINGLE' ? 'Choose 1' : 'Optional Multi'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2 pt-1">
+                      {group.options.map((opt) => {
+                        const isChosen = selected.includes(opt.name);
+                        return (
+                          <button
+                            key={opt.name}
+                            type="button"
+                            onClick={() => toggleOption(group, opt.name)}
+                            className={`flex items-center justify-between p-3 rounded-xl border text-xs font-bold transition-all ${
+                              isChosen
+                                ? 'bg-amber-500/20 border-amber-500 text-amber-300'
+                                : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                            }`}
+                          >
+                            <span>{opt.name}</span>
+                            <span className="text-amber-400 font-black">
+                              {opt.priceDelta > 0 ? `+KES ${opt.priceDelta}` : 'Included'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] text-slate-400 uppercase font-bold">Item Total</p>
+                <p className="text-lg font-black text-amber-400">KES {getCustomizedPrice().toLocaleString()}</p>
+              </div>
+              <button
+                onClick={saveCustomizedItemToCart}
+                className="btn-primary px-6 py-3 text-sm font-black rounded-2xl text-white shadow-lg"
+                style={{ background: brand.primary }}
+              >
+                Add to Order
+              </button>
+            </div>
           </div>
-          <span className="font-black text-sm text-white tracking-wider">
-            Drink<span className="text-amber-400">Hub</span> <span className="text-xs text-blue-400">Kenya</span>
-          </span>
         </div>
-        <p className="text-[11px] text-slate-400">
-          Smart Digital Menu & Table Ordering • {brand.name}
-        </p>
-      </div>
+      )}
 
       {/* ── FLOATING CART BAR ────────────────── */}
       {cartCount > 0 && (
@@ -1629,24 +1349,15 @@ export const DigitalStorefrontPage: React.FC = () => {
           <button
             onClick={() => setScreen('cart')}
             className="w-full flex items-center justify-between p-4 rounded-2xl text-white shadow-2xl font-bold transition-all active:scale-[0.97]"
-            style={{
-              background: venueOpen ? brand.primary : '#6B7280',
-              boxShadow: venueOpen ? `0 8px 32px ${brand.primary}55` : '0 8px 32px rgba(0,0,0,0.3)',
-            }}
+            style={{ background: brand.primary }}
           >
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-sm" style={{ background: 'rgba(0,0,0,0.25)' }}>
                 {cartCount}
               </div>
-              <div>
-                <span className="text-sm font-bold block leading-tight">{venueOpen ? 'View Order' : 'Venue Closed'}</span>
-                {!venueOpen && <span className="text-[10px] opacity-70">Opens {brand.openingHours}</span>}
-              </div>
+              <span className="text-sm font-bold block leading-tight">View Order</span>
             </div>
             <div className="flex items-center gap-2">
-              {cartTotalDiscount > 0 && (
-                <span className="text-xs font-bold line-through opacity-60">KES {cartSubtotal.toLocaleString()}</span>
-              )}
               <span className="text-sm font-black">KES {cartFinalTotal.toLocaleString()}</span>
               <ChevronRight className="w-4 h-4 opacity-70" />
             </div>
@@ -1658,7 +1369,6 @@ export const DigitalStorefrontPage: React.FC = () => {
   );
 };
 
-/* ── Utility: lighten/darken a hex color ── */
 function adjustColor(hex: string, amount: number): string {
   const h = hex.replace('#', '');
   if (h.length !== 6) return hex;

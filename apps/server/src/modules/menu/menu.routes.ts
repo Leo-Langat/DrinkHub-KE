@@ -247,3 +247,14 @@ menuRouter.post('/upload', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PL
 menuRouter.post('/offers', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PLATFORM_ADMIN']), validateRequest(createOfferSchema), menuController.createOffer);
 menuRouter.delete('/offers/:offerUuid', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PLATFORM_ADMIN']), menuController.deleteOffer);
 menuRouter.patch('/offers/:offerUuid/toggle', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PLATFORM_ADMIN']), menuController.toggleOffer);
+
+// ─── Modifier Groups & Options ──────────────────────────────────────────────
+menuRouter.get('/modifier-groups', menuController.getModifierGroups);
+menuRouter.post('/modifier-groups', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PLATFORM_ADMIN']), menuController.createModifierGroup);
+menuRouter.put('/modifier-groups/:modifierGroupUuid', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PLATFORM_ADMIN']), menuController.updateModifierGroup);
+menuRouter.delete('/modifier-groups/:modifierGroupUuid', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PLATFORM_ADMIN']), menuController.deleteModifierGroup);
+
+menuRouter.post('/modifier-groups/:modifierGroupUuid/options', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PLATFORM_ADMIN']), menuController.createModifierOption);
+menuRouter.put('/modifier-options/:modifierOptionUuid', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PLATFORM_ADMIN']), menuController.updateModifierOption);
+menuRouter.delete('/modifier-options/:modifierOptionUuid', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PLATFORM_ADMIN']), menuController.deleteModifierOption);
+

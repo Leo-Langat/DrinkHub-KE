@@ -4,6 +4,15 @@ import { ReportingService } from './reporting.service';
 export class ReportingController {
   constructor(private reportingService: ReportingService) {}
 
+  getPlatformSummary = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const data = await this.reportingService.getPlatformSummary();
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   getAnalytics = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const clubUuid = (req.headers['x-tenant-id'] as string) || (req.query.clubUuid as string) || req.user?.tenantId || (req.user as any)?.clubUuid || 'default-club';

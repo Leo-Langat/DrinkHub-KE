@@ -188,192 +188,9 @@ const SectionHeader = ({ title, subtitle, action }: { title: string; subtitle?: 
 );
 
 
-/* ─── Data ─── */
-const initClubs: Club[] = [
-  {
-    id: '11111111-1111-1111-1111-111111111111',
-    name: 'The Alchemist Westlands',
-    description: 'Creative hub & live entertainment lounge',
-    address: 'Parklands Road, Westlands',
-    city: 'Nairobi',
-    county: 'Nairobi',
-    phone: '+254712345678',
-    email: 'info@alchemist.co.ke',
-    openingTime: '16:00',
-    closingTime: '04:00',
-    logoUrl: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=200',
-    bannerUrl: 'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?w=1200',
-    themeColor: '#e11d48',
-    plan: 'Pro',
-    status: 'Active',
-    mrr: 8900,
-    orders: 342,
-    managerId: 'm1',
-    createdAt: '2026-08-01',
-    trialDays: 0,
-    startDate: '2026-08-01',
-    expiryDate: '2026-09-01',
-  },
-  {
-    id: '44444444-4444-4444-4444-444444444444',
-    name: 'Java House Coffee Shop',
-    description: 'Home of rich Kenyan roasted coffees and fresh pastries',
-    address: 'Kenyatta Avenue, CBD',
-    city: 'Nairobi',
-    county: 'Nairobi',
-    phone: '+254722112233',
-    email: 'cbd@javahouseafrica.com',
-    openingTime: '06:30',
-    closingTime: '21:00',
-    logoUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=200',
-    bannerUrl: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=1200',
-    themeColor: '#78350F',
-    plan: 'Pro',
-    status: 'Active',
-    mrr: 8900,
-    orders: 512,
-    managerId: 'm2',
-    createdAt: '2026-08-05',
-    trialDays: 0,
-    startDate: '2026-08-05',
-    expiryDate: '2026-09-05',
-  },
-  {
-    id: '22222222-2222-2222-2222-222222222222',
-    name: 'Quiver Lounge Kilimani',
-    description: 'Premium sports lounge, grill & cocktail bar',
-    address: 'Argwings Kodhek Rd, Kilimani',
-    city: 'Nairobi',
-    county: 'Nairobi',
-    phone: '+254733445566',
-    email: 'kilimani@quiverlounge.co.ke',
-    openingTime: '14:00',
-    closingTime: '04:00',
-    logoUrl: 'https://images.unsplash.com/photo-1574096079513-d8259312b785?w=200',
-    bannerUrl: 'https://images.unsplash.com/photo-1543007630-9710e4a00a20?w=1200',
-    themeColor: '#DC2626',
-    plan: 'Pro',
-    status: 'Active',
-    mrr: 8900,
-    orders: 428,
-    managerId: 'm3',
-    createdAt: '2026-08-08',
-    trialDays: 0,
-    startDate: '2026-08-08',
-    expiryDate: '2026-09-08',
-  },
-  {
-    id: '33333333-3333-3333-3333-333333333333',
-    name: 'Artcaffe Grand Cafe',
-    description: 'Artisan bakery, European cafe & bistro dining',
-    address: 'Westgate Mall, Westlands',
-    city: 'Nairobi',
-    county: 'Nairobi',
-    phone: '+254744556677',
-    email: 'westgate@artcaffe.co.ke',
-    openingTime: '07:00',
-    closingTime: '23:00',
-    logoUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=200',
-    bannerUrl: 'https://images.unsplash.com/photo-1559925393-8be0ec4767c8?w=1200',
-    themeColor: '#059669',
-    plan: 'Standard',
-    status: 'Active',
-    mrr: 4900,
-    orders: 285,
-    managerId: 'm4',
-    createdAt: '2026-08-10',
-    trialDays: 0,
-    startDate: '2026-08-10',
-    expiryDate: '2026-09-10',
-  },
-  {
-    id: '55555555-5555-5555-5555-555555555555',
-    name: 'Eden Bar & Ocean Grill',
-    description: 'Beachfront seafood dining and tropical cocktails',
-    address: 'Nyali Beach Road',
-    city: 'Mombasa',
-    county: 'Mombasa',
-    phone: '+254755667788',
-    email: 'info@edenmombasa.co.ke',
-    openingTime: '11:00',
-    closingTime: '02:00',
-    logoUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200',
-    bannerUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200',
-    themeColor: '#0284C7',
-    plan: 'Standard',
-    status: 'Active',
-    mrr: 4900,
-    orders: 198,
-    managerId: 'm5',
-    createdAt: '2026-08-12',
-    trialDays: 0,
-    startDate: '2026-08-12',
-    expiryDate: '2026-09-12',
-  },
-];
-
-const initManagers: Manager[] = [
-  {
-    id: 'm1',
-    firstName: 'Dennis',
-    lastName: 'Mwangi',
-    email: 'admin@alchemist.co.ke',
-    phone: '+254712345678',
-    username: 'dennis.mwangi',
-    clubId: '11111111-1111-1111-1111-111111111111',
-    clubName: 'The Alchemist Westlands',
-    status: 'Active',
-    lastLogin: 'Today, 20:45',
-  },
-  {
-    id: 'm2',
-    firstName: 'Mercy',
-    lastName: 'Wanjiru',
-    email: 'manager.mercy@javahouse.co.ke',
-    phone: '+254722112233',
-    username: 'mercy.wanjiru',
-    clubId: '44444444-4444-4444-4444-444444444444',
-    clubName: 'Java House Coffee Shop',
-    status: 'Active',
-    lastLogin: 'Today, 19:10',
-  },
-  {
-    id: 'm3',
-    firstName: 'Peter',
-    lastName: 'Omondi',
-    email: 'manager@quiverlounge.co.ke',
-    phone: '+254733445566',
-    username: 'peter.omondi',
-    clubId: '22222222-2222-2222-2222-222222222222',
-    clubName: 'Quiver Lounge Kilimani',
-    status: 'Active',
-    lastLogin: 'Today, 18:30',
-  },
-  {
-    id: 'm4',
-    firstName: 'Faith',
-    lastName: 'Njeri',
-    email: 'manager@artcaffe.co.ke',
-    phone: '+254744556677',
-    username: 'faith.njeri',
-    clubId: '33333333-3333-3333-3333-333333333333',
-    clubName: 'Artcaffe Grand Cafe',
-    status: 'Active',
-    lastLogin: 'Yesterday, 21:00',
-  },
-  {
-    id: 'm5',
-    firstName: 'Jane',
-    lastName: 'Mutua',
-    email: 'manager@edenmombasa.co.ke',
-    phone: '+254755667788',
-    username: 'jane.mutua',
-    clubId: '55555555-5555-5555-5555-555555555555',
-    clubName: 'Eden Bar & Ocean Grill',
-    status: 'Active',
-    lastLogin: '2 days ago',
-  },
-];
+/* ─── Initial State (Empty, populated from live DB) ─── */
+const initClubs: Club[] = [];
+const initManagers: Manager[] = [];
 
 const mrrData: { month: string; mrr: number }[] = [];
 const venueData: { county: string; clubs: number; revenue: number }[] = [];
@@ -1371,32 +1188,30 @@ const ClubsPage = ({ showToast }: { showToast: (m: string, t?: 'success' | 'erro
               expiryDate: '',
             };
           });
-          /* Only replace demo fallback when live DB returns real records */
-          if (Array.isArray(parsedClubs) && parsedClubs.length > 0) setClubs(parsedClubs);
+          /* Set live database clubs */
+          setClubs(parsedClubs);
         }
 
         const staffRes = await fetch(getApiUrl('/auth/staff?role=CLUB_ADMIN'), { headers: authHeaders() });
         if (staffRes.ok) {
           const staffData = await staffRes.json();
           const rawStaff: any[] = staffData.data?.staff ?? staffData.data ?? [];
-          if (Array.isArray(rawStaff) && rawStaff.length > 0) {
-            const parsedMgrs: Manager[] = rawStaff.map(s => ({
-              id: s.uuid ?? s.userUuid,
-              firstName: s.fullName ? s.fullName.split(' ')[0] : 'Manager',
-              lastName: s.fullName ? s.fullName.split(' ').slice(1).join(' ') : '',
-              email: s.email,
-              phone: s.phone ?? '',
-              username: s.email.split('@')[0],
-              clubId: s.clubUuid ?? '',
-              clubName: s.club?.name ?? 'Venue',
-              status: s.isActive !== false ? 'Active' : 'Suspended',
-              lastLogin: s.lastLogin ?? 'Never',
-            }));
-            setManagers(parsedMgrs);
-          }
+          const parsedMgrs: Manager[] = rawStaff.map(s => ({
+            id: s.uuid ?? s.userUuid,
+            firstName: s.fullName ? s.fullName.split(' ')[0] : 'Manager',
+            lastName: s.fullName ? s.fullName.split(' ').slice(1).join(' ') : '',
+            email: s.email,
+            phone: s.phone ?? '',
+            username: s.email.split('@')[0],
+            clubId: s.clubUuid ?? '',
+            clubName: s.club?.name ?? 'Venue',
+            status: s.isActive !== false ? 'Active' : 'Suspended',
+            lastLogin: s.lastLogin ?? 'Never',
+          }));
+          setManagers(parsedMgrs);
         }
       } catch {
-        /* Keep fallback data if fetch fails */
+        /* Keep state empty if fetch fails */
       }
     };
     fetchData();
@@ -1460,7 +1275,15 @@ const ClubsPage = ({ showToast }: { showToast: (m: string, t?: 'success' | 'erro
             </tr>
           </thead>
           <tbody>
-            {filtered.map(club => {
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="py-12 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+                  <Building2 className="h-8 w-8 mx-auto mb-2 text-slate-400 opacity-60" />
+                  <p className="font-bold text-sm text-slate-700 dark:text-slate-200">No venues found in database</p>
+                  <p className="mt-1 text-slate-500">Create a new venue using the button above to add records to your database.</p>
+                </td>
+              </tr>
+            ) : filtered.map(club => {
               const mgr = managers.find(m => m.clubId === club.id || (club.managerId && m.id === club.managerId));
               return (
                 <tr key={club.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
@@ -1532,23 +1355,21 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
         if (!res.ok) return;
         const data = await res.json();
         const rawStaff: any[] = data.data?.staff ?? data.data ?? [];
-        if (Array.isArray(rawStaff) && rawStaff.length > 0) {
-          const parsedMgrs: Manager[] = rawStaff.map(s => ({
-            id: s.uuid ?? s.userUuid,
-            firstName: s.fullName ? s.fullName.split(' ')[0] : 'Manager',
-            lastName: s.fullName ? s.fullName.split(' ').slice(1).join(' ') : '',
-            email: s.email,
-            phone: s.phone ?? '',
-            username: s.email.split('@')[0],
-            clubId: s.clubUuid ?? '',
-            clubName: s.club?.name ?? 'Venue',
-            status: s.isActive !== false ? 'Active' : 'Suspended',
-            lastLogin: s.lastLogin ?? 'Never',
-          }));
-          setManagers(parsedMgrs);
-        }
+        const parsedMgrs: Manager[] = (Array.isArray(rawStaff) ? rawStaff : []).map(s => ({
+          id: s.uuid ?? s.userUuid,
+          firstName: s.fullName ? s.fullName.split(' ')[0] : 'Manager',
+          lastName: s.fullName ? s.fullName.split(' ').slice(1).join(' ') : '',
+          email: s.email,
+          phone: s.phone ?? '',
+          username: s.email.split('@')[0],
+          clubId: s.clubUuid ?? '',
+          clubName: s.club?.name ?? 'Venue',
+          status: s.isActive !== false ? 'Active' : 'Suspended',
+          lastLogin: s.lastLogin ?? 'Never',
+        }));
+        setManagers(parsedMgrs);
       } catch {
-        /* Keep fallback state on error */
+        /* Keep state empty on error */
       }
     };
 
@@ -1817,69 +1638,75 @@ const ManagersPage = ({ showToast }: { showToast: (m: string, type?: 'success' |
 const DashboardPage = ({ showToast }: { showToast: (m: string, t?: 'success' | 'error') => void }) => {
   const [clubs, setClubs] = useState<Club[]>(initClubs);
   const [managers, setManagers] = useState<Manager[]>(initManagers);
+  const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        /* Fetch platform-wide KPI metrics calculated directly by Postgres DB */
+        const summaryRes = await fetch(getApiUrl('/reports/platform-summary'), { headers: authHeaders() }).catch(() => null);
+        if (summaryRes && summaryRes.ok) {
+          const summaryJson = await summaryRes.json();
+          if (summaryJson.success && summaryJson.data) {
+            setSummary(summaryJson.data);
+          }
+        }
+
         const tenantRes = await fetch(getApiUrl('/tenants'), { headers: authHeaders() });
         if (tenantRes.ok) {
           const tenantData = await tenantRes.json();
           const rawTenants: any[] = tenantData.data ?? tenantData;
-          if (Array.isArray(rawTenants) && rawTenants.length > 0) {
-            const parsedClubs: Club[] = rawTenants.map(t => {
-              const primaryUser = t.users?.find((u: any) => u.role === 'CLUB_ADMIN' || u.role === 'MANAGER') ?? t.users?.[0];
-              return {
-                id: t.clubUuid || t.uuid || t.id,
-                name: t.name,
-                description: t.description ?? '',
-                address: t.address ?? '',
-                city: t.city ?? '',
-                county: t.county ?? 'Nairobi',
-                phone: t.phone ?? '',
-                email: t.email ?? '',
-                openingTime: t.openingHours ?? '18:00',
-                closingTime: t.closingHours ?? '02:00',
-                logoUrl: t.logoUrl ?? '',
-                bannerUrl: t.bannerUrl ?? '',
-                themeColor: t.brandColor ?? '#1E3A5F',
-                plan: t.subscriptionStatus === 'TRIAL' ? 'Starter' : t.subscriptionStatus === 'SUSPENDED' ? 'Standard' : 'Pro',
-                status: t.isActive === false || t.subscriptionStatus === 'SUSPENDED' ? 'Suspended' : (t.status ?? 'Active'),
-                mrr: t.isActive === false || t.subscriptionStatus === 'SUSPENDED' ? 0 : 8900,
-                orders: t._count?.orders ?? t.orders?.length ?? 0,
-                managerId: primaryUser ? (primaryUser.userUuid || primaryUser.uuid || '') : '',
-                createdAt: t.createdAt ? new Date(t.createdAt).toISOString().split('T')[0] : '',
-                trialDays: 0,
-                startDate: '',
-                expiryDate: '',
-              };
-            });
-            setClubs(parsedClubs);
-          }
+          const parsedClubs: Club[] = (Array.isArray(rawTenants) ? rawTenants : []).map(t => {
+            const primaryUser = t.users?.find((u: any) => u.role === 'CLUB_ADMIN' || u.role === 'MANAGER') ?? t.users?.[0];
+            return {
+              id: t.clubUuid || t.uuid || t.id,
+              name: t.name,
+              description: t.description ?? '',
+              address: t.address ?? '',
+              city: t.city ?? '',
+              county: t.county ?? 'Nairobi',
+              phone: t.phone ?? '',
+              email: t.email ?? '',
+              openingTime: t.openingHours ?? '18:00',
+              closingTime: t.closingHours ?? '02:00',
+              logoUrl: t.logoUrl ?? '',
+              bannerUrl: t.bannerUrl ?? '',
+              themeColor: t.brandColor ?? '#1E3A5F',
+              plan: t.subscriptionStatus === 'TRIAL' ? 'Starter' : t.subscriptionStatus === 'SUSPENDED' ? 'Standard' : 'Pro',
+              status: t.isActive === false || t.subscriptionStatus === 'SUSPENDED' ? 'Suspended' : (t.status ?? 'Active'),
+              mrr: t.isActive === false || t.subscriptionStatus === 'SUSPENDED' ? 0 : 8900,
+              orders: t._count?.orders ?? t.orders?.length ?? 0,
+              managerId: primaryUser ? (primaryUser.userUuid || primaryUser.uuid || '') : '',
+              createdAt: t.createdAt ? new Date(t.createdAt).toISOString().split('T')[0] : '',
+              trialDays: 0,
+              startDate: '',
+              expiryDate: '',
+            };
+          });
+          setClubs(parsedClubs);
         }
 
         const staffRes = await fetch(getApiUrl('/auth/staff?role=CLUB_ADMIN'), { headers: authHeaders() });
         if (staffRes.ok) {
           const staffData = await staffRes.json();
           const rawStaff: any[] = staffData.data?.staff ?? staffData.data ?? [];
-          if (Array.isArray(rawStaff) && rawStaff.length > 0) {
-            const parsedMgrs: Manager[] = rawStaff.map(s => ({
-              id: s.userUuid,
-              firstName: s.fullName ? s.fullName.split(' ')[0] : 'Manager',
-              lastName: s.fullName ? s.fullName.split(' ').slice(1).join(' ') : '',
-              email: s.email,
-              phone: s.phone ?? '',
-              username: s.email.split('@')[0],
-              clubId: s.clubUuid ?? '',
-              clubName: s.club?.name ?? 'Venue',
-              status: s.isActive !== false ? 'Active' : 'Suspended',
-              lastLogin: 'Active',
-            }));
-            setManagers(parsedMgrs);
-          }
+          const parsedMgrs: Manager[] = (Array.isArray(rawStaff) ? rawStaff : []).map(s => ({
+            id: s.userUuid,
+            firstName: s.fullName ? s.fullName.split(' ')[0] : 'Manager',
+            lastName: s.fullName ? s.fullName.split(' ').slice(1).join(' ') : '',
+            email: s.email,
+            phone: s.phone ?? '',
+            username: s.email.split('@')[0],
+            clubId: s.clubUuid ?? '',
+            clubName: s.club?.name ?? 'Venue',
+            status: s.isActive !== false ? 'Active' : 'Suspended',
+            lastLogin: 'Active',
+          }));
+          setManagers(parsedMgrs);
         }
       } catch {
-        /* Keep fallback data on error */
+        /* Leave state empty if network error */
       } finally {
         setLoading(false);
       }
@@ -1887,9 +1714,10 @@ const DashboardPage = ({ showToast }: { showToast: (m: string, t?: 'success' | '
     fetchData();
   }, []);
 
-  const activeClubsCount = clubs.filter(c => c.status === 'Active').length;
-  const totalMrr = clubs.reduce((acc, c) => acc + (c.mrr || 0), 0);
-  const totalManagersCount = managers.length;
+  const activeClubsCount = summary?.activeVenues ?? clubs.filter(c => c.status === 'Active').length;
+  const totalMrr = summary?.totalMrr ?? clubs.reduce((acc, c) => acc + (c.mrr || 0), 0);
+  const totalManagersCount = summary?.totalManagers ?? managers.length;
+  const churnRate = summary?.churnRate ?? 0;
 
   const countyMap: Record<string, { county: string; clubs: number; revenue: number }> = {};
   clubs.forEach(c => {
@@ -1909,17 +1737,28 @@ const DashboardPage = ({ showToast }: { showToast: (m: string, t?: 'success' | '
         </button>
       } />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <KPI label="Active Clubs" value={String(activeClubsCount)} change={activeClubsCount > 0 ? `+${activeClubsCount} active` : '0 active'} positive icon={<Building2 className="h-5 w-5 text-blue-500" />} />
-        <KPI label="MRR" value={`KES ${totalMrr.toLocaleString()}`} change={totalMrr > 0 ? 'Live MRR' : 'KES 0'} positive icon={<TrendingUp className="h-5 w-5 text-emerald-500" />} />
-        <KPI label="Total Managers" value={String(totalManagersCount)} change={totalManagersCount > 0 ? `+${totalManagersCount} active` : '0 active'} positive icon={<Users className="h-5 w-5 text-purple-500" />} />
-        <KPI label="Churn Rate" value="0%" change="0%" positive icon={<AlertCircle className="h-5 w-5 text-red-500" />} />
+        <KPI label="Active Venues" value={String(activeClubsCount)} change={activeClubsCount > 0 ? `+${activeClubsCount} live` : '0 live'} positive icon={<Building2 className="h-5 w-5 text-blue-500" />} />
+        <KPI label="Live MRR" value={`KES ${totalMrr.toLocaleString()}`} change={summary?.mrrGrowth ? `${summary.mrrGrowth > 0 ? '+' : ''}${summary.mrrGrowth}%` : 'KES 0'} positive={!summary?.mrrGrowth || summary.mrrGrowth >= 0} icon={<TrendingUp className="h-5 w-5 text-emerald-500" />} />
+        <KPI label="Total Managers" value={String(totalManagersCount)} change={totalManagersCount > 0 ? `+${totalManagersCount} registered` : '0 registered'} positive icon={<Users className="h-5 w-5 text-purple-500" />} />
+        <KPI label="Churn Rate" value={`${churnRate}%`} change="0%" positive icon={<AlertCircle className="h-5 w-5 text-red-500" />} />
       </div>
+
+      {clubs.length === 0 && !loading && (
+        <div className="rounded-xl border p-8 text-center" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          <Building2 className="h-10 w-10 text-slate-400 mx-auto mb-3 opacity-60" />
+          <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>No Venues Registered in Database</h3>
+          <p className="text-xs max-w-md mx-auto mt-1 mb-4" style={{ color: 'var(--text-muted)' }}>
+            Your PostgreSQL database is connected. You can register restaurants, cafes, coffee shops, lounges, and clubs.
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-4">
         <div className="col-span-2 rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
           <h3 className="text-sm font-black mb-1" style={{ color: 'var(--text-primary)' }}>Monthly Recurring Revenue</h3>
           <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Revenue trend</p>
           {clubs.length === 0 ? (
-            <div className="h-48 flex items-center justify-center text-xs text-slate-400">No MRR data available</div>
+            <div className="h-48 flex items-center justify-center text-xs text-slate-400">No MRR data available in database</div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
               <AreaChart data={[{ month: 'Current', mrr: totalMrr }]}>
@@ -1945,9 +1784,9 @@ const DashboardPage = ({ showToast }: { showToast: (m: string, t?: 'success' | '
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          <h3 className="text-sm font-black mb-4" style={{ color: 'var(--text-primary)' }}>Clubs by County</h3>
+          <h3 className="text-sm font-black mb-4" style={{ color: 'var(--text-primary)' }}>Venues by County</h3>
           {venueData.length === 0 ? (
-            <div className="h-40 flex items-center justify-center text-xs text-slate-400">No registered clubs</div>
+            <div className="h-40 flex items-center justify-center text-xs text-slate-400">No registered venues in database</div>
           ) : (
             <ResponsiveContainer width="100%" height={160}>
               <BarChart data={venueData} layout="vertical"><CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" /><XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} /><YAxis dataKey="county" type="category" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} width={60} /><Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '11px' }} /><Bar dataKey="clubs" fill="#2563EB" radius={[0, 4, 4, 0]} maxBarSize={14} /></BarChart>
@@ -1957,7 +1796,7 @@ const DashboardPage = ({ showToast }: { showToast: (m: string, t?: 'success' | '
         <div className="rounded-xl border p-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
           <h3 className="text-sm font-black mb-4" style={{ color: 'var(--text-primary)' }}>Revenue by County</h3>
           {venueData.length === 0 ? (
-            <div className="h-40 flex items-center justify-center text-xs text-slate-400">No revenue data</div>
+            <div className="h-40 flex items-center justify-center text-xs text-slate-400">No revenue data in database</div>
           ) : (
             <ResponsiveContainer width="100%" height={160}>
               <BarChart data={venueData} layout="vertical"><CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" /><XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} tickFormatter={v => `${v / 1000}K`} /><YAxis dataKey="county" type="category" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} width={60} /><Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '11px' }} formatter={(v: number) => [`KES ${v.toLocaleString()}`, 'Revenue']} /><Bar dataKey="revenue" fill="#10B981" radius={[0, 4, 4, 0]} maxBarSize={14} /></BarChart>
@@ -1980,32 +1819,31 @@ const BillingPage = ({ showToast }: { showToast: (m: string, t?: 'success' | 'er
         if (res.ok) {
           const data = await res.json();
           const raw: any[] = data.data ?? data;
-          if (Array.isArray(raw) && raw.length > 0) {
-            setClubs(raw.map(t => ({
-              id: t.clubUuid || t.uuid || t.id,
-              name: t.name,
-              description: t.description ?? '',
-              address: t.address ?? '',
-              city: t.city ?? '',
-              county: t.county ?? 'Nairobi',
-              phone: t.phone ?? '',
-              email: t.email ?? '',
-              openingTime: t.openingHours ?? '18:00',
-              closingTime: t.closingHours ?? '02:00',
-              logoUrl: t.logoUrl ?? '',
-              bannerUrl: t.bannerUrl ?? '',
-              themeColor: t.brandColor ?? '#1E3A5F',
-              plan: t.subscriptionStatus === 'TRIAL' ? 'Starter' : t.subscriptionStatus === 'SUSPENDED' ? 'Standard' : 'Pro',
-              status: t.isActive === false || t.subscriptionStatus === 'SUSPENDED' ? 'Suspended' : (t.status ?? 'Active'),
-              mrr: t.isActive === false || t.subscriptionStatus === 'SUSPENDED' ? 0 : 8900,
-              orders: t._count?.orders ?? 0,
-              managerId: '',
-              createdAt: t.createdAt ? new Date(t.createdAt).toISOString().split('T')[0] : '',
-              trialDays: 0,
-              startDate: '',
-              expiryDate: '',
-            })));
-          }
+          const parsedClubs: Club[] = (Array.isArray(raw) ? raw : []).map(t => ({
+            id: t.clubUuid || t.uuid || t.id,
+            name: t.name,
+            description: t.description ?? '',
+            address: t.address ?? '',
+            city: t.city ?? '',
+            county: t.county ?? 'Nairobi',
+            phone: t.phone ?? '',
+            email: t.email ?? '',
+            openingTime: t.openingHours ?? '18:00',
+            closingTime: t.closingHours ?? '02:00',
+            logoUrl: t.logoUrl ?? '',
+            bannerUrl: t.bannerUrl ?? '',
+            themeColor: t.brandColor ?? '#1E3A5F',
+            plan: t.subscriptionStatus === 'TRIAL' ? 'Starter' : t.subscriptionStatus === 'SUSPENDED' ? 'Standard' : 'Pro',
+            status: t.isActive === false || t.subscriptionStatus === 'SUSPENDED' ? 'Suspended' : (t.status ?? 'Active'),
+            mrr: t.isActive === false || t.subscriptionStatus === 'SUSPENDED' ? 0 : 8900,
+            orders: t._count?.orders ?? 0,
+            managerId: '',
+            createdAt: t.createdAt ? new Date(t.createdAt).toISOString().split('T')[0] : '',
+            trialDays: 0,
+            startDate: '',
+            expiryDate: '',
+          }));
+          setClubs(parsedClubs);
         }
       } catch {
         /* ignore */
@@ -2086,25 +1924,25 @@ const AnalyticsPage = ({ showToast }: { showToast: (m: string, t?: 'success' | '
     revenue: Number(d.revenue || 0),
     orders: d.revenue > 0 ? Math.max(1, Math.round(d.revenue / 2500)) : 0,
   })) || [
-    { day: 'Mon', revenue: 45000, orders: 18 },
-    { day: 'Tue', revenue: 52000, orders: 22 },
-    { day: 'Wed', revenue: 68000, orders: 28 },
-    { day: 'Thu', revenue: 74000, orders: 31 },
-    { day: 'Fri', revenue: 112000, orders: 48 },
-    { day: 'Sat', revenue: 145000, orders: 62 },
-    { day: 'Sun', revenue: 89000, orders: 39 },
+    { day: 'Mon', revenue: 0, orders: 0 },
+    { day: 'Tue', revenue: 0, orders: 0 },
+    { day: 'Wed', revenue: 0, orders: 0 },
+    { day: 'Thu', revenue: 0, orders: 0 },
+    { day: 'Fri', revenue: 0, orders: 0 },
+    { day: 'Sat', revenue: 0, orders: 0 },
+    { day: 'Sun', revenue: 0, orders: 0 },
   ];
 
   const payBreakdown = [
-    { name: 'M-Pesa STK', value: report?.paymentBreakdown?.mpesa?.percentage ?? 85, color: '#10B981' },
-    { name: 'Card POS', value: report?.paymentBreakdown?.card?.percentage ?? 10, color: '#2563EB' },
-    { name: 'Cash', value: report?.paymentBreakdown?.cash?.percentage ?? 5, color: '#F59E0B' },
+    { name: 'M-Pesa STK', value: report?.paymentBreakdown?.mpesa?.percentage ?? 0, color: '#10B981' },
+    { name: 'Card POS', value: report?.paymentBreakdown?.card?.percentage ?? 0, color: '#2563EB' },
+    { name: 'Cash', value: report?.paymentBreakdown?.cash?.percentage ?? 0, color: '#F59E0B' },
   ];
 
-  const totalOrders = report?.kpis?.totalOrdersCount ?? 1765;
-  const platformRevenue = report?.kpis?.totalRevenue ?? 585000;
-  const avgOrderVal = report?.kpis?.averageOrderValue ?? 1840;
-  const activeStaff = report?.kpis?.activeWaitersCount ?? 24;
+  const totalOrders = report?.kpis?.totalOrdersCount ?? 0;
+  const platformRevenue = report?.kpis?.totalRevenue ?? 0;
+  const avgOrderVal = report?.kpis?.averageOrderValue ?? 0;
+  const activeStaff = report?.kpis?.activeWaitersCount ?? 0;
 
   return (
     <div className="space-y-6">

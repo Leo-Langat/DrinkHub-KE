@@ -29,7 +29,7 @@ export const App: React.FC = () => {
         }
 
         const user = JSON.parse(userStr);
-        if (user.role === 'WAITER') return { role: 'waiter' };
+        if (user.role === 'WAITER' || user.role === 'BARISTA' || user.role === 'KITCHEN_STAFF' || user.role === 'CASHIER') return { role: 'waiter' };
         if (user.role === 'MANAGER' || user.role === 'CLUB_ADMIN' || user.role === 'PLATFORM_ADMIN') return { role: 'manager' };
       }
     } catch {

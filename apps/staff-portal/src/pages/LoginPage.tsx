@@ -58,23 +58,25 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       }
 
       const userRole = data.data?.user?.role;
+      const isStaffRole = userRole === 'WAITER' || userRole === 'BARISTA' || userRole === 'KITCHEN_STAFF' || userRole === 'CASHIER';
+
       if (role === 'manager') {
         if (userRole !== 'CLUB_ADMIN' && userRole !== 'MANAGER' && userRole !== 'PLATFORM_ADMIN') {
-          if (userRole === 'WAITER') {
-            throw new Error('Access denied. Waiter accounts cannot log into the Manager Portal. Please switch to the Waiter tab above.');
+          if (isStaffRole) {
+            throw new Error('Access denied. Staff accounts cannot log into the Manager Portal. Please switch to the Server / Staff tab above.');
           }
           throw new Error('Access denied. Account lacks Manager privileges.');
         }
       }
       if (role === 'waiter') {
-        if (userRole !== 'WAITER') {
+        if (!isStaffRole) {
           if (userRole === 'CLUB_ADMIN' || userRole === 'MANAGER') {
-            throw new Error('Access denied. Manager accounts cannot log into the Waiter Portal. Please switch to the Manager tab above.');
+            throw new Error('Access denied. Manager accounts cannot log into the Server Portal. Please switch to the Manager tab above.');
           }
           if (userRole === 'PLATFORM_ADMIN') {
             throw new Error('Access denied. Platform Administrator accounts must use the Admin Portal.');
           }
-          throw new Error('Access denied. Only Waiter accounts can log into the Waiter Portal.');
+          throw new Error('Access denied. Only Staff accounts (Waiters, Baristas, Kitchen, Cashiers) can log into this portal.');
         }
       }
 

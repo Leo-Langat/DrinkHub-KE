@@ -39,11 +39,15 @@ interface OrderItem {
   price?: number;
   subtotal?: number;
   notes?: string;
+  modifiers?: { optionName: string; priceDelta?: number }[];
 }
 
 interface Order {
   id: string;          // uuid from API
   orderNumber?: string;
+  orderType?: 'DINE_IN' | 'TAKEAWAY' | 'COUNTER_PICKUP' | 'DELIVERY';
+  pickupNumber?: string | null;
+  customerName?: string | null;
   tableNumber: number | string;
   sectionName?: string;
   items: OrderItem[];
@@ -76,14 +80,23 @@ const statusFlow: Order['status'][] = ['CLAIMED', 'PREPARING', 'READY', 'DELIVER
 const mapOrder = (o: any): Order => ({
   id: o.orderUuid ?? o.uuid ?? o.id,
   orderNumber: o.orderNumber ?? undefined,
-  tableNumber: o.table?.tableNumber ?? o.table?.name ?? o.tableNumber ?? (o.orderNumber ? o.orderNumber : '–'),
-  sectionName: o.table?.sectionName ?? o.sectionName ?? undefined,
+  orderType: o.orderType ?? (o.table ? 'DINE_IN' : 'TAKEAWAY'),
+  pickupNumber: o.pickupNumber ?? null,
+  customerName: o.customerName ?? null,
+  tableNumber: o.pickupNumber
+    ? o.pickupNumber
+    : (o.table?.tableNumber ?? o.table?.name ?? o.tableNumber ?? (o.orderNumber ? o.orderNumber : '–')),
+  sectionName: o.orderType === 'TAKEAWAY' ? 'Takeaway / Pickup' : (o.table?.sectionName ?? o.sectionName ?? undefined),
   items: (o.items ?? o.orderItems ?? []).map((i: any) => ({
     name: i.product?.name ?? i.name ?? 'Item',
     quantity: i.quantity ?? 1,
     price: Number(i.unitPrice ?? i.price ?? i.product?.price ?? 0),
     subtotal: Number(i.subtotal ?? (Number(i.unitPrice ?? i.price ?? i.product?.price ?? 0) * (i.quantity ?? 1))),
     notes: i.notes ?? i.instructions ?? undefined,
+    modifiers: (i.modifiers || []).map((m: any) => ({
+      optionName: m.optionName || m.name || '',
+      priceDelta: Number(m.priceDelta || 0),
+    })),
   })),
   totalAmount: Number(o.totalAmount ?? o.total ?? 0),
   status: o.status,
@@ -508,6 +521,11 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                         <span className={`text-sm font-semibold ${checkedItems[idx] ? 'line-through text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}>
                           {item.name}
                         </span>
+                        {item.modifiers && item.modifiers.length > 0 && (
+                          <div className="text-[11px] text-amber-500 font-semibold">
+                            ↳ {item.modifiers.map((m) => m.optionName).join(', ')}
+                          </div>
+                        )}
                         {item.notes && (
                           <div className="text-xs text-amber-600 font-medium">
                             Note: "{item.notes}"
@@ -682,9 +700,14 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                         {/* Exact list of items in the available order */}
                         <div className="text-xs space-y-1 font-medium" style={{ color: 'var(--text-secondary)' }}>
                           {order.items.map((i, idx) => (
-                            <div key={idx} className="flex items-center gap-2">
+                            <div key={idx} className="flex items-center gap-2 flex-wrap">
                               <span className="font-bold text-blue-600 dark:text-blue-400">×{i.quantity}</span>
                               <span>{i.name}</span>
+                              {i.modifiers && i.modifiers.length > 0 && (
+                                <span className="text-[11px] text-amber-500 font-semibold">
+                                  ({i.modifiers.map((m) => m.optionName).join(', ')})
+                                </span>
+                              )}
                               {i.notes && <span className="text-[11px] text-amber-600 font-normal">({i.notes})</span>}
                             </div>
                           ))}

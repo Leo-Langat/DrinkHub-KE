@@ -1,45 +1,10 @@
 export enum OrderStatus {
   PENDING = 'PENDING',
-  CLAIMED = 'CLAIMED',
   RECEIVED = 'RECEIVED',
   PREPARING = 'PREPARING',
   READY = 'READY',
-  DELIVERED = 'DELIVERED',
   SERVED = 'SERVED',
-  COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
-}
-
-export enum VenueType {
-  RESTAURANT = 'RESTAURANT',
-  CAFE = 'CAFE',
-  COFFEE_SHOP = 'COFFEE_SHOP',
-  BAR_LOUNGE = 'BAR_LOUNGE',
-  NIGHTCLUB = 'NIGHTCLUB',
-  BAKERY = 'BAKERY',
-  FAST_CASUAL = 'FAST_CASUAL',
-  HOTEL_DINING = 'HOTEL_DINING',
-  OTHER = 'OTHER',
-}
-
-export enum OrderType {
-  DINE_IN = 'DINE_IN',
-  TAKEAWAY = 'TAKEAWAY',
-  COUNTER_PICKUP = 'COUNTER_PICKUP',
-  DELIVERY = 'DELIVERY',
-}
-
-export enum PrepStation {
-  KITCHEN = 'KITCHEN',
-  BARISTA = 'BARISTA',
-  BAR = 'BAR',
-  BAKERY = 'BAKERY',
-  GENERAL = 'GENERAL',
-}
-
-export enum ModifierSelectionType {
-  SINGLE = 'SINGLE',
-  MULTIPLE = 'MULTIPLE',
 }
 
 export enum PaymentMethod {
@@ -50,22 +15,15 @@ export enum PaymentMethod {
 
 export enum PaymentStatus {
   PENDING = 'PENDING',
-  PROCESSING = 'PROCESSING',
   COMPLETED = 'COMPLETED',
-  PAID = 'PAID',
   FAILED = 'FAILED',
   REFUNDED = 'REFUNDED',
-  CANCELLED = 'CANCELLED',
 }
 
 export enum UserRole {
-  PLATFORM_ADMIN = 'PLATFORM_ADMIN',
   SUPER_ADMIN = 'SUPER_ADMIN',
   TENANT_ADMIN = 'TENANT_ADMIN',
-  CLUB_ADMIN = 'CLUB_ADMIN',
   MANAGER = 'MANAGER',
-  BARISTA = 'BARISTA',
   KITCHEN_STAFF = 'KITCHEN_STAFF',
-  CASHIER = 'CASHIER',
   WAITER = 'WAITER',
 }

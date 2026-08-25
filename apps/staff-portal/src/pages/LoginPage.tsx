@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Wine, Eye, EyeOff, ChevronRight, Loader2, User, Briefcase } from 'lucide-react';
+import { Wine, Eye, EyeOff, ChevronRight, Loader2, User, Briefcase, Timer } from 'lucide-react';
 import { getApiUrl } from '../config/api';
+import { getSessionExpiredNotice } from '@drinkhub/shared';
 
 type StaffRole = 'waiter' | 'manager';
 
@@ -17,6 +18,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [sessionExpiredMsg] = useState<string | null>(() => getSessionExpiredNotice());
 
   const [needsPasswordChange, setNeedsPasswordChange] = useState(false);
   const [newPassword, setNewPassword] = useState('');
@@ -58,25 +60,23 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       }
 
       const userRole = data.data?.user?.role;
-      const isStaffRole = userRole === 'WAITER' || userRole === 'BARISTA' || userRole === 'KITCHEN_STAFF' || userRole === 'CASHIER';
-
       if (role === 'manager') {
         if (userRole !== 'CLUB_ADMIN' && userRole !== 'MANAGER' && userRole !== 'PLATFORM_ADMIN') {
-          if (isStaffRole) {
-            throw new Error('Access denied. Staff accounts cannot log into the Manager Portal. Please switch to the Server / Staff tab above.');
+          if (userRole === 'WAITER') {
+            throw new Error('Access denied. Waiter accounts cannot log into the Manager Portal. Please switch to the Waiter tab above.');
           }
           throw new Error('Access denied. Account lacks Manager privileges.');
         }
       }
       if (role === 'waiter') {
-        if (!isStaffRole) {
+        if (userRole !== 'WAITER') {
           if (userRole === 'CLUB_ADMIN' || userRole === 'MANAGER') {
-            throw new Error('Access denied. Manager accounts cannot log into the Server Portal. Please switch to the Manager tab above.');
+            throw new Error('Access denied. Manager accounts cannot log into the Waiter Portal. Please switch to the Manager tab above.');
           }
           if (userRole === 'PLATFORM_ADMIN') {
             throw new Error('Access denied. Platform Administrator accounts must use the Admin Portal.');
           }
-          throw new Error('Access denied. Only Staff accounts (Waiters, Baristas, Kitchen, Cashiers) can log into this portal.');
+          throw new Error('Access denied. Only Waiter accounts can log into the Waiter Portal.');
         }
       }
 
@@ -295,6 +295,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               Welcome back. Sign in to access your workspace.
             </p>
           </div>
+
+          {/* Session Inactivity Timeout Notice */}
+          {sessionExpiredMsg && (
+            <div className="flex items-start gap-3 rounded-xl border border-red-300 bg-red-50 p-3.5 text-xs text-red-900 shadow-sm animate-in fade-in">
+              <Timer className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <span className="font-extrabold block text-red-800">Session Expired</span>
+                <span className="text-red-700">{sessionExpiredMsg}</span>
+              </div>
+            </div>
+          )}
 
           {/* Role Selector */}
           <div className="rounded-xl p-1 flex gap-1 border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>

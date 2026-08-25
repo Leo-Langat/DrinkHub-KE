@@ -2611,12 +2611,8 @@ const ReportsPage = ({ showToast }: { showToast: (m: string, type?: 'success' | 
 
 /* --- Settings Page --- */
 const ManagerSettingsPage = ({ showToast, user, onSettingsSaved }: { showToast: (m: string, type?: 'success' | 'error') => void; user?: any; onSettingsSaved?: (oh: string, ch: string) => void }) => {
-  const [venueType, setVenueType] = React.useState('BAR_LOUNGE');
-  const [tagline, setTagline] = React.useState('');
-  const [openingTime, setOpeningTime] = React.useState('08:00');
-  const [closingTime, setClosingTime] = React.useState('23:00');
-  const [allowTakeaway, setAllowTakeaway] = React.useState(true);
-  const [allowDineIn, setAllowDineIn] = React.useState(true);
+  const [openingTime, setOpeningTime] = React.useState('18:00');
+  const [closingTime, setClosingTime] = React.useState('02:00');
   const [orderNotifs, setOrderNotifs] = React.useState(true);
   const [soundAlerts, setSoundAlerts] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
@@ -2628,39 +2624,26 @@ const ManagerSettingsPage = ({ showToast, user, onSettingsSaved }: { showToast: 
         const userStr = localStorage.getItem('drinkhub_user');
         if (!userStr) return;
         const u = JSON.parse(userStr);
-        if (u.club?.openingHours) setOpeningTime(u.club.openingHours);
-        if (u.club?.closingHours) setClosingTime(u.club.closingHours);
-        if (u.club?.venueType) setVenueType(u.club.venueType);
-        if (u.club?.tagline) setTagline(u.club.tagline);
+        // Try club data from localStorage first (fast path)
+        const oh = u.club?.openingHours;
+        const ch = u.club?.closingHours;
+        if (oh) setOpeningTime(oh);
+        if (ch) setClosingTime(ch);
 
+        // Also fetch fresh from API
         const clubUuid = u.clubUuid || u.tenantId || u.club?.clubUuid;
         const slug = u.club?.slug || u.clubSlug;
         if (slug) {
-          const res = await fetch(getApiUrl(`/tenants/slug/${slug}`));
+          const res = await fetch(getApiUrl(`/tenants/${slug}`));
           if (res.ok) {
             const data = await res.json();
             const club = data.data?.club ?? data.data ?? data;
             if (club.openingHours) setOpeningTime(club.openingHours);
             if (club.closingHours) setClosingTime(club.closingHours);
-            if (club.venueType) setVenueType(club.venueType);
-            if (club.tagline) setTagline(club.tagline);
-            if (club.allowTakeaway !== undefined) setAllowTakeaway(club.allowTakeaway);
-            if (club.allowDineIn !== undefined) setAllowDineIn(club.allowDineIn);
-
+            // Update cached user
             if (clubUuid) {
               try {
-                const updated = {
-                  ...u,
-                  club: {
-                    ...(u.club || {}),
-                    openingHours: club.openingHours || '08:00',
-                    closingHours: club.closingHours || '23:00',
-                    venueType: club.venueType || 'BAR_LOUNGE',
-                    tagline: club.tagline || '',
-                    allowTakeaway: club.allowTakeaway !== false,
-                    allowDineIn: club.allowDineIn !== false,
-                  },
-                };
+                const updated = { ...u, club: { ...(u.club || {}), openingHours: club.openingHours || oh, closingHours: club.closingHours || ch } };
                 localStorage.setItem('drinkhub_user', JSON.stringify(updated));
               } catch {}
             }
@@ -2678,44 +2661,27 @@ const ManagerSettingsPage = ({ showToast, user, onSettingsSaved }: { showToast: 
       if (!userStr) { showToast('User session not found', 'error'); return; }
       const u = JSON.parse(userStr);
       const clubUuid = u.clubUuid || u.tenantId || u.club?.clubUuid;
-      if (!clubUuid) { showToast('Venue not found in your session', 'error'); return; }
+      if (!clubUuid) { showToast('Club not found in your session', 'error'); return; }
 
       const res = await fetch(getApiUrl(`/tenants/${clubUuid}`), {
         method: 'PUT',
         headers: authHeaders(),
-        body: JSON.stringify({
-          venueType,
-          tagline,
-          openingHours: openingTime,
-          closingHours: closingTime,
-          allowTakeaway,
-          allowDineIn,
-        }),
+        body: JSON.stringify({ openingHours: openingTime, closingHours: closingTime }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.error?.message || 'Failed to save settings');
       }
 
-      // Update cached user in localStorage
+      // Update cached user in localStorage with new hours
       try {
-        const updated = {
-          ...u,
-          club: {
-            ...(u.club || {}),
-            venueType,
-            tagline,
-            openingHours: openingTime,
-            closingHours: closingTime,
-            allowTakeaway,
-            allowDineIn,
-          },
-        };
+        const updated = { ...u, club: { ...(u.club || {}), openingHours: openingTime, closingHours: closingTime } };
         localStorage.setItem('drinkhub_user', JSON.stringify(updated));
       } catch {}
 
+      // Notify parent to update the header chip
       onSettingsSaved?.(openingTime, closingTime);
-      showToast('✅ Venue settings saved to database successfully!', 'success');
+      showToast('✅ Operating hours saved! The club status is now live.', 'success');
     } catch (e: any) {
       showToast(e.message || 'Failed to save settings', 'error');
     } finally {
@@ -2725,71 +2691,37 @@ const ManagerSettingsPage = ({ showToast, user, onSettingsSaved }: { showToast: 
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <SectionHeader title="Venue Settings" subtitle="Configure venue type, operations, and fulfillment" />
-
-      {/* Venue Type & Tagline */}
-      <div className="rounded-xl border p-5 space-y-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-        <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>Venue Profile</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <FL>Venue Type</FL>
-            <SS
-              value={venueType}
-              onChange={e => setVenueType(e.target.value)}
-              options={[
-                { v: 'COFFEE_SHOP', l: '☕ Coffee Shop' },
-                { v: 'CAFE', l: '🥐 Cafe & Bistro' },
-                { v: 'RESTAURANT', l: '🍽️ Restaurant & Grill' },
-                { v: 'BAR_LOUNGE', l: '🍸 Bar & Lounge' },
-                { v: 'NIGHTCLUB', l: '🔥 Nightclub' },
-                { v: 'BAKERY', l: '🥖 Bakery' },
-                { v: 'FAST_CASUAL', l: '⚡ Fast Casual' },
-              ]}
-            />
-          </div>
-          <div>
-            <FL>Tagline / Specialty</FL>
-            <SI value={tagline} onChange={e => setTagline(e.target.value)} placeholder="e.g. Specialty Roastery & Brunch" />
-          </div>
-        </div>
-      </div>
+      <SectionHeader title="Club Settings" subtitle="Venue configuration" />
 
       {/* Operating Hours */}
       <div className="rounded-xl border p-5 space-y-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
         <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>Operating Hours</h3>
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>These hours control the live Open / Closed status on customer digital menus.</p>
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>These hours control the Open / Closed status shown to customers on the storefront.</p>
         <div className="grid grid-cols-2 gap-4">
           <div><FL>Opening Time</FL><SI type="time" value={openingTime} onChange={e => setOpeningTime(e.target.value)} /></div>
           <div><FL>Closing Time</FL><SI type="time" value={closingTime} onChange={e => setClosingTime(e.target.value)} /></div>
         </div>
-      </div>
 
-      {/* Fulfillment Options */}
-      <div className="rounded-xl border p-5 space-y-3" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-        <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>Order Modes</h3>
-        <div className="flex items-center justify-between pt-2">
-          <div>
-            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Takeaway / Counter Pickup</p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Allow customers to place pickup orders without table QR scans</p>
-          </div>
-          <button
-            onClick={() => setAllowTakeaway(!allowTakeaway)}
-            className={`relative inline-flex h-6 w-11 rounded-full transition-colors ${allowTakeaway ? 'bg-blue-600' : 'bg-slate-300'}`}
-          >
-            <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform mt-0.5 ${allowTakeaway ? 'translate-x-5' : 'translate-x-0.5'}`} />
-          </button>
-        </div>
-        <div className="flex items-center justify-between pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
-          <div>
-            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Dine-In Table Service</p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Allow customers to order from scanned table QR codes</p>
-          </div>
-          <button
-            onClick={() => setAllowDineIn(!allowDineIn)}
-            className={`relative inline-flex h-6 w-11 rounded-full transition-colors ${allowDineIn ? 'bg-blue-600' : 'bg-slate-300'}`}
-          >
-            <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform mt-0.5 ${allowDineIn ? 'translate-x-5' : 'translate-x-0.5'}`} />
-          </button>
+        {/* Live preview chip */}
+        <div className="flex items-center gap-2 pt-1">
+          <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Preview:</span>
+          {(() => {
+            const now = new Date();
+            const [oH, oM] = openingTime.split(':').map(Number);
+            const [cH, cM] = closingTime.split(':').map(Number);
+            const nowMins = now.getHours() * 60 + now.getMinutes();
+            const openMins = oH * 60 + oM;
+            const closeMins = cH * 60 + cM;
+            const isOpen = closeMins <= openMins
+              ? (nowMins >= openMins || nowMins < closeMins)
+              : (nowMins >= openMins && nowMins < closeMins);
+            return (
+              <span className={`flex items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold ${isOpen ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${isOpen ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                {isOpen ? 'Open Now' : 'Closed Now'} · {openingTime} – {closingTime}
+              </span>
+            );
+          })()}
         </div>
       </div>
 
@@ -2809,7 +2741,7 @@ const ManagerSettingsPage = ({ showToast, user, onSettingsSaved }: { showToast: 
         className="rounded-lg px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center gap-2"
         style={{ background: '#2563EB' }}
       >
-        {saving ? <><svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4" /></svg> Saving…</> : 'Save Changes to Database'}
+        {saving ? <><svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4" /></svg> Saving…</> : 'Save Changes'}
       </button>
     </div>
   );

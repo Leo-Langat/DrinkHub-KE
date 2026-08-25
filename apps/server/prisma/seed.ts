@@ -1,30 +1,15 @@
-import {
-  PrismaClient,
-  UserRole,
-  SubscriptionStatus,
-  TableStatus,
-  OfferType,
-  OrderStatus,
-  PaymentMethod,
-  PaymentStatus,
-  NotificationType,
-  VenueType,
-  PrepStation,
-  ModifierSelectionType,
-  OrderType,
-} from '@prisma/client';
+import { PrismaClient, UserRole, SubscriptionStatus, TableStatus, OfferType, OrderStatus, PaymentMethod, PaymentStatus, NotificationType } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.info('🌱 Starting database seed with multi-venue types (Clubs, Cafes, Coffee Shops, Restaurants)...');
+  console.info('🌱 Starting database seed for Neon Postgres...');
 
   // OWASP: bcrypt cost factor ≥ 12
   const passwordHash = await bcrypt.hash('Password123!', 12);
 
-  // 1. Seed Venues
-  // ── A. Nightclub / Lounge
+  // 1. Seed Clubs
   const alchemist = await prisma.club.upsert({
     where: { slug: 'alchemist-westlands' },
     update: {},
@@ -32,112 +17,68 @@ async function main() {
       clubUuid: '11111111-1111-1111-1111-111111111111',
       name: 'The Alchemist Westlands',
       slug: 'alchemist-westlands',
-      venueType: VenueType.BAR_LOUNGE,
-      tagline: 'Creative hub & live entertainment lounge',
-      logoUrl: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=200',
-      bannerUrl: 'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?w=1200',
+      logoUrl: 'https://drinkhub.co.ke/logos/alchemist.png',
       phone: '+254712345678',
       email: 'info@alchemist.co.ke',
       city: 'Nairobi',
       county: 'Nairobi',
       address: 'Parklands Road, Westlands',
       brandColor: '#e11d48',
+      openingHours: '14:00',
+      closingHours: '04:00',
+      subscriptionStatus: SubscriptionStatus.ACTIVE,
+      isActive: true,
+    },
+  });
+
+  const bclub = await prisma.club.upsert({
+    where: { slug: 'bclub-kilimani' },
+    update: {},
+    create: {
+      clubUuid: '22222222-2222-2222-2222-222222222222',
+      name: 'B-Club Kilimani',
+      slug: 'bclub-kilimani',
+      logoUrl: 'https://drinkhub.co.ke/logos/bclub.png',
+      phone: '+254722998877',
+      email: 'vip@bclub.co.ke',
+      city: 'Nairobi',
+      county: 'Nairobi',
+      address: 'Galana Plaza, Kilimani',
+      brandColor: '#7c3aed',
+      openingHours: '18:00',
+      closingHours: '05:00',
+      subscriptionStatus: SubscriptionStatus.ACTIVE,
+      isActive: true,
+    },
+  });
+
+  const gplace = await prisma.club.upsert({
+    where: { slug: 'g-place' },
+    update: {},
+    create: {
+      clubUuid: '33333333-3333-3333-3333-333333333333',
+      name: 'G Place Club',
+      slug: 'g-place',
+      logoUrl: 'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?w=400&auto=format&fit=crop&q=80',
+      phone: '+254722334455',
+      email: 'info@gplace.co.ke',
+      city: 'Nairobi',
+      county: 'Nairobi',
+      address: 'Kiambu Road, Nairobi',
+      brandColor: '#2563EB',
       openingHours: '16:00',
       closingHours: '04:00',
-      allowDineIn: true,
-      allowTakeaway: true,
       subscriptionStatus: SubscriptionStatus.ACTIVE,
       isActive: true,
     },
   });
 
-  // ── B. Coffee Shop
-  const javaCoffee = await prisma.club.upsert({
-    where: { slug: 'java-coffee-cbd' },
-    update: {},
-    create: {
-      clubUuid: '44444444-4444-4444-4444-444444444444',
-      name: 'Java House Coffee Shop',
-      slug: 'java-coffee-cbd',
-      venueType: VenueType.COFFEE_SHOP,
-      tagline: 'Home of rich Kenyan roasted coffees and fresh pastries',
-      logoUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=200',
-      bannerUrl: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=1200',
-      phone: '+254722112233',
-      email: 'cbd@javahouseafrica.com',
-      city: 'Nairobi',
-      county: 'Nairobi',
-      address: 'Kenyatta Avenue, CBD',
-      brandColor: '#78350F', // Warm Coffee Amber
-      openingHours: '06:30',
-      closingHours: '21:00',
-      allowDineIn: true,
-      allowTakeaway: true,
-      subscriptionStatus: SubscriptionStatus.ACTIVE,
-      isActive: true,
-    },
-  });
-
-  // ── C. Cafe & Bistro
-  const artcaffe = await prisma.club.upsert({
-    where: { slug: 'artcaffe-westlands' },
-    update: {},
-    create: {
-      clubUuid: '55555555-5555-5555-5555-555555555555',
-      name: 'Artcaffe Bistro & Cafe',
-      slug: 'artcaffe-westlands',
-      venueType: VenueType.CAFE,
-      tagline: 'Freshly baked sourdough, salads, and artisan brunch',
-      logoUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=200',
-      bannerUrl: 'https://images.unsplash.com/photo-1559925393-8be0ec4767c8?w=1200',
-      phone: '+254733445566',
-      email: 'westlands@artcaffe.co.ke',
-      city: 'Nairobi',
-      county: 'Nairobi',
-      address: 'Sarit Centre, Ground Floor',
-      brandColor: '#059669', // Fresh Sage Green
-      openingHours: '07:00',
-      closingHours: '23:00',
-      allowDineIn: true,
-      allowTakeaway: true,
-      subscriptionStatus: SubscriptionStatus.ACTIVE,
-      isActive: true,
-    },
-  });
-
-  // ── D. Restaurant & Grill
-  const carnivore = await prisma.club.upsert({
-    where: { slug: 'carnivore-restaurant' },
-    update: {},
-    create: {
-      clubUuid: '66666666-6666-6666-6666-666666666666',
-      name: 'The Carnivore Restaurant & Grill',
-      slug: 'carnivore-restaurant',
-      venueType: VenueType.RESTAURANT,
-      tagline: 'World-famous open pit charcoal barbecue and fine dining',
-      logoUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200',
-      bannerUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=1200',
-      phone: '+254722556677',
-      email: 'reservations@carnivore.co.ke',
-      city: 'Nairobi',
-      county: 'Nairobi',
-      address: 'Langata Road, Nairobi',
-      brandColor: '#B91C1C', // Rich Charcoal Crimson
-      openingHours: '12:00',
-      closingHours: '23:30',
-      allowDineIn: true,
-      allowTakeaway: true,
-      subscriptionStatus: SubscriptionStatus.ACTIVE,
-      isActive: true,
-    },
-  });
-
-  console.info('✅ Venues seeded (Clubs, Coffee Shops, Cafes, Restaurants)');
+  console.info('✅ Clubs seeded');
 
   // 2. Seed Users
   await prisma.user.upsert({
     where: { email: 'superadmin@drinkhub.co.ke' },
-    update: { passwordHash },
+    update: { passwordHash },  // refresh hash on re-seed
     create: {
       userUuid: '00000000-0000-0000-0000-000000000001',
       email: 'superadmin@drinkhub.co.ke',
@@ -148,10 +89,9 @@ async function main() {
     },
   });
 
-  // Alchemist Manager & Waiter
   await prisma.user.upsert({
     where: { email: 'admin@alchemist.co.ke' },
-    update: { passwordHash },
+    update: { passwordHash },  // refresh hash on re-seed
     create: {
       userUuid: '11111111-1111-1111-1111-000000000001',
       clubUuid: alchemist.clubUuid,
@@ -165,7 +105,7 @@ async function main() {
 
   await prisma.user.upsert({
     where: { email: 'waiter.kamau@alchemist.co.ke' },
-    update: { passwordHash },
+    update: { passwordHash },  // refresh hash on re-seed
     create: {
       userUuid: '11111111-1111-1111-1111-000000000002',
       clubUuid: alchemist.clubUuid,
@@ -177,38 +117,54 @@ async function main() {
     },
   });
 
-  // Java House Manager & Barista
   await prisma.user.upsert({
-    where: { email: 'manager@javahouse.co.ke' },
-    update: { passwordHash },
+    where: { email: 'admin@bclub.co.ke' },
+    update: { passwordHash },  // refresh hash on re-seed
     create: {
-      userUuid: '44444444-1111-1111-1111-000000000001',
-      clubUuid: javaCoffee.clubUuid,
-      email: 'manager@javahouse.co.ke',
+      userUuid: '22222222-2222-2222-2222-000000000001',
+      clubUuid: bclub.clubUuid,
+      email: 'admin@bclub.co.ke',
       passwordHash,
-      fullName: 'Amina Java Manager',
-      phone: '+254722990011',
+      fullName: 'Sarah B-Club Manager',
+      phone: '+254722000111',
       role: UserRole.CLUB_ADMIN,
     },
   });
 
+  // Assign Belvin Rotich as Manager to G Place Club
   await prisma.user.upsert({
-    where: { email: 'barista.otieno@javahouse.co.ke' },
-    update: { passwordHash },
+    where: { email: 'belvin.rotich@gplace.co.ke' },
+    update: { passwordHash, clubUuid: gplace.clubUuid, fullName: 'Belvin Rotich', role: UserRole.CLUB_ADMIN, isActive: true },
     create: {
-      userUuid: '44444444-1111-1111-1111-000000000002',
-      clubUuid: javaCoffee.clubUuid,
-      email: 'barista.otieno@javahouse.co.ke',
+      userUuid: '33333333-3333-3333-3333-000000000001',
+      clubUuid: gplace.clubUuid,
+      email: 'belvin.rotich@gplace.co.ke',
       passwordHash,
-      fullName: 'Otieno Barista',
-      phone: '+254722990022',
-      role: UserRole.BARISTA,
+      fullName: 'Belvin Rotich',
+      phone: '+254722334455',
+      role: UserRole.CLUB_ADMIN,
+      isActive: true,
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { email: 'belvin@gplace.co.ke' },
+    update: { passwordHash, clubUuid: gplace.clubUuid, fullName: 'Belvin Rotich', role: UserRole.CLUB_ADMIN, isActive: true },
+    create: {
+      userUuid: '33333333-3333-3333-3333-000000000002',
+      clubUuid: gplace.clubUuid,
+      email: 'belvin@gplace.co.ke',
+      passwordHash,
+      fullName: 'Belvin Rotich',
+      phone: '+254722334455',
+      role: UserRole.CLUB_ADMIN,
+      isActive: true,
     },
   });
 
   console.info('✅ Users seeded');
 
-  // 3. Seed Tables
+  // 3. Seed Venue Tables
   await prisma.venueTable.upsert({
     where: { clubUuid_tableNumber: { clubUuid: alchemist.clubUuid, tableNumber: 1 } },
     update: {},
@@ -223,180 +179,237 @@ async function main() {
   });
 
   await prisma.venueTable.upsert({
-    where: { clubUuid_tableNumber: { clubUuid: javaCoffee.clubUuid, tableNumber: 1 } },
+    where: { clubUuid_tableNumber: { clubUuid: alchemist.clubUuid, tableNumber: 2 } },
     update: {},
     create: {
-      tableUuid: '44444444-4444-1111-1111-000000000001',
-      clubUuid: javaCoffee.clubUuid,
-      tableNumber: 1,
-      sectionName: 'Indoor Lounge',
-      seatingCapacity: 2,
-      status: TableStatus.AVAILABLE,
+      tableUuid: '11111111-4444-1111-1111-000000000002',
+      clubUuid: alchemist.clubUuid,
+      tableNumber: 2,
+      sectionName: 'Main Courtyard',
+      seatingCapacity: 6,
+      status: TableStatus.OCCUPIED,
+    },
+  });
+
+  await prisma.venueTable.upsert({
+    where: { clubUuid_tableNumber: { clubUuid: alchemist.clubUuid, tableNumber: 10 } },
+    update: {},
+    create: {
+      tableUuid: '11111111-4444-1111-1111-000000000003',
+      clubUuid: alchemist.clubUuid,
+      tableNumber: 10,
+      sectionName: 'VIP Lounge',
+      seatingCapacity: 8,
+      status: TableStatus.RESERVED,
     },
   });
 
   console.info('✅ Tables seeded');
 
-  // 4. Seed Categories & Products for Java House Coffee Shop
-  const espressoCat = await prisma.menuCategory.upsert({
-    where: { clubUuid_name: { clubUuid: javaCoffee.clubUuid, name: 'Hot Specialty Coffee' } },
+  // 4. Seed Menu Categories
+  const beersCat = await prisma.menuCategory.upsert({
+    where: { clubUuid_name: { clubUuid: alchemist.clubUuid, name: 'Local & Craft Beers' } },
     update: {},
     create: {
-      categoryUuid: '44444444-3333-1111-1111-000000000001',
-      clubUuid: javaCoffee.clubUuid,
-      name: 'Hot Specialty Coffee',
-      description: 'Single-origin Kenyan arabica espresso drinks',
+      categoryUuid: '11111111-3333-1111-1111-000000000001',
+      clubUuid: alchemist.clubUuid,
+      name: 'Local & Craft Beers',
+      description: 'Cold Kenyan lager and craft beers',
       displayOrder: 1,
     },
   });
 
-  const coldCoffeeCat = await prisma.menuCategory.upsert({
-    where: { clubUuid_name: { clubUuid: javaCoffee.clubUuid, name: 'Iced & Cold Brews' } },
+  const cocktailsCat = await prisma.menuCategory.upsert({
+    where: { clubUuid_name: { clubUuid: alchemist.clubUuid, name: 'Cocktails & Mixers' } },
     update: {},
     create: {
-      categoryUuid: '44444444-3333-1111-1111-000000000002',
-      clubUuid: javaCoffee.clubUuid,
-      name: 'Iced & Cold Brews',
-      description: 'Chilled iced coffees, frappés, and cold brews',
+      categoryUuid: '11111111-3333-1111-1111-000000000002',
+      clubUuid: alchemist.clubUuid,
+      name: 'Cocktails & Mixers',
+      description: 'Signature African infused cocktails',
       displayOrder: 2,
     },
   });
 
-  const pastryCat = await prisma.menuCategory.upsert({
-    where: { clubUuid_name: { clubUuid: javaCoffee.clubUuid, name: 'Bakery & Pastries' } },
+  const foodCat = await prisma.menuCategory.upsert({
+    where: { clubUuid_name: { clubUuid: alchemist.clubUuid, name: 'Bitings & Grill' } },
     update: {},
     create: {
-      categoryUuid: '44444444-3333-1111-1111-000000000003',
-      clubUuid: javaCoffee.clubUuid,
-      name: 'Bakery & Pastries',
-      description: 'Freshly baked muffins, croissants & cookies',
+      categoryUuid: '11111111-3333-1111-1111-000000000003',
+      clubUuid: alchemist.clubUuid,
+      name: 'Bitings & Grill',
+      description: 'Nyama Choma and bar snacks',
       displayOrder: 3,
     },
   });
 
-  // Products for Java
-  const caffeLatte = await prisma.product.upsert({
-    where: { clubUuid_sku: { clubUuid: javaCoffee.clubUuid, sku: 'JAVA-LATTE-01' } },
+  console.info('✅ Menu categories seeded');
+
+  // 5. Seed Products
+  await prisma.product.upsert({
+    where: { clubUuid_sku: { clubUuid: alchemist.clubUuid, sku: 'TUSK-500' } },
     update: {},
     create: {
-      productUuid: '44444444-5555-1111-1111-000000000001',
-      clubUuid: javaCoffee.clubUuid,
-      categoryUuid: espressoCat.categoryUuid,
-      name: 'Signature Caffe Latte',
-      description: 'Rich espresso poured with velvety steamed milk and a thin layer of foam.',
-      price: 360.00,
-      sku: 'JAVA-LATTE-01',
-      prepStation: PrepStation.BARISTA,
-      dietaryTags: ['VEGETARIAN'],
+      productUuid: '11111111-5555-1111-1111-000000000001',
+      clubUuid: alchemist.clubUuid,
+      categoryUuid: beersCat.categoryUuid,
+      name: 'Tusker Lager (500ml)',
+      description: 'Kenya finest ice cold lager',
+      price: 350.00,
+      sku: 'TUSK-500',
       isAvailable: true,
-      imageUrl: 'https://images.unsplash.com/photo-1541167760496-1628856ab772?w=400',
     },
   });
 
-  const caramelFrappe = await prisma.product.upsert({
-    where: { clubUuid_sku: { clubUuid: javaCoffee.clubUuid, sku: 'JAVA-FRAPPE-01' } },
+  await prisma.product.upsert({
+    where: { clubUuid_sku: { clubUuid: alchemist.clubUuid, sku: 'WCAP-500' } },
     update: {},
     create: {
-      productUuid: '44444444-5555-1111-1111-000000000002',
-      clubUuid: javaCoffee.clubUuid,
-      categoryUuid: coldCoffeeCat.categoryUuid,
-      name: 'Caramel Macchiato Iced Frappé',
-      description: 'Blended espresso, caramel drizzle, vanilla cream and whipped topping.',
-      price: 480.00,
-      sku: 'JAVA-FRAPPE-01',
-      prepStation: PrepStation.BARISTA,
-      dietaryTags: ['VEGETARIAN'],
+      productUuid: '11111111-5555-1111-1111-000000000002',
+      clubUuid: alchemist.clubUuid,
+      categoryUuid: beersCat.categoryUuid,
+      name: 'White Cap Crisp (500ml)',
+      description: 'Sugar-free crisp lager',
+      price: 380.00,
+      sku: 'WCAP-500',
       isAvailable: true,
-      imageUrl: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=400',
     },
   });
 
-  const butterCroissant = await prisma.product.upsert({
-    where: { clubUuid_sku: { clubUuid: javaCoffee.clubUuid, sku: 'JAVA-CROISSANT' } },
+  await prisma.product.upsert({
+    where: { clubUuid_sku: { clubUuid: alchemist.clubUuid, sku: 'DAWA-01' } },
     update: {},
     create: {
-      productUuid: '44444444-5555-1111-1111-000000000003',
-      clubUuid: javaCoffee.clubUuid,
-      categoryUuid: pastryCat.categoryUuid,
-      name: 'All-Butter French Croissant',
-      description: 'Flaky, buttery golden layered pastry baked fresh daily.',
-      price: 250.00,
-      sku: 'JAVA-CROISSANT',
-      prepStation: PrepStation.BAKERY,
-      dietaryTags: ['VEGETARIAN'],
+      productUuid: '11111111-5555-1111-1111-000000000003',
+      clubUuid: alchemist.clubUuid,
+      categoryUuid: cocktailsCat.categoryUuid,
+      name: 'Nairobi Dawa Cocktail',
+      description: 'Vodka, honey, lime & ginger stem',
+      price: 750.00,
+      sku: 'DAWA-01',
       isAvailable: true,
-      imageUrl: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400',
     },
   });
 
-  // 5. Seed Modifier Groups for Coffee Shop
-  const milkModGroup = await prisma.modifierGroup.create({
-    data: {
-      clubUuid: javaCoffee.clubUuid,
-      productUuid: caffeLatte.productUuid,
-      name: 'Choice of Milk',
-      description: 'Select your preferred dairy or plant-based milk',
-      selectionType: ModifierSelectionType.SINGLE,
-      isRequired: true,
-      minSelections: 1,
-      maxSelections: 1,
+  await prisma.product.upsert({
+    where: { clubUuid_sku: { clubUuid: alchemist.clubUuid, sku: 'CHOMA-1KG' } },
+    update: {},
+    create: {
+      productUuid: '11111111-5555-1111-1111-000000000004',
+      clubUuid: alchemist.clubUuid,
+      categoryUuid: foodCat.categoryUuid,
+      name: 'Nyama Choma Platter (1kg)',
+      description: 'Grilled goat meat served with Kachumbari',
+      price: 1800.00,
+      sku: 'CHOMA-1KG',
+      isAvailable: true,
+    },
+  });
+
+  // G-Place Venue Tables
+  await prisma.venueTable.upsert({
+    where: { clubUuid_tableNumber: { clubUuid: gplace.clubUuid, tableNumber: 1 } },
+    update: {},
+    create: {
+      tableUuid: '33333333-4444-1111-1111-000000000001',
+      clubUuid: gplace.clubUuid,
+      tableNumber: 1,
+      sectionName: 'Main Lounge',
+      seatingCapacity: 4,
+      status: TableStatus.AVAILABLE,
+    },
+  });
+
+  await prisma.venueTable.upsert({
+    where: { clubUuid_tableNumber: { clubUuid: gplace.clubUuid, tableNumber: 2 } },
+    update: {},
+    create: {
+      tableUuid: '33333333-4444-1111-1111-000000000002',
+      clubUuid: gplace.clubUuid,
+      tableNumber: 2,
+      sectionName: 'VIP Section',
+      seatingCapacity: 6,
+      status: TableStatus.AVAILABLE,
+    },
+  });
+
+  // G-Place Menu Categories
+  const gplaceBeers = await prisma.menuCategory.upsert({
+    where: { clubUuid_name: { clubUuid: gplace.clubUuid, name: 'Whiskey & Spirits' } },
+    update: {},
+    create: {
+      categoryUuid: '33333333-3333-1111-1111-000000000001',
+      clubUuid: gplace.clubUuid,
+      name: 'Whiskey & Spirits',
+      description: 'Premium whiskeys and spirits',
       displayOrder: 1,
-      options: {
-        create: [
-          { name: 'Fresh Whole Dairy Milk', priceDelta: 0.00, isDefault: true, displayOrder: 1 },
-          { name: 'Creamy Oat Milk', priceDelta: 80.00, isDefault: false, displayOrder: 2 },
-          { name: 'Almond Milk', priceDelta: 80.00, isDefault: false, displayOrder: 3 },
-          { name: 'Soy Milk', priceDelta: 60.00, isDefault: false, displayOrder: 4 },
-        ],
-      },
     },
   });
 
-  const sizeModGroup = await prisma.modifierGroup.create({
-    data: {
-      clubUuid: javaCoffee.clubUuid,
-      productUuid: caffeLatte.productUuid,
-      name: 'Cup Size',
-      description: 'Choose drink volume',
-      selectionType: ModifierSelectionType.SINGLE,
-      isRequired: true,
-      minSelections: 1,
-      maxSelections: 1,
+  const gplaceBeersCat = await prisma.menuCategory.upsert({
+    where: { clubUuid_name: { clubUuid: gplace.clubUuid, name: 'Cold Beers & Ciders' } },
+    update: {},
+    create: {
+      categoryUuid: '33333333-3333-1111-1111-000000000002',
+      clubUuid: gplace.clubUuid,
+      name: 'Cold Beers & Ciders',
+      description: 'Ice cold lagers and ciders',
       displayOrder: 2,
-      options: {
-        create: [
-          { name: 'Regular (12oz)', priceDelta: 0.00, isDefault: true, displayOrder: 1 },
-          { name: 'Large (16oz)', priceDelta: 90.00, isDefault: false, displayOrder: 2 },
-          { name: 'Extra Large (20oz)', priceDelta: 150.00, isDefault: false, displayOrder: 3 },
-        ],
-      },
     },
   });
 
-  const syrupModGroup = await prisma.modifierGroup.create({
-    data: {
-      clubUuid: javaCoffee.clubUuid,
-      productUuid: caffeLatte.productUuid,
-      name: 'Flavor Syrups & Shots',
-      description: 'Add extra flavor or espresso booster',
-      selectionType: ModifierSelectionType.MULTIPLE,
-      isRequired: false,
-      minSelections: 0,
-      maxSelections: 4,
-      displayOrder: 3,
-      options: {
-        create: [
-          { name: 'Vanilla Syrup Pump', priceDelta: 50.00, displayOrder: 1 },
-          { name: 'Caramel Drizzle', priceDelta: 50.00, displayOrder: 2 },
-          { name: 'Hazelnut Shot', priceDelta: 60.00, displayOrder: 3 },
-          { name: 'Extra Double Espresso Shot', priceDelta: 100.00, displayOrder: 4 },
-        ],
-      },
+  // G-Place Products (Jack Daniels, Johnnie Walker Black, Tusker)
+  await prisma.product.upsert({
+    where: { clubUuid_sku: { clubUuid: gplace.clubUuid, sku: 'JD-750' } },
+    update: {},
+    create: {
+      productUuid: '33333333-5555-1111-1111-000000000001',
+      clubUuid: gplace.clubUuid,
+      categoryUuid: gplaceBeers.categoryUuid,
+      name: "Jack Daniel's Old No. 7 (750ml)",
+      description: 'Tennessee sour mash whiskey',
+      price: 4500.00,
+      sku: 'JD-750',
+      imageUrl: 'https://images.unsplash.com/photo-1527281400683-1aae777175f8?w=600&auto=format&fit=crop&q=80',
+      isAvailable: true,
     },
   });
 
-  console.info('✅ Modifiers seeded for Coffee Shop');
-  console.info('🎉 Database seeding completed successfully for all venue types!');
+  await prisma.product.upsert({
+    where: { clubUuid_sku: { clubUuid: gplace.clubUuid, sku: 'JW-BLACK-750' } },
+    update: {},
+    create: {
+      productUuid: '33333333-5555-1111-1111-000000000002',
+      clubUuid: gplace.clubUuid,
+      categoryUuid: gplaceBeers.categoryUuid,
+      name: 'Johnnie Walker Black Label (750ml)',
+      description: 'Iconic 12 year blended Scotch whisky',
+      price: 5200.00,
+      sku: 'JW-BLACK-750',
+      imageUrl: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?w=600&auto=format&fit=crop&q=80',
+      isAvailable: true,
+    },
+  });
+
+  await prisma.product.upsert({
+    where: { clubUuid_sku: { clubUuid: gplace.clubUuid, sku: 'TUSK-GPLACE' } },
+    update: {},
+    create: {
+      productUuid: '33333333-5555-1111-1111-000000000003',
+      clubUuid: gplace.clubUuid,
+      categoryUuid: gplaceBeersCat.categoryUuid,
+      name: 'Tusker Lager (500ml)',
+      description: 'Ice cold Kenyan lager',
+      price: 350.00,
+      sku: 'TUSK-GPLACE',
+      imageUrl: 'https://images.unsplash.com/photo-1608270586620-248524c67de9?w=600&auto=format&fit=crop&q=80',
+      isAvailable: true,
+    },
+  });
+
+  console.info('✅ Products seeded');
+
+  console.info('🎉 Seed completed successfully!');
 }
 
 main()

@@ -12,25 +12,6 @@ export const reportingRouter = Router();
 
 /**
  * @openapi
- * /reports/platform-summary:
- *   get:
- *     summary: Platform-wide KPI summary (total venues, managers, MRR, churn)
- *     tags: [Reports]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Platform summary data
- */
-reportingRouter.get(
-  '/platform-summary',
-  authenticate,
-  authorize(['PLATFORM_ADMIN']),
-  reportingController.getPlatformSummary,
-);
-
-/**
- * @openapi
  * /reports/analytics:
  *   get:
  *     summary: Generate multi-dimensional sales, orders, payment methods, products & waiter analytics report

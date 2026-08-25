@@ -1,4 +1,4 @@
-import { MenuCategory, Product, Offer, ModifierGroup, ModifierOption } from '@prisma/client';
+import { MenuCategory, Product, Offer } from '@prisma/client';
 
 export interface IMenuRepository {
   findCategoriesByClub(clubUuid: string): Promise<MenuCategory[]>;
@@ -13,15 +13,6 @@ export interface IMenuRepository {
   createProduct(clubUuid: string, data: Partial<Product>): Promise<Product>;
   updateProduct(productUuid: string, data: Partial<Product>): Promise<Product>;
   archiveProduct(productUuid: string): Promise<boolean>;
-
-  findModifierGroupsByClub(clubUuid: string): Promise<ModifierGroup[]>;
-  createModifierGroup(clubUuid: string, data: Partial<ModifierGroup> & { options?: Partial<ModifierOption>[] }): Promise<ModifierGroup>;
-  updateModifierGroup(modifierGroupUuid: string, data: Partial<ModifierGroup>): Promise<ModifierGroup>;
-  deleteModifierGroup(modifierGroupUuid: string): Promise<boolean>;
-  
-  createModifierOption(modifierGroupUuid: string, data: Partial<ModifierOption>): Promise<ModifierOption>;
-  updateModifierOption(modifierOptionUuid: string, data: Partial<ModifierOption>): Promise<ModifierOption>;
-  deleteModifierOption(modifierOptionUuid: string): Promise<boolean>;
 
   findOffersByClub(clubUuid: string): Promise<Offer[]>;
   createOffer(clubUuid: string, data: Partial<Offer>): Promise<Offer>;

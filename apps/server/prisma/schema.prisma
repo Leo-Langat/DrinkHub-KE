@@ -13,51 +13,8 @@ enum UserRole {
   CLUB_ADMIN
   MANAGER
   WAITER
-  BARISTA
-  KITCHEN_STAFF
-  CASHIER
 
   @@map("user_role_enum")
-}
-
-enum VenueType {
-  RESTAURANT
-  CAFE
-  COFFEE_SHOP
-  BAR_LOUNGE
-  NIGHTCLUB
-  BAKERY
-  FAST_CASUAL
-  HOTEL_DINING
-  OTHER
-
-  @@map("venue_type_enum")
-}
-
-enum OrderType {
-  DINE_IN
-  TAKEAWAY
-  COUNTER_PICKUP
-  DELIVERY
-
-  @@map("order_type_enum")
-}
-
-enum PrepStation {
-  KITCHEN
-  BARISTA
-  BAR
-  BAKERY
-  GENERAL
-
-  @@map("prep_station_enum")
-}
-
-enum ModifierSelectionType {
-  SINGLE
-  MULTIPLE
-
-  @@map("modifier_selection_type_enum")
 }
 
 enum TableStatus {
@@ -131,47 +88,38 @@ enum SubscriptionStatus {
 }
 
 model Club {
-  clubUuid           String             @id @default(dbgenerated("gen_random_uuid()")) @map("club_uuid") @db.Uuid
-  name               String
-  slug               String             @unique
-  venueType          VenueType          @default(BAR_LOUNGE) @map("venue_type")
-  tagline            String?            @map("tagline")
-  logoUrl            String?            @map("logo_url")
-  bannerUrl          String?            @map("banner_url")
-  phone              String?
-  email              String?
-  city               String             @default("Nairobi")
-  county             String             @default("Nairobi")
-  address            String?
-  gpsCoordinates     String?            @map("gps_coordinates")
-  brandColor         String             @default("#e11d48") @map("brand_color")
-  openingHours       String             @default("08:00") @map("opening_hours")
-  closingHours       String             @default("23:00") @map("closing_hours")
-  currency           String             @default("KES") @map("currency")
-  serviceFeePercent  Decimal?           @default(0.00) @map("service_fee_percent") @db.Decimal(5, 2)
-  taxPercent         Decimal?           @default(16.00) @map("tax_percent") @db.Decimal(5, 2)
-  allowTakeaway      Boolean            @default(true) @map("allow_takeaway")
-  allowDineIn        Boolean            @default(true) @map("allow_dine_in")
+  clubUuid         String             @id @default(dbgenerated("gen_random_uuid()")) @map("club_uuid") @db.Uuid
+  name             String
+  slug             String             @unique
+  logoUrl          String?            @map("logo_url")
+  phone            String?
+  email            String?
+  city             String             @default("Nairobi")
+  county           String             @default("Nairobi")
+  address          String?
+  gpsCoordinates   String?            @map("gps_coordinates")
+  brandColor       String             @default("#e11d48") @map("brand_color")
+  openingHours     String             @default("14:00") @map("opening_hours")
+  closingHours     String             @default("04:00") @map("closing_hours")
   subscriptionStatus SubscriptionStatus @default(ACTIVE) @map("subscription_status")
-  isActive           Boolean            @default(true) @map("is_active")
-  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt          DateTime?          @map("deleted_at") @db.Timestamptz(6)
+  isActive         Boolean            @default(true) @map("is_active")
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt        DateTime?          @map("deleted_at") @db.Timestamptz(6)
 
-  users              User[]
-  userSessions       UserSession[]
-  customerSessions   CustomerSession[]
-  venueTables        VenueTable[]
-  qrCodes            QrCode[]
-  menuCategories     MenuCategory[]
-  products           Product[]
-  modifierGroups     ModifierGroup[]
-  offers             Offer[]
-  orders             Order[]
-  orderItems         OrderItem[]
-  payments           Payment[]
-  auditLogs          AuditLog[]
-  notifications      Notification[]
+  users            User[]
+  userSessions     UserSession[]
+  customerSessions CustomerSession[]
+  venueTables      VenueTable[]
+  qrCodes          QrCode[]
+  menuCategories   MenuCategory[]
+  products         Product[]
+  offers           Offer[]
+  orders           Order[]
+  orderItems       OrderItem[]
+  payments         Payment[]
+  auditLogs        AuditLog[]
+  notifications    Notification[]
 
   @@map("clubs")
 }
@@ -287,7 +235,7 @@ model VenueTable {
 model QrCode {
   qrUuid        String     @id @default(dbgenerated("gen_random_uuid()")) @map("qr_uuid") @db.Uuid
   clubUuid      String     @map("club_uuid") @db.Uuid
-  tableUuid     String?    @unique @map("table_uuid") @db.Uuid
+  tableUuid     String     @unique @map("table_uuid") @db.Uuid
   qrCodePayload String     @unique @map("qr_code_payload")
   imageUrl      String?    @map("image_url")
   isActive      Boolean    @default(true) @map("is_active")
@@ -295,8 +243,8 @@ model QrCode {
   createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  club          Club        @relation(fields: [clubUuid], references: [clubUuid], onDelete: Cascade)
-  table         VenueTable? @relation(fields: [tableUuid], references: [tableUuid], onDelete: Cascade)
+  club          Club       @relation(fields: [clubUuid], references: [clubUuid], onDelete: Cascade)
+  table         VenueTable @relation(fields: [tableUuid], references: [tableUuid], onDelete: Cascade)
 
   @@index([clubUuid])
   @@map("qr_codes")
@@ -322,73 +270,27 @@ model MenuCategory {
 }
 
 model Product {
-  productUuid    String          @id @default(dbgenerated("gen_random_uuid()")) @map("product_uuid") @db.Uuid
-  clubUuid       String          @map("club_uuid") @db.Uuid
-  categoryUuid   String          @map("category_uuid") @db.Uuid
-  name           String
-  description    String?
-  price          Decimal         @db.Decimal(10, 2)
-  imageUrl       String?         @map("image_url")
-  isAvailable    Boolean         @default(true) @map("is_available")
-  sku            String?
-  prepStation    PrepStation     @default(GENERAL) @map("prep_station")
-  dietaryTags    String[]        @default([]) @map("dietary_tags")
-  calories       Int?
-  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt      DateTime?       @map("deleted_at") @db.Timestamptz(6)
+  productUuid String       @id @default(dbgenerated("gen_random_uuid()")) @map("product_uuid") @db.Uuid
+  clubUuid    String       @map("club_uuid") @db.Uuid
+  categoryUuid String      @map("category_uuid") @db.Uuid
+  name        String
+  description String?
+  price       Decimal      @db.Decimal(10, 2)
+  imageUrl    String?      @map("image_url")
+  isAvailable Boolean      @default(true) @map("is_available")
+  sku         String?
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime?    @map("deleted_at") @db.Timestamptz(6)
 
-  club           Club            @relation(fields: [clubUuid], references: [clubUuid], onDelete: Cascade)
-  category       MenuCategory    @relation(fields: [categoryUuid], references: [categoryUuid], onDelete: Restrict)
-  modifierGroups ModifierGroup[]
-  orderItems     OrderItem[]
+  club        Club         @relation(fields: [clubUuid], references: [clubUuid], onDelete: Cascade)
+  category    MenuCategory @relation(fields: [categoryUuid], references: [categoryUuid], onDelete: Restrict)
+  orderItems  OrderItem[]
 
   @@unique([clubUuid, sku])
   @@index([clubUuid])
   @@index([categoryUuid])
   @@map("products")
-}
-
-model ModifierGroup {
-  modifierGroupUuid String                @id @default(dbgenerated("gen_random_uuid()")) @map("modifier_group_uuid") @db.Uuid
-  clubUuid          String                @map("club_uuid") @db.Uuid
-  productUuid       String?               @map("product_uuid") @db.Uuid
-  name              String
-  description       String?
-  selectionType     ModifierSelectionType @default(SINGLE) @map("selection_type")
-  minSelections     Int                   @default(0) @map("min_selections")
-  maxSelections     Int                   @default(1) @map("max_selections")
-  isRequired        Boolean               @default(false) @map("is_required")
-  displayOrder      Int                   @default(0) @map("display_order")
-  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt         DateTime?             @map("deleted_at") @db.Timestamptz(6)
-
-  club              Club                  @relation(fields: [clubUuid], references: [clubUuid], onDelete: Cascade)
-  product           Product?              @relation(fields: [productUuid], references: [productUuid], onDelete: Cascade)
-  options           ModifierOption[]
-
-  @@index([clubUuid])
-  @@index([productUuid])
-  @@map("modifier_groups")
-}
-
-model ModifierOption {
-  modifierOptionUuid String              @id @default(dbgenerated("gen_random_uuid()")) @map("modifier_option_uuid") @db.Uuid
-  modifierGroupUuid  String              @map("modifier_group_uuid") @db.Uuid
-  name               String
-  priceDelta         Decimal             @default(0.00) @map("price_delta") @db.Decimal(10, 2)
-  isDefault          Boolean             @default(false) @map("is_default")
-  isAvailable        Boolean             @default(true) @map("is_available")
-  displayOrder       Int                 @default(0) @map("display_order")
-  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  group              ModifierGroup       @relation(fields: [modifierGroupUuid], references: [modifierGroupUuid], onDelete: Cascade)
-  orderItemModifiers OrderItemModifier[]
-
-  @@index([modifierGroupUuid])
-  @@map("modifier_options")
 }
 
 model Offer {
@@ -420,10 +322,6 @@ model Order {
   waiterUuid          String?          @map("waiter_uuid") @db.Uuid
   customerSessionUuid String?          @map("customer_session_uuid") @db.Uuid
   offerUuid           String?          @map("offer_uuid") @db.Uuid
-  orderType           OrderType        @default(DINE_IN) @map("order_type")
-  pickupNumber        String?          @map("pickup_number")
-  customerName        String?          @map("customer_name")
-  customerPhone       String?          @map("customer_phone")
   orderNumber         String           @map("order_number")
   subtotalAmount      Decimal          @map("subtotal_amount") @db.Decimal(10, 2)
   discountAmount      Decimal          @default(0.00) @map("discount_amount") @db.Decimal(10, 2)
@@ -448,40 +346,23 @@ model Order {
 }
 
 model OrderItem {
-  orderItemUuid String              @id @default(dbgenerated("gen_random_uuid()")) @map("order_item_uuid") @db.Uuid
-  clubUuid      String              @map("club_uuid") @db.Uuid
-  orderUuid     String              @map("order_uuid") @db.Uuid
-  productUuid   String              @map("product_uuid") @db.Uuid
+  orderItemUuid String   @id @default(dbgenerated("gen_random_uuid()")) @map("order_item_uuid") @db.Uuid
+  clubUuid      String   @map("club_uuid") @db.Uuid
+  orderUuid     String   @map("order_uuid") @db.Uuid
+  productUuid   String   @map("product_uuid") @db.Uuid
   quantity      Int
-  unitPrice     Decimal             @map("unit_price") @db.Decimal(10, 2)
-  subtotal      Decimal             @db.Decimal(10, 2)
+  unitPrice     Decimal  @map("unit_price") @db.Decimal(10, 2)
+  subtotal      Decimal  @db.Decimal(10, 2)
   notes         String?
-  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  club          Club                @relation(fields: [clubUuid], references: [clubUuid], onDelete: Cascade)
-  order         Order               @relation(fields: [orderUuid], references: [orderUuid], onDelete: Cascade)
-  product       Product             @relation(fields: [productUuid], references: [productUuid], onDelete: Restrict)
-  modifiers     OrderItemModifier[]
+  club          Club     @relation(fields: [clubUuid], references: [clubUuid], onDelete: Cascade)
+  order         Order    @relation(fields: [orderUuid], references: [orderUuid], onDelete: Cascade)
+  product       Product  @relation(fields: [productUuid], references: [productUuid], onDelete: Restrict)
 
   @@index([clubUuid])
   @@index([orderUuid])
   @@map("order_items")
-}
-
-model OrderItemModifier {
-  orderItemModifierUuid String          @id @default(dbgenerated("gen_random_uuid()")) @map("order_item_modifier_uuid") @db.Uuid
-  orderItemUuid         String          @map("order_item_uuid") @db.Uuid
-  modifierOptionUuid    String?         @map("modifier_option_uuid") @db.Uuid
-  groupName             String          @map("group_name")
-  optionName            String          @map("option_name")
-  priceDelta            Decimal         @default(0.00) @map("price_delta") @db.Decimal(10, 2)
-  createdAt             DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  orderItem             OrderItem       @relation(fields: [orderItemUuid], references: [orderItemUuid], onDelete: Cascade)
-  modifierOption        ModifierOption? @relation(fields: [modifierOptionUuid], references: [modifierOptionUuid], onDelete: SetNull)
-
-  @@index([orderItemUuid])
-  @@map("order_item_modifiers")
 }
 
 model Payment {

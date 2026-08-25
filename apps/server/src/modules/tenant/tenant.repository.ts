@@ -41,24 +41,16 @@ export class TenantRepository implements ITenantRepository {
       data: {
         name: data.name!,
         slug: data.slug!,
-        venueType: data.venueType || 'BAR_LOUNGE',
-        tagline: data.tagline,
         city: data.city || 'Nairobi',
         county: data.county || 'Nairobi',
         logoUrl: data.logoUrl,
-        bannerUrl: data.bannerUrl,
         phone: data.phone,
         email: data.email,
         address: data.address,
         gpsCoordinates: data.gpsCoordinates,
         brandColor: data.brandColor || '#e11d48',
-        openingHours: data.openingHours || '08:00',
-        closingHours: data.closingHours || '23:00',
-        currency: data.currency || 'KES',
-        serviceFeePercent: data.serviceFeePercent ?? 0.00,
-        taxPercent: data.taxPercent ?? 16.00,
-        allowTakeaway: data.allowTakeaway ?? true,
-        allowDineIn: data.allowDineIn ?? true,
+        openingHours: data.openingHours || '14:00',
+        closingHours: data.closingHours || '04:00',
         subscriptionStatus: SubscriptionStatus.ACTIVE,
         isActive: true,
       },
@@ -71,23 +63,15 @@ export class TenantRepository implements ITenantRepository {
         data: {
           name: data.name,
           slug: data.slug,
-          venueType: data.venueType || 'BAR_LOUNGE',
-          tagline: data.tagline,
           city: data.city || 'Nairobi',
           county: data.county || 'Nairobi',
           address: data.address,
           phone: data.phone,
           email: data.email,
           logoUrl: data.logoUrl,
-          bannerUrl: data.bannerUrl,
           brandColor: data.brandColor || '#e11d48',
-          openingHours: data.openingHours || '08:00',
-          closingHours: data.closingHours || '23:00',
-          currency: data.currency || 'KES',
-          serviceFeePercent: data.serviceFeePercent ?? 0.00,
-          taxPercent: data.taxPercent ?? 16.00,
-          allowTakeaway: data.allowTakeaway ?? true,
-          allowDineIn: data.allowDineIn ?? true,
+          openingHours: data.openingHours || '14:00',
+          closingHours: data.closingHours || '04:00',
           gpsCoordinates: data.gpsCoordinates,
           subscriptionStatus: SubscriptionStatus.ACTIVE,
           isActive: true,
@@ -103,6 +87,7 @@ export class TenantRepository implements ITenantRepository {
           phone: data.managerPhone,
           role: UserRole.CLUB_ADMIN,
           isActive: true,
+          // Force manager to change their temporary password on first login
           mustChangePassword: true,
         },
       });
@@ -110,6 +95,7 @@ export class TenantRepository implements ITenantRepository {
       return { club, manager };
     });
   }
+
 
   async update(clubUuid: string, data: Partial<Club>): Promise<Club> {
     return prisma.club.update({
@@ -151,11 +137,11 @@ export class TenantRepository implements ITenantRepository {
     startFrom?: number,
   ): Promise<{ tables: VenueTable[]; qrs: QrCode[] }> {
     const club = await this.findById(clubUuid);
-    if (!club) throw new Error('Venue not found');
+    if (!club) throw new Error('Club not found');
 
     const createdTables: VenueTable[] = [];
     const createdQrs: QrCode[] = [];
-    const effectiveSection = sectionName?.trim() || 'Main Floor';
+    const effectiveSection = sectionName?.trim() || 'Main Lounge';
 
     let firstNum = startFrom;
     if (!firstNum) {

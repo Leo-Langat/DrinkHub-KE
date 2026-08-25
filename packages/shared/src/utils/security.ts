@@ -1,11 +1,27 @@
 /**
  * Security & Session Timeout Utilities
- * Shared across server, staff-portal, admin-portal, and customer-pwa.
+ * Shared across server, staff-portal, admin-portal, client, and customer-pwa.
  */
 
 export const IDLE_TIMEOUT_MS = 20 * 60 * 1000;       // 20 minutes idle timeout
 export const WARN_BEFORE_TIMEOUT_MS = 2 * 60 * 1000; // warn 2 minutes before timeout
 export const MAX_SESSION_MS = 24 * 60 * 60 * 1000;   // 24 hours max session (full day shift)
+
+export const DEFAULT_SESSION_EXPIRED_MSG =
+  'Your session has expired due to 20 minutes of inactivity. Please log in again.';
+
+export const AUTH_STORAGE_KEYS = {
+  TOKEN: 'drinkhub_token',
+  ADMIN_TOKEN: 'drinkhub_admin_token',
+  REFRESH_TOKEN: 'drinkhub_refresh_token',
+  USER: 'drinkhub_user',
+  LOGIN_TIME: 'drinkhub_login_time',
+  LAST_ACTIVITY: 'drinkhub_last_activity',
+  LOGOUT_EVENT: 'drinkhub_logout_event',
+  SESSION_EXPIRED: 'drinkhub_session_expired',
+  CLIENT_ACCESS_TOKEN: 'accessToken',
+  CLIENT_USER: 'user',
+} as const;
 
 /**
  * Safely parses JWT payload in browser/Node without external libraries.
@@ -52,9 +68,93 @@ export function getTokenRemainingTime(token: string | null | undefined): number 
 }
 
 /**
- * Checks if the total session time exceeds absolute maximum lifetime (e.g. 12h shift).
+ * Checks if the total session time exceeds absolute maximum lifetime (e.g. 24h shift).
  */
 export function isSessionExpired(loginTimeMs: number | null | undefined, maxSessionMs = MAX_SESSION_MS): boolean {
   if (!loginTimeMs) return false;
   return Date.now() - loginTimeMs >= maxSessionMs;
+}
+
+/**
+ * Records user activity timestamp in localStorage to synchronize activity across tabs.
+ */
+export function recordUserActivity(customTimestamp?: number): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    const time = customTimestamp ?? Date.now();
+    window.localStorage.setItem(AUTH_STORAGE_KEYS.LAST_ACTIVITY, String(time));
+  } catch {
+    /* ignore localStorage exceptions (e.g. private mode quota) */
+  }
+}
+
+/**
+ * Retrieves the last recorded user activity timestamp from localStorage.
+ */
+export function getLastActivityTime(): number {
+  if (typeof window === 'undefined' || !window.localStorage) return Date.now();
+  try {
+    const stored = window.localStorage.getItem(AUTH_STORAGE_KEYS.LAST_ACTIVITY);
+    if (stored) {
+      const parsed = parseInt(stored, 10);
+      if (!isNaN(parsed) && parsed > 0) return parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+  return Date.now();
+}
+
+/**
+ * Stores a session expired flash message for display on the login page.
+ */
+export function setSessionExpiredNotice(message = DEFAULT_SESSION_EXPIRED_MSG): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (window.sessionStorage) {
+      window.sessionStorage.setItem(AUTH_STORAGE_KEYS.SESSION_EXPIRED, message);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Retrieves and consumes any pending session expired flash message.
+ */
+export function getSessionExpiredNotice(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    if (window.sessionStorage) {
+      const notice = window.sessionStorage.getItem(AUTH_STORAGE_KEYS.SESSION_EXPIRED);
+      if (notice) {
+        window.sessionStorage.removeItem(AUTH_STORAGE_KEYS.SESSION_EXPIRED);
+        return notice;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+/**
+ * Thoroughly clears all authentication tokens, session data, and user info from storage.
+ */
+export function clearAllAuthData(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (window.localStorage) {
+      window.localStorage.removeItem(AUTH_STORAGE_KEYS.TOKEN);
+      window.localStorage.removeItem(AUTH_STORAGE_KEYS.ADMIN_TOKEN);
+      window.localStorage.removeItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN);
+      window.localStorage.removeItem(AUTH_STORAGE_KEYS.USER);
+      window.localStorage.removeItem(AUTH_STORAGE_KEYS.LOGIN_TIME);
+      window.localStorage.removeItem(AUTH_STORAGE_KEYS.LAST_ACTIVITY);
+      window.localStorage.removeItem(AUTH_STORAGE_KEYS.CLIENT_ACCESS_TOKEN);
+      window.localStorage.removeItem(AUTH_STORAGE_KEYS.CLIENT_USER);
+    }
+  } catch {
+    /* ignore */
+  }
 }

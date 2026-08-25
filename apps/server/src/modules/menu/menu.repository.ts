@@ -1,4 +1,4 @@
-import { MenuCategory, Product, Offer, ModifierGroup, ModifierOption } from '@prisma/client';
+import { MenuCategory, Product, Offer } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { IMenuRepository } from './menu.interface';
 
@@ -8,20 +8,7 @@ export class MenuRepository implements IMenuRepository {
       where: { clubUuid, deletedAt: null },
       orderBy: { displayOrder: 'asc' },
       include: {
-        products: {
-          where: { deletedAt: null },
-          include: {
-            modifierGroups: {
-              where: { deletedAt: null },
-              include: {
-                options: {
-                  orderBy: { displayOrder: 'asc' },
-                },
-              },
-              orderBy: { displayOrder: 'asc' },
-            },
-          },
-        },
+        products: { where: { deletedAt: null } },
       },
     });
   }
@@ -81,39 +68,17 @@ export class MenuRepository implements IMenuRepository {
     return prisma.product.findMany({
       where: { clubUuid, deletedAt: null },
       orderBy: { createdAt: 'desc' },
-      include: {
-        category: true,
-        modifierGroups: {
-          where: { deletedAt: null },
-          include: {
-            options: {
-              orderBy: { displayOrder: 'asc' },
-            },
-          },
-          orderBy: { displayOrder: 'asc' },
-        },
-      },
+      include: { category: true },
     });
   }
 
   async findProductById(productUuid: string): Promise<Product | null> {
     return prisma.product.findFirst({
       where: { productUuid, deletedAt: null },
-      include: {
-        category: true,
-        modifierGroups: {
-          where: { deletedAt: null },
-          include: {
-            options: {
-              orderBy: { displayOrder: 'asc' },
-            },
-          },
-        },
-      },
     });
   }
 
-  async createProduct(clubUuid: string, data: any): Promise<Product> {
+  async createProduct(clubUuid: string, data: Partial<Product>): Promise<Product> {
     return prisma.product.create({
       data: {
         clubUuid,
@@ -123,30 +88,15 @@ export class MenuRepository implements IMenuRepository {
         price: data.price!,
         imageUrl: data.imageUrl,
         sku: data.sku,
-        prepStation: data.prepStation || 'GENERAL',
-        dietaryTags: data.dietaryTags || [],
-        calories: data.calories || null,
         isAvailable: data.isAvailable ?? true,
-      },
-      include: {
-        category: true,
-        modifierGroups: {
-          include: { options: true },
-        },
       },
     });
   }
 
-  async updateProduct(productUuid: string, data: any): Promise<Product> {
+  async updateProduct(productUuid: string, data: Partial<Product>): Promise<Product> {
     return prisma.product.update({
       where: { productUuid },
       data,
-      include: {
-        category: true,
-        modifierGroups: {
-          include: { options: true },
-        },
-      },
     });
   }
 
@@ -154,89 +104,6 @@ export class MenuRepository implements IMenuRepository {
     await prisma.product.update({
       where: { productUuid },
       data: { deletedAt: new Date(), isAvailable: false },
-    });
-    return true;
-  }
-
-  async findModifierGroupsByClub(clubUuid: string): Promise<ModifierGroup[]> {
-    return prisma.modifierGroup.findMany({
-      where: { clubUuid, deletedAt: null },
-      include: {
-        options: { orderBy: { displayOrder: 'asc' } },
-        product: true,
-      },
-      orderBy: { displayOrder: 'asc' },
-    });
-  }
-
-  async createModifierGroup(
-    clubUuid: string,
-    data: Partial<ModifierGroup> & { options?: Partial<ModifierOption>[] },
-  ): Promise<ModifierGroup> {
-    return prisma.modifierGroup.create({
-      data: {
-        clubUuid,
-        productUuid: data.productUuid || null,
-        name: data.name!,
-        description: data.description,
-        selectionType: data.selectionType || 'SINGLE',
-        minSelections: data.minSelections || 0,
-        maxSelections: data.maxSelections || 1,
-        isRequired: data.isRequired || false,
-        displayOrder: data.displayOrder || 0,
-        options: data.options && data.options.length > 0 ? {
-          create: data.options.map((opt, idx) => ({
-            name: opt.name!,
-            priceDelta: opt.priceDelta || 0,
-            isDefault: opt.isDefault || false,
-            isAvailable: opt.isAvailable ?? true,
-            displayOrder: opt.displayOrder ?? idx,
-          })),
-        } : undefined,
-      },
-      include: { options: true },
-    });
-  }
-
-  async updateModifierGroup(modifierGroupUuid: string, data: Partial<ModifierGroup>): Promise<ModifierGroup> {
-    return prisma.modifierGroup.update({
-      where: { modifierGroupUuid },
-      data,
-      include: { options: true },
-    });
-  }
-
-  async deleteModifierGroup(modifierGroupUuid: string): Promise<boolean> {
-    await prisma.modifierGroup.update({
-      where: { modifierGroupUuid },
-      data: { deletedAt: new Date() },
-    });
-    return true;
-  }
-
-  async createModifierOption(modifierGroupUuid: string, data: Partial<ModifierOption>): Promise<ModifierOption> {
-    return prisma.modifierOption.create({
-      data: {
-        modifierGroupUuid,
-        name: data.name!,
-        priceDelta: data.priceDelta || 0,
-        isDefault: data.isDefault || false,
-        isAvailable: data.isAvailable ?? true,
-        displayOrder: data.displayOrder || 0,
-      },
-    });
-  }
-
-  async updateModifierOption(modifierOptionUuid: string, data: Partial<ModifierOption>): Promise<ModifierOption> {
-    return prisma.modifierOption.update({
-      where: { modifierOptionUuid },
-      data,
-    });
-  }
-
-  async deleteModifierOption(modifierOptionUuid: string): Promise<boolean> {
-    await prisma.modifierOption.delete({
-      where: { modifierOptionUuid },
     });
     return true;
   }

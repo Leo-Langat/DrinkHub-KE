@@ -1,4 +1,4 @@
-import { MenuCategory, Product, Offer, ModifierGroup, ModifierOption } from '@prisma/client';
+import { MenuCategory, Product, Offer } from '@prisma/client';
 import { IMenuRepository } from './menu.interface';
 import { NotFoundError, BadRequestError } from '../../common/errors/app-error';
 import { prisma } from '../../config/prisma';
@@ -13,15 +13,14 @@ export class MenuService {
       if (firstClub) targetClubUuid = firstClub.clubUuid;
     }
     if (!targetClubUuid) {
-      return { categories: [], products: [], offers: [], modifierGroups: [] };
+      return { categories: [], products: [], offers: [] };
     }
-    const [categories, products, offers, modifierGroups] = await Promise.all([
+    const [categories, products, offers] = await Promise.all([
       this.menuRepository.findCategoriesByClub(targetClubUuid),
       this.menuRepository.findProductsByClub(targetClubUuid),
       this.menuRepository.findOffersByClub(targetClubUuid),
-      this.menuRepository.findModifierGroupsByClub(targetClubUuid),
     ]);
-    return { categories, products, offers, modifierGroups };
+    return { categories, products, offers };
   }
 
   async createCategory(clubUuid: string, data: Partial<MenuCategory>): Promise<MenuCategory> {
@@ -124,48 +123,6 @@ export class MenuService {
     return this.menuRepository.archiveProduct(productUuid);
   }
 
-  // ─── Modifier Groups ────────────────────────────────────────────────────────
-  async getModifierGroups(clubUuid: string): Promise<ModifierGroup[]> {
-    return this.menuRepository.findModifierGroupsByClub(clubUuid);
-  }
-
-  async createModifierGroup(clubUuid: string, data: any): Promise<ModifierGroup> {
-    if (!data.name) {
-      throw new BadRequestError('Modifier group name is required (e.g., Choice of Milk, Coffee Size)');
-    }
-    return this.menuRepository.createModifierGroup(clubUuid, data);
-  }
-
-  async updateModifierGroup(modifierGroupUuid: string, data: any): Promise<ModifierGroup> {
-    return this.menuRepository.updateModifierGroup(modifierGroupUuid, data);
-  }
-
-  async deleteModifierGroup(modifierGroupUuid: string): Promise<boolean> {
-    return this.menuRepository.deleteModifierGroup(modifierGroupUuid);
-  }
-
-  async createModifierOption(modifierGroupUuid: string, data: any): Promise<ModifierOption> {
-    if (!data.name) {
-      throw new BadRequestError('Option name is required (e.g., Oat Milk, Large)');
-    }
-    return this.menuRepository.createModifierOption(modifierGroupUuid, {
-      ...data,
-      priceDelta: data.priceDelta ? Number(data.priceDelta) : 0,
-    });
-  }
-
-  async updateModifierOption(modifierOptionUuid: string, data: any): Promise<ModifierOption> {
-    return this.menuRepository.updateModifierOption(modifierOptionUuid, {
-      ...data,
-      priceDelta: data.priceDelta !== undefined ? Number(data.priceDelta) : undefined,
-    });
-  }
-
-  async deleteModifierOption(modifierOptionUuid: string): Promise<boolean> {
-    return this.menuRepository.deleteModifierOption(modifierOptionUuid);
-  }
-
-  // ─── Offers ─────────────────────────────────────────────────────────────────
   async createOffer(clubUuid: string, data: any): Promise<Offer> {
     if (!data.title || data.discountValue === undefined) {
       throw new BadRequestError('Offer title and discount value are required');

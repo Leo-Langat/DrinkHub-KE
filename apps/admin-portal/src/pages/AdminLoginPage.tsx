@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Wine, Eye, EyeOff, ChevronRight, Loader2, ShieldCheck, Globe, Server, Lock } from 'lucide-react';
+import { Wine, Eye, EyeOff, ChevronRight, Loader2, ShieldCheck, Globe, Server, Lock, Timer } from 'lucide-react';
 import { getApiUrl } from '../config/api';
+import { getSessionExpiredNotice } from '@drinkhub/shared';
 
 interface AdminLoginPageProps {
   onLogin: () => void;
@@ -12,6 +13,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [sessionExpiredMsg] = useState<string | null>(() => getSessionExpiredNotice());
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,6 +165,17 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
               This portal is restricted to authorized platform administrators only.
             </p>
           </div>
+
+          {/* Session Inactivity Timeout Notice */}
+          {sessionExpiredMsg && (
+            <div className="flex items-start gap-3 rounded-xl border border-red-300 bg-red-50 p-3.5 text-xs text-red-900 shadow-sm animate-in fade-in">
+              <Timer className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <span className="font-extrabold block text-red-800">Session Expired</span>
+                <span className="text-red-700">{sessionExpiredMsg}</span>
+              </div>
+            </div>
+          )}
 
           {/* Security Banner */}
           <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">

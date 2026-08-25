@@ -32,13 +32,11 @@ export class OrderService {
   async createOrder(clubUuid: string, data: any): Promise<Order> {
     const order = await this.orderRepository.createOrder(clubUuid, data);
 
-    // Emit Realtime Socket.IO Event for Kitchen, Barista, Bar, & Waiters
+    // Emit Realtime Socket.IO Event for Kitchen & Waiters
     try {
       const io = getIO();
       io.to(`tenant:${clubUuid}`).emit('new_order', order);
       io.to(`tenant:${clubUuid}:kitchen`).emit('new_order_kitchen', order);
-      io.to(`tenant:${clubUuid}:barista`).emit('new_order_barista', order);
-      io.to(`tenant:${clubUuid}:bar`).emit('new_order_bar', order);
     } catch (_e) {
       logger.warn('Socket.IO not ready for new_order broadcast.');
     }

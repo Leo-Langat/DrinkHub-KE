@@ -1,65 +1,6 @@
 import { prisma } from '../../config/prisma';
 
 export class ReportingService {
-  /** Platform-wide KPI summary for the admin portal dashboard */
-  async getPlatformSummary() {
-    const [totalVenues, totalManagers, activeVenues, orders] = await Promise.all([
-      prisma.club.count({ where: { deletedAt: null } }),
-      prisma.user.count({ where: { role: { in: ['CLUB_ADMIN', 'MANAGER'] }, isActive: true } }),
-      prisma.club.count({ where: { deletedAt: null, isActive: true } }),
-      prisma.order.findMany({
-        where: { status: { in: ['COMPLETED', 'DELIVERED'] } },
-        select: { totalAmount: true, createdAt: true, clubUuid: true },
-        orderBy: { createdAt: 'desc' },
-        take: 5000,
-      }),
-    ]);
-
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-
-    const thisMonthRevenue = orders
-      .filter(o => new Date(o.createdAt) >= startOfMonth)
-      .reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
-
-    const lastMonthRevenue = orders
-      .filter(o => {
-        const d = new Date(o.createdAt);
-        return d >= startOfLastMonth && d < startOfMonth;
-      })
-      .reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
-
-    const mrrGrowth = lastMonthRevenue > 0
-      ? Math.round(((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 * 10) / 10
-      : 0;
-
-    const suspendedVenues = await prisma.club.count({ where: { deletedAt: null, isActive: false } });
-    const churnRate = totalVenues > 0 ? Math.round((suspendedVenues / totalVenues) * 100 * 10) / 10 : 0;
-
-    // Per-venue MRR breakdown
-    const venueRevMap: Record<string, number> = {};
-    orders
-      .filter(o => new Date(o.createdAt) >= startOfMonth)
-      .forEach(o => {
-        if (o.clubUuid) venueRevMap[o.clubUuid] = (venueRevMap[o.clubUuid] || 0) + Number(o.totalAmount || 0);
-      });
-    const totalMrr = Object.values(venueRevMap).reduce((a, b) => a + b, 0);
-
-    return {
-      totalVenues,
-      activeVenues,
-      suspendedVenues,
-      totalManagers,
-      totalMrr: Math.round(totalMrr),
-      mrrGrowth,
-      churnRate,
-      thisMonthRevenue: Math.round(thisMonthRevenue),
-      lastMonthRevenue: Math.round(lastMonthRevenue),
-      generatedAt: now.toISOString(),
-    };
-  }
-
   async generateAnalyticsReport(clubUuid: string, period: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' = 'WEEKLY') {
     // 1. Resolve clubUuid
     let targetClubUuid = clubUuid;

@@ -1,46 +1,197 @@
-import { Club, User, VenueTable, QrCode, UserRole, SubscriptionStatus } from '@prisma/client';
+import { Business, User, VenueTable, QrCode, UserRole, SubscriptionStatus, BusinessStatus, BusinessType } from '@prisma/client';
 import { prisma } from '../../config/prisma';
-import { ITenantRepository, CreateClubWithManagerInput, ClubWithManager } from './tenant.interface';
+import { ITenantRepository, CreateBusinessWithAdminInput, BusinessWithAdmin, PlatformStats, BusinessSummary } from './tenant.interface';
 
 export class TenantRepository implements ITenantRepository {
-  async findBySlug(slug: string): Promise<Club | null> {
-    return prisma.club.findFirst({
+  async findBySlug(slug: string): Promise<Business | null> {
+    return prisma.business.findFirst({
       where: { slug, deletedAt: null },
       include: {
-        users: { where: { role: { in: [UserRole.CLUB_ADMIN, UserRole.MANAGER] } } },
+        users: { where: { role: { in: [UserRole.ADMIN, UserRole.MANAGER] } } },
         venueTables: { include: { qrCode: true } },
         _count: { select: { orders: true, venueTables: true, products: true, users: true } },
       },
     });
   }
 
-  async findById(clubUuid: string): Promise<Club | null> {
-    return prisma.club.findFirst({
-      where: { clubUuid, deletedAt: null },
+  async findById(businessUuid: string): Promise<Business | null> {
+    return prisma.business.findFirst({
+      where: { businessUuid, deletedAt: null },
       include: {
-        users: { where: { role: { in: [UserRole.CLUB_ADMIN, UserRole.MANAGER] } } },
+        users: { where: { role: { in: [UserRole.ADMIN, UserRole.MANAGER] } } },
         venueTables: { include: { qrCode: true } },
         _count: { select: { orders: true, venueTables: true, products: true, users: true } },
       },
     });
   }
 
-  async findAll(): Promise<Club[]> {
-    return prisma.club.findMany({
+  async findAll(): Promise<Business[]> {
+    return prisma.business.findMany({
       where: { deletedAt: null },
       orderBy: { createdAt: 'desc' },
       include: {
-        users: { where: { role: { in: [UserRole.CLUB_ADMIN, UserRole.MANAGER] } } },
+        users: { where: { role: { in: [UserRole.ADMIN, UserRole.MANAGER] } } },
         _count: { select: { orders: true, venueTables: true, products: true, users: true } },
       },
     });
   }
 
-  async create(data: Partial<Club>): Promise<Club> {
-    return prisma.club.create({
+  async getPlatformStats(): Promise<PlatformStats> {
+    const [
+      totalBusinesses,
+      activeBusinesses,
+      suspendedBusinesses,
+      totalUsers,
+      totalAdmins,
+      totalManagers,
+      totalWaiters,
+      totalOrders,
+      revenueResult,
+      businessesByTypeRaw,
+      recentBusinessesRaw,
+    ] = await Promise.all([
+      prisma.business.count({ where: { deletedAt: null } }),
+      prisma.business.count({ where: { deletedAt: null, isActive: true, status: BusinessStatus.ACTIVE } }),
+      prisma.business.count({ where: { deletedAt: null, status: BusinessStatus.SUSPENDED } }),
+      prisma.user.count({ where: { deletedAt: null } }),
+      prisma.user.count({ where: { deletedAt: null, role: UserRole.ADMIN } }),
+      prisma.user.count({ where: { deletedAt: null, role: UserRole.MANAGER } }),
+      prisma.user.count({ where: { deletedAt: null, role: UserRole.WAITER } }),
+      prisma.order.count(),
+      prisma.payment.aggregate({
+        where: { paymentStatus: 'PAID' },
+        _sum: { amount: true },
+      }),
+      prisma.business.groupBy({
+        by: ['businessType'],
+        where: { deletedAt: null },
+        _count: { businessUuid: true },
+      }),
+      prisma.business.findMany({
+        where: { deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        take: 6,
+        include: {
+          users: {
+            where: { role: { in: [UserRole.ADMIN, UserRole.MANAGER] }, deletedAt: null },
+            take: 1,
+          },
+        },
+      }),
+    ]);
+
+    const businessesByType: Record<string, number> = {};
+    businessesByTypeRaw.forEach((b) => {
+      businessesByType[b.businessType] = b._count.businessUuid;
+    });
+
+    const recentBusinesses = recentBusinessesRaw.map((b) => {
+      const primaryAdmin = b.users?.[0];
+      return {
+        businessUuid: b.businessUuid,
+        name: b.name,
+        slug: b.slug,
+        businessType: b.businessType,
+        status: b.status,
+        city: b.city,
+        county: b.county,
+        createdAt: b.createdAt,
+        admin: primaryAdmin
+          ? {
+              fullName: primaryAdmin.fullName,
+              email: primaryAdmin.email,
+              phone: primaryAdmin.phone,
+            }
+          : null,
+      };
+    });
+
+    return {
+      totalBusinesses,
+      activeBusinesses,
+      suspendedBusinesses,
+      totalUsers,
+      totalAdmins,
+      totalManagers,
+      totalWaiters,
+      totalOrders,
+      totalRevenue: Number(revenueResult._sum?.amount || 0),
+      businessesByType,
+      recentBusinesses,
+    };
+  }
+
+  async getBusinessSummary(businessUuid: string): Promise<BusinessSummary | null> {
+    const business = await prisma.business.findFirst({
+      where: { businessUuid, deletedAt: null },
+      include: {
+        users: {
+          where: { deletedAt: null },
+          select: {
+            userUuid: true,
+            fullName: true,
+            email: true,
+            phone: true,
+            role: true,
+            isActive: true,
+            createdAt: true,
+          },
+        },
+        venueTables: {
+          include: { qrCode: true },
+        },
+        _count: {
+          select: {
+            orders: true,
+            venueTables: true,
+            products: true,
+            users: true,
+          },
+        },
+      },
+    });
+
+    if (!business) return null;
+
+    const [
+      managersCount,
+      waitersCount,
+      tablesCount,
+      totalOrders,
+      completedOrders,
+      pendingOrders,
+      revenueResult,
+    ] = await Promise.all([
+      prisma.user.count({ where: { businessUuid, role: UserRole.MANAGER, isActive: true, deletedAt: null } }),
+      prisma.user.count({ where: { businessUuid, role: UserRole.WAITER, isActive: true, deletedAt: null } }),
+      prisma.venueTable.count({ where: { businessUuid } }),
+      prisma.order.count({ where: { businessUuid } }),
+      prisma.order.count({ where: { businessUuid, status: { in: ['COMPLETED', 'DELIVERED'] } } }),
+      prisma.order.count({ where: { businessUuid, status: 'PENDING' } }),
+      prisma.payment.aggregate({
+        _sum: { amount: true },
+        where: { businessUuid, paymentStatus: 'PAID' },
+      }),
+    ]);
+
+    return {
+      business,
+      managersCount,
+      waitersCount,
+      tablesCount,
+      totalOrders,
+      completedOrders,
+      pendingOrders,
+      totalRevenue: Number(revenueResult._sum?.amount || 0),
+    };
+  }
+
+  async create(data: Partial<Business>): Promise<Business> {
+    return prisma.business.create({
       data: {
         name: data.name!,
         slug: data.slug!,
+        businessType: data.businessType || BusinessType.RESTAURANT,
         city: data.city || 'Nairobi',
         county: data.county || 'Nairobi',
         logoUrl: data.logoUrl,
@@ -48,105 +199,135 @@ export class TenantRepository implements ITenantRepository {
         email: data.email,
         address: data.address,
         gpsCoordinates: data.gpsCoordinates,
-        brandColor: data.brandColor || '#e11d48',
-        openingHours: data.openingHours || '14:00',
-        closingHours: data.closingHours || '04:00',
+        themeColor: data.themeColor || '#e11d48',
+        openingHours: data.openingHours || '08:00',
+        closingHours: data.closingHours || '23:00',
+        status: BusinessStatus.ACTIVE,
         subscriptionStatus: SubscriptionStatus.ACTIVE,
         isActive: true,
       },
     });
   }
 
-  async createClubWithManager(data: CreateClubWithManagerInput): Promise<ClubWithManager> {
+  async createBusinessWithAdmin(data: CreateBusinessWithAdminInput): Promise<BusinessWithAdmin> {
     return prisma.$transaction(async (tx) => {
-      const club = await tx.club.create({
+      const business = await tx.business.create({
         data: {
           name: data.name,
           slug: data.slug,
+          businessType: data.businessType || BusinessType.RESTAURANT,
           city: data.city || 'Nairobi',
           county: data.county || 'Nairobi',
           address: data.address,
           phone: data.phone,
           email: data.email,
           logoUrl: data.logoUrl,
-          brandColor: data.brandColor || '#e11d48',
-          openingHours: data.openingHours || '14:00',
-          closingHours: data.closingHours || '04:00',
+          themeColor: data.themeColor || '#e11d48',
+          openingHours: data.openingHours || '08:00',
+          closingHours: data.closingHours || '23:00',
           gpsCoordinates: data.gpsCoordinates,
+          status: BusinessStatus.ACTIVE,
           subscriptionStatus: SubscriptionStatus.ACTIVE,
           isActive: true,
         },
       });
 
-      const manager = await tx.user.create({
+      const admin = await tx.user.create({
         data: {
-          clubUuid: club.clubUuid,
-          email: data.managerEmail,
-          passwordHash: data.managerPasswordHash,
-          fullName: data.managerFullName,
-          phone: data.managerPhone,
-          role: UserRole.CLUB_ADMIN,
+          businessUuid: business.businessUuid,
+          email: data.adminEmail,
+          passwordHash: data.adminPasswordHash,
+          fullName: data.adminFullName,
+          phone: data.adminPhone,
+          role: UserRole.ADMIN,
           isActive: true,
-          // Force manager to change their temporary password on first login
           mustChangePassword: true,
         },
       });
 
-      return { club, manager };
+      return { business, admin };
     });
   }
 
+  // Alias for backward compatibility
+  async createClubWithManager(data: any): Promise<any> {
+    const res = await this.createBusinessWithAdmin({
+      name: data.name,
+      slug: data.slug,
+      businessType: data.businessType,
+      city: data.city,
+      county: data.county,
+      address: data.address,
+      phone: data.phone,
+      email: data.email,
+      logoUrl: data.logoUrl,
+      themeColor: data.themeColor || data.brandColor,
+      openingHours: data.openingHours,
+      closingHours: data.closingHours,
+      gpsCoordinates: data.gpsCoordinates,
+      adminEmail: data.managerEmail || data.adminEmail,
+      adminFullName: data.managerFullName || data.adminFullName,
+      adminPasswordHash: data.managerPasswordHash || data.adminPasswordHash,
+      adminPhone: data.managerPhone || data.adminPhone,
+    });
+    return { club: res.business, manager: res.admin, business: res.business, admin: res.admin };
+  }
 
-  async update(clubUuid: string, data: Partial<Club>): Promise<Club> {
-    return prisma.club.update({
-      where: { clubUuid },
-      data,
+  async update(businessUuid: string, data: Partial<Business>): Promise<Business> {
+    return prisma.business.update({
+      where: { businessUuid },
+      data: data as any,
     });
   }
 
-  async delete(clubUuid: string): Promise<boolean> {
-    await prisma.club.update({
-      where: { clubUuid },
-      data: { deletedAt: new Date(), isActive: false, subscriptionStatus: SubscriptionStatus.CANCELLED },
+  async delete(businessUuid: string): Promise<boolean> {
+    await prisma.business.update({
+      where: { businessUuid },
+      data: {
+        deletedAt: new Date(),
+        isActive: false,
+        status: BusinessStatus.SUSPENDED,
+        subscriptionStatus: SubscriptionStatus.CANCELLED,
+      },
     });
     return true;
   }
 
-  async assignManager(clubUuid: string, userUuid: string): Promise<User> {
+  async assignManager(businessUuid: string, userUuid: string): Promise<User> {
     return prisma.user.update({
       where: { userUuid },
       data: {
-        clubUuid,
+        businessUuid,
         role: UserRole.MANAGER,
       },
     });
   }
 
-  async getTables(clubUuid: string): Promise<VenueTable[]> {
+  async getTables(businessUuid: string): Promise<VenueTable[]> {
     return prisma.venueTable.findMany({
-      where: { clubUuid, deletedAt: null },
+      where: { businessUuid, deletedAt: null },
       include: { qrCode: true },
       orderBy: { tableNumber: 'asc' },
     });
   }
 
   async generateTablesAndQrs(
-    clubUuid: string,
+    businessUuid: string,
     tableCount: number,
     sectionName: string,
     startFrom?: number,
   ): Promise<{ tables: VenueTable[]; qrs: QrCode[] }> {
-    const club = await this.findById(clubUuid);
-    if (!club) throw new Error('Club not found');
+    const business = await this.findById(businessUuid);
+    if (!business) throw new Error('Business not found');
 
     const createdTables: VenueTable[] = [];
     const createdQrs: QrCode[] = [];
-    const effectiveSection = sectionName?.trim() || 'Main Lounge';
+    const effectiveSection = sectionName?.trim() || 'Main Dining Area';
 
     let firstNum = startFrom;
     if (!firstNum) {
       const maxTable = await prisma.venueTable.findFirst({
-        where: { clubUuid, deletedAt: null },
+        where: { businessUuid, deletedAt: null },
         orderBy: { tableNumber: 'desc' },
       });
       firstNum = maxTable ? maxTable.tableNumber + 1 : 1;
@@ -156,8 +337,8 @@ export class TenantRepository implements ITenantRepository {
       const tableNum = firstNum + i;
       const table = await prisma.venueTable.upsert({
         where: {
-          clubUuid_tableNumber: {
-            clubUuid,
+          businessUuid_tableNumber: {
+            businessUuid,
             tableNumber: tableNum,
           },
         },
@@ -167,14 +348,14 @@ export class TenantRepository implements ITenantRepository {
           isActive: true,
         },
         create: {
-          clubUuid,
+          businessUuid,
           tableNumber: tableNum,
           sectionName: effectiveSection,
           seatingCapacity: 4,
         },
       });
 
-      const qrPayload = `https://drink-hub-ke-customer-pwa.vercel.app/v/${club.slug}/t/${tableNum}`;
+      const qrPayload = `https://drink-hub-ke-customer-pwa.vercel.app/v/${business.slug}/t/${tableNum}`;
       const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrPayload)}`;
 
       const qr = await prisma.qrCode.upsert({
@@ -185,7 +366,7 @@ export class TenantRepository implements ITenantRepository {
           isActive: true,
         },
         create: {
-          clubUuid,
+          businessUuid,
           tableUuid: table.tableUuid,
           qrCodePayload: qrPayload,
           imageUrl: qrImageUrl,
@@ -199,9 +380,9 @@ export class TenantRepository implements ITenantRepository {
     return { tables: createdTables, qrs: createdQrs };
   }
 
-  async deleteTable(clubUuid: string, tableNumber: number): Promise<boolean> {
+  async deleteTable(businessUuid: string, tableNumber: number): Promise<boolean> {
     const table = await prisma.venueTable.findFirst({
-      where: { clubUuid, tableNumber, deletedAt: null },
+      where: { businessUuid, tableNumber, deletedAt: null },
     });
 
     if (table) {
@@ -220,3 +401,4 @@ export class TenantRepository implements ITenantRepository {
     return true;
   }
 }
+

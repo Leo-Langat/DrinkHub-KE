@@ -15,6 +15,10 @@ import { orderRouter } from './modules/order/order.routes';
 import { paymentRouter } from './modules/payment/payment.routes';
 import { notificationRouter } from './modules/notification/notification.routes';
 import { reportingRouter } from './modules/reporting/reporting.routes';
+import { dashboardRouter } from './modules/dashboard/dashboard.routes';
+import { managerRouter } from './modules/manager/manager.routes';
+import { waiterRouter } from './modules/waiter/waiter.routes';
+import { businessRouter } from './modules/business/business.routes';
 
 export const createApp = (): Application => {
   const app = express();
@@ -35,7 +39,7 @@ export const createApp = (): Application => {
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'X-Business-Uuid', 'X-Club-Uuid'],
     }),
   );
 
@@ -108,6 +112,10 @@ export const createApp = (): Application => {
   v1Router.use('/payments', paymentRouter);
   v1Router.use('/notifications', notificationRouter);
   v1Router.use('/reports', reportingRouter);
+  v1Router.use('/dashboard', dashboardRouter);
+  v1Router.use('/managers', managerRouter);
+  v1Router.use('/waiters', waiterRouter);
+  v1Router.use('/business', businessRouter);
 
   app.use('/api/v1', v1Router);
 

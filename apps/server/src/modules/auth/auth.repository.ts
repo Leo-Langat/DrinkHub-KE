@@ -10,13 +10,14 @@ export class AuthRepository implements IAuthRepository {
         email: { equals: trimmed, mode: 'insensitive' },
         deletedAt: null,
       },
-      include: { club: true } as any,
+      include: { business: true } as any,
     });
   }
 
   async findById(userUuid: string): Promise<User | null> {
     return prisma.user.findFirst({
       where: { userUuid, deletedAt: null },
+      include: { business: true } as any,
     });
   }
 
@@ -44,7 +45,7 @@ export class AuthRepository implements IAuthRepository {
         fullName: data.fullName!,
         phone: data.phone,
         role: data.role || UserRole.WAITER,
-        clubUuid: data.clubUuid,
+        businessUuid: data.businessUuid,
         mustChangePassword: data.mustChangePassword || false,
         emailVerificationToken: data.emailVerificationToken,
       },
@@ -60,7 +61,7 @@ export class AuthRepository implements IAuthRepository {
 
   async createSession(
     userUuid: string,
-    clubUuid?: string,
+    businessUuid?: string,
     ipAddress?: string,
     userAgent?: string,
   ): Promise<UserSession> {
@@ -68,7 +69,7 @@ export class AuthRepository implements IAuthRepository {
     return prisma.userSession.create({
       data: {
         userUuid,
-        clubUuid,
+        businessUuid,
         ipAddress,
         userAgent,
         expiresAt,
@@ -140,19 +141,18 @@ export class AuthRepository implements IAuthRepository {
     });
   }
 
-  async listStaffByClub(clubUuid: string, role?: string): Promise<User[]> {
-    // Build role filter: no special grouping needed — each role maps to itself
+  async listStaffByBusiness(businessUuid: string, role?: string): Promise<User[]> {
     const roleFilter = role ? { equals: role as UserRole } : undefined;
 
     return prisma.user.findMany({
       where: {
-        clubUuid,
+        businessUuid,
         deletedAt: null,
         ...(roleFilter ? { role: roleFilter } : {}),
       },
       orderBy: { createdAt: 'desc' },
       include: {
-        club: true,
+        business: true,
         sessions: {
           where: {
             isValid: true,
@@ -166,9 +166,12 @@ export class AuthRepository implements IAuthRepository {
   }
 
   async listAllStaff(role?: string): Promise<User[]> {
-    const roleFilter = (role === 'CLUB_ADMIN' || role === 'MANAGER')
-      ? { in: [UserRole.CLUB_ADMIN, UserRole.MANAGER] }
-      : (role ? { equals: role as UserRole } : undefined);
+    const roleFilter =
+      role === 'ADMIN' || role === 'MANAGER'
+        ? { in: [UserRole.ADMIN, UserRole.MANAGER] }
+        : role
+        ? { equals: role as UserRole }
+        : undefined;
 
     return prisma.user.findMany({
       where: {
@@ -177,7 +180,53 @@ export class AuthRepository implements IAuthRepository {
       },
       orderBy: { createdAt: 'desc' },
       include: {
-        club: true,
+        business: true,
+        sessions: {
+          where: {
+            isValid: true,
+            expiresAt: { gt: new Date() },
+          },
+          orderBy: { updatedAt: 'desc' },
+          take: 1,
+        },
+      } as any,
+    });
+  }
+
+  async findAllUsers(filters: {
+    role?: string;
+    businessUuid?: string;
+    isActive?: boolean;
+    search?: string;
+  }): Promise<User[]> {
+    const { role, businessUuid, isActive, search } = filters;
+
+    let roleCondition: any = undefined;
+    if (role && role !== 'ALL') {
+      roleCondition = { equals: role as UserRole };
+    }
+
+    const searchCondition = search
+      ? {
+          OR: [
+            { fullName: { contains: search, mode: 'insensitive' as const } },
+            { email: { contains: search, mode: 'insensitive' as const } },
+            { phone: { contains: search, mode: 'insensitive' as const } },
+          ],
+        }
+      : {};
+
+    return prisma.user.findMany({
+      where: {
+        deletedAt: null,
+        ...(roleCondition ? { role: roleCondition } : {}),
+        ...(businessUuid && businessUuid !== 'ALL' ? { businessUuid } : {}),
+        ...(isActive !== undefined ? { isActive } : {}),
+        ...searchCondition,
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        business: true,
         sessions: {
           where: {
             isValid: true,
@@ -190,3 +239,4 @@ export class AuthRepository implements IAuthRepository {
     });
   }
 }
+

@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import { Club, SubscriptionStatus } from '@prisma/client';
+import { Business, SubscriptionStatus, BusinessStatus, BusinessType } from '@prisma/client';
 import { ITenantRepository } from './tenant.interface';
 import { NotFoundError, BadRequestError } from '../../common/errors/app-error';
 
@@ -8,36 +8,47 @@ const BCRYPT_ROUNDS = 12;
 export class TenantService {
   constructor(private tenantRepository: ITenantRepository) {}
 
-  async getTenantBySlug(slug: string): Promise<Club> {
+  async getTenantBySlug(slug: string): Promise<Business> {
     let tenant = await this.tenantRepository.findBySlug(slug);
     if (!tenant) {
-      // Also check by ID in case a UUID was passed
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
       if (isUuid) {
         tenant = await this.tenantRepository.findById(slug);
       }
     }
     if (!tenant) {
-      throw new NotFoundError(`Club with slug '${slug}' not found`);
+      throw new NotFoundError(`Business with slug '${slug}' not found`);
     }
     return tenant;
   }
 
-  async getTenantById(clubUuid: string): Promise<Club> {
-    const tenant = await this.tenantRepository.findById(clubUuid);
+  async getTenantById(businessUuid: string): Promise<Business> {
+    const tenant = await this.tenantRepository.findById(businessUuid);
     if (!tenant) {
-      throw new NotFoundError(`Club not found`);
+      throw new NotFoundError(`Business not found`);
     }
     return tenant;
   }
 
-  async getAllTenants(): Promise<Club[]> {
+  async getAllTenants(): Promise<Business[]> {
     return this.tenantRepository.findAll();
   }
 
-  async createTenant(data: Partial<Club>): Promise<Club> {
+  async getPlatformStats() {
+    return this.tenantRepository.getPlatformStats();
+  }
+
+  async getBusinessSummary(businessUuid: string) {
+    const summary = await this.tenantRepository.getBusinessSummary(businessUuid);
+    if (!summary) {
+      throw new NotFoundError('Business not found');
+    }
+    return summary;
+  }
+
+  async createTenant(data: Partial<Business>): Promise<Business> {
     if (!data.name || !data.slug) {
-      throw new BadRequestError('Club name and slug are required');
+      throw new BadRequestError('Business name and slug are required');
     }
     const existing = await this.tenantRepository.findBySlug(data.slug);
     if (existing) {
@@ -46,105 +57,116 @@ export class TenantService {
     return this.tenantRepository.create(data);
   }
 
-  /**
-   * Platform Admin unified workflow (§23–24): Creates a Club and its initial
-   * Manager atomically in a single database transaction. If either insert fails
-   * (e.g. duplicate slug or duplicate manager email) the whole operation rolls
-   * back, leaving no orphaned records.
-   */
-  async createClubWithManager(data: {
-    // Club
+  async createBusinessWithAdmin(data: {
+    // Business
     name: string;
     slug: string;
+    businessType?: BusinessType;
     city?: string;
     county?: string;
     address?: string;
     phone?: string;
     email?: string;
     logoUrl?: string;
+    themeColor?: string;
     brandColor?: string;
     openingHours?: string;
     closingHours?: string;
     gpsCoordinates?: string;
-    // Manager (plain-text password from request — hashed here)
-    managerFullName: string;
-    managerEmail: string;
+    // Admin / Manager
+    adminFullName?: string;
+    managerFullName?: string;
+    adminEmail?: string;
+    managerEmail?: string;
+    adminPhone?: string;
     managerPhone?: string;
-    managerPassword: string;
+    adminPassword?: string;
+    managerPassword?: string;
   }) {
-    // Pre-flight checks before entering the transaction
     const existingSlug = await this.tenantRepository.findBySlug(data.slug);
     if (existingSlug) {
-      throw new BadRequestError(`Slug '${data.slug}' is already taken by another club`);
+      throw new BadRequestError(`Slug '${data.slug}' is already taken by another business`);
     }
 
-    // Hash the manager's temporary password (OWASP: bcrypt ≥12 rounds)
-    const managerPasswordHash = await bcrypt.hash(data.managerPassword, BCRYPT_ROUNDS);
+    const rawPassword = data.adminPassword || data.managerPassword;
+    if (!rawPassword) {
+      throw new BadRequestError('Initial admin password is required');
+    }
 
-    return this.tenantRepository.createClubWithManager({
+    const adminPasswordHash = await bcrypt.hash(rawPassword, BCRYPT_ROUNDS);
+
+    return this.tenantRepository.createBusinessWithAdmin({
       name: data.name,
       slug: data.slug,
+      businessType: data.businessType,
       city: data.city,
       county: data.county,
       address: data.address,
       phone: data.phone,
       email: data.email,
       logoUrl: data.logoUrl,
-      brandColor: data.brandColor,
+      themeColor: data.themeColor || data.brandColor,
       openingHours: data.openingHours,
       closingHours: data.closingHours,
       gpsCoordinates: data.gpsCoordinates,
-      managerPasswordHash,
-      managerFullName: data.managerFullName,
-      managerEmail: data.managerEmail,
-      managerPhone: data.managerPhone,
+      adminPasswordHash,
+      adminFullName: (data.adminFullName || data.managerFullName || 'Admin').trim(),
+      adminEmail: (data.adminEmail || data.managerEmail || '').trim().toLowerCase(),
+      adminPhone: data.adminPhone || data.managerPhone,
     });
   }
 
-
-  async updateTenant(clubUuid: string, data: Partial<Club>): Promise<Club> {
-    await this.getTenantById(clubUuid);
-    return this.tenantRepository.update(clubUuid, data);
+  // Alias for backward compatibility
+  async createClubWithManager(data: any) {
+    return this.createBusinessWithAdmin(data);
   }
 
-  async suspendTenant(clubUuid: string): Promise<Club> {
-    await this.getTenantById(clubUuid);
-    return this.tenantRepository.update(clubUuid, {
+  async updateTenant(businessUuid: string, data: Partial<Business>): Promise<Business> {
+    await this.getTenantById(businessUuid);
+    return this.tenantRepository.update(businessUuid, data);
+  }
+
+  async suspendTenant(businessUuid: string): Promise<Business> {
+    await this.getTenantById(businessUuid);
+    return this.tenantRepository.update(businessUuid, {
       isActive: false,
+      status: BusinessStatus.SUSPENDED,
       subscriptionStatus: SubscriptionStatus.SUSPENDED,
     });
   }
 
-  async activateTenant(clubUuid: string): Promise<Club> {
-    await this.getTenantById(clubUuid);
-    return this.tenantRepository.update(clubUuid, {
+  async activateTenant(businessUuid: string): Promise<Business> {
+    await this.getTenantById(businessUuid);
+    return this.tenantRepository.update(businessUuid, {
       isActive: true,
+      status: BusinessStatus.ACTIVE,
       subscriptionStatus: SubscriptionStatus.ACTIVE,
     });
   }
 
-  async deleteTenant(clubUuid: string): Promise<boolean> {
-    await this.getTenantById(clubUuid);
-    return this.tenantRepository.delete(clubUuid);
+  async deleteTenant(businessUuid: string): Promise<boolean> {
+    await this.getTenantById(businessUuid);
+    return this.tenantRepository.delete(businessUuid);
   }
 
-  async assignManager(clubUuid: string, userUuid: string) {
-    await this.getTenantById(clubUuid);
-    return this.tenantRepository.assignManager(clubUuid, userUuid);
+  async assignManager(businessUuid: string, userUuid: string) {
+    await this.getTenantById(businessUuid);
+    return this.tenantRepository.assignManager(businessUuid, userUuid);
   }
 
-  async getTables(clubUuid: string) {
-    await this.getTenantById(clubUuid);
-    return this.tenantRepository.getTables(clubUuid);
+  async getTables(businessUuid: string) {
+    await this.getTenantById(businessUuid);
+    return this.tenantRepository.getTables(businessUuid);
   }
 
-  async generateQrCodes(clubUuid: string, tableCount: number, sectionName: string, startFrom?: number) {
-    await this.getTenantById(clubUuid);
-    return this.tenantRepository.generateTablesAndQrs(clubUuid, tableCount, sectionName, startFrom);
+  async generateQrCodes(businessUuid: string, tableCount: number, sectionName: string, startFrom?: number) {
+    await this.getTenantById(businessUuid);
+    return this.tenantRepository.generateTablesAndQrs(businessUuid, tableCount, sectionName, startFrom);
   }
 
-  async deleteTable(clubUuid: string, tableNumber: number) {
-    await this.getTenantById(clubUuid);
-    return this.tenantRepository.deleteTable(clubUuid, tableNumber);
+  async deleteTable(businessUuid: string, tableNumber: number) {
+    await this.getTenantById(businessUuid);
+    return this.tenantRepository.deleteTable(businessUuid, tableNumber);
   }
 }
+

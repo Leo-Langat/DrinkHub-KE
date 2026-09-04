@@ -14,11 +14,16 @@ export const registerSchema = z.object({
     password: z.string().min(6, 'Password must be at least 6 characters'),
     fullName: z.string().min(2, 'Full name must be at least 2 characters'),
     phone: z.string().optional(),
-    role: z.enum(['PLATFORM_ADMIN', 'CLUB_ADMIN', 'MANAGER', 'WAITER']).optional().default('WAITER'),
+    role: z
+      .enum(['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'WAITER', 'CUSTOMER'])
+      .optional()
+      .default('WAITER'),
+    businessUuid: z.string().uuid().optional(),
     clubUuid: z.string().uuid().optional(),
     mustChangePassword: z.boolean().optional().default(false),
   }),
 });
+
 
 export const refreshTokenSchema = z.object({
   body: z.object({

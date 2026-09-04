@@ -5,6 +5,7 @@ import {
   MAX_SESSION_MS,
   AUTH_STORAGE_KEYS,
   clearAllAuthData,
+  isValidRole,
 } from '@drinkhub/shared';
 import { useSessionTimeout, SessionTimeoutBanner } from '@drinkhub/ui';
 
@@ -32,7 +33,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const savedUser =
         localStorage.getItem(AUTH_STORAGE_KEYS.CLIENT_USER) ||
         localStorage.getItem(AUTH_STORAGE_KEYS.USER);
-      return savedUser ? JSON.parse(savedUser) : null;
+      if (!savedUser) return null;
+      const parsed = JSON.parse(savedUser);
+      if (!isValidRole(parsed?.role)) {
+        clearAllAuthData();
+        return null;
+      }
+      return parsed;
     } catch {
       return null;
     }
@@ -80,12 +87,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const userRoleLabel =
-    user?.role === 'PLATFORM_ADMIN'
-      ? 'Platform Admin'
+    user?.role === 'SUPER_ADMIN'
+      ? 'Super Admin'
       : user?.role === 'WAITER'
       ? 'Waiter'
-      : user?.role
+      : user?.role === 'MANAGER'
       ? 'Manager'
+      : user?.role === 'ADMIN'
+      ? 'Business Admin'
+      : user?.role
+      ? user.role
       : 'Staff';
 
   const {

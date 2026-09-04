@@ -7,9 +7,10 @@ export interface IAuthRepository {
   findByResetPasswordToken(token: string): Promise<User | null>;
   createUser(data: Partial<User>): Promise<User>;
   updateUser(userUuid: string, data: Partial<User>): Promise<User>;
-  createSession(userUuid: string, clubUuid?: string, ipAddress?: string, userAgent?: string): Promise<UserSession>;
+  createSession(userUuid: string, businessUuid?: string, ipAddress?: string, userAgent?: string): Promise<UserSession>;
   invalidateSession(sessionUuid: string): Promise<void>;
   createRefreshToken(sessionUuid: string, userUuid: string, tokenHash: string, expiresAt: Date): Promise<RefreshToken>;
   findRefreshToken(tokenHash: string): Promise<(RefreshToken & { session: UserSession; user: User }) | null>;
   revokeRefreshToken(tokenUuid: string): Promise<void>;
 }
+

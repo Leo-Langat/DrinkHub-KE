@@ -1,9 +1,13 @@
 import { z } from 'zod';
+import { BusinessType } from '@drinkhub/shared';
 
-export const createClubSchema = z.object({
+const businessTypeEnum = z.nativeEnum(BusinessType).optional().default(BusinessType.RESTAURANT);
+
+export const createBusinessSchema = z.object({
   body: z.object({
-    name: z.string().min(2, 'Club name must be at least 2 characters'),
+    name: z.string().min(2, 'Business name must be at least 2 characters'),
     slug: z.string().min(2, 'Slug must be at least 2 characters'),
+    businessType: businessTypeEnum,
     logoUrl: z.string().url().optional().or(z.literal('')),
     phone: z.string().optional(),
     email: z.string().email().optional().or(z.literal('')),
@@ -11,23 +15,24 @@ export const createClubSchema = z.object({
     county: z.string().optional().default('Nairobi'),
     address: z.string().optional(),
     gpsCoordinates: z.string().optional(),
-    brandColor: z.string().optional().default('#e11d48'),
-    openingHours: z.string().optional().default('14:00'),
-    closingHours: z.string().optional().default('04:00'),
+    themeColor: z.string().optional().default('#e11d48'),
+    brandColor: z.string().optional(),
+    openingHours: z.string().optional().default('08:00'),
+    closingHours: z.string().optional().default('23:00'),
   }),
 });
 
-/**
- * Unified Club + Manager provisioning schema (Platform Admin workflow, §23–24).
- * Both Club info and initial Manager account are required in a single request.
- * The transaction is atomic — if the manager email already exists the whole
- * operation is rolled back and the club is NOT created.
- */
-export const createClubWithManagerSchema = z.object({
+export const createClubSchema = createBusinessSchema;
+
+export const createBusinessWithAdminSchema = z.object({
   body: z.object({
-    // Club fields
-    name: z.string().min(2, 'Club name must be at least 2 characters'),
-    slug: z.string().min(2, 'Slug must be at least 2 characters').regex(/^[a-z0-9-]+$/, 'Slug may only contain lowercase letters, numbers, and hyphens'),
+    // Business fields
+    name: z.string().min(2, 'Business name must be at least 2 characters'),
+    slug: z
+      .string()
+      .min(2, 'Slug must be at least 2 characters')
+      .regex(/^[a-z0-9-]+$/, 'Slug may only contain lowercase letters, numbers, and hyphens'),
+    businessType: businessTypeEnum,
     logoUrl: z.string().url().optional().or(z.literal('')),
     phone: z.string().optional(),
     email: z.string().email().optional().or(z.literal('')),
@@ -35,25 +40,33 @@ export const createClubWithManagerSchema = z.object({
     county: z.string().optional().default('Nairobi'),
     address: z.string().optional(),
     gpsCoordinates: z.string().optional(),
-    brandColor: z.string().optional().default('#e11d48'),
-    openingHours: z.string().optional().default('14:00'),
-    closingHours: z.string().optional().default('04:00'),
-    // Manager fields
-    managerFullName: z.string().min(2, 'Manager name must be at least 2 characters'),
-    managerEmail: z.string().min(1, 'Manager username or email is required'),
+    themeColor: z.string().optional().default('#e11d48'),
+    brandColor: z.string().optional(),
+    openingHours: z.string().optional().default('08:00'),
+    closingHours: z.string().optional().default('23:00'),
+    // Admin / Manager fields (support both naming conventions)
+    adminFullName: z.string().min(2, 'Admin name must be at least 2 characters').optional(),
+    managerFullName: z.string().min(2, 'Manager name must be at least 2 characters').optional(),
+    adminEmail: z.string().min(1, 'Admin username or email is required').optional(),
+    managerEmail: z.string().min(1, 'Manager username or email is required').optional(),
+    adminPhone: z.string().optional(),
     managerPhone: z.string().optional(),
-    managerPassword: z.string().min(8, 'Temporary password must be at least 8 characters'),
+    adminPassword: z.string().min(8, 'Temporary password must be at least 8 characters').optional(),
+    managerPassword: z.string().min(8, 'Temporary password must be at least 8 characters').optional(),
   }),
 });
 
+export const createClubWithManagerSchema = createBusinessWithAdminSchema;
 
-export const updateClubSchema = z.object({
+export const updateBusinessSchema = z.object({
   params: z.object({
-    clubUuid: z.string().uuid('Invalid Club UUID'),
+    businessUuid: z.string().uuid('Invalid Business UUID').optional(),
+    clubUuid: z.string().uuid('Invalid Club UUID').optional(),
   }),
   body: z.object({
     name: z.string().min(2).optional(),
     slug: z.string().min(2).optional(),
+    businessType: z.nativeEnum(BusinessType).optional(),
     logoUrl: z.string().url().optional().or(z.literal('')).or(z.null()),
     phone: z.string().optional().or(z.literal('')).or(z.null()),
     email: z.string().email().optional().or(z.literal('')).or(z.null()),
@@ -61,6 +74,7 @@ export const updateClubSchema = z.object({
     county: z.string().optional(),
     address: z.string().optional().or(z.literal('')).or(z.null()),
     gpsCoordinates: z.string().optional().or(z.literal('')).or(z.null()),
+    themeColor: z.string().optional(),
     brandColor: z.string().optional(),
     openingHours: z.string().optional(),
     closingHours: z.string().optional(),
@@ -68,9 +82,12 @@ export const updateClubSchema = z.object({
   }),
 });
 
+export const updateClubSchema = updateBusinessSchema;
+
 export const assignManagerSchema = z.object({
   params: z.object({
-    clubUuid: z.string().uuid('Invalid Club UUID'),
+    businessUuid: z.string().uuid('Invalid Business UUID').optional(),
+    clubUuid: z.string().uuid('Invalid Club UUID').optional(),
   }),
   body: z.object({
     userUuid: z.string().uuid('Invalid User UUID'),
@@ -79,7 +96,8 @@ export const assignManagerSchema = z.object({
 
 export const generateQrCodesSchema = z.object({
   params: z.object({
-    clubUuid: z.string().uuid('Invalid Club UUID'),
+    businessUuid: z.string().uuid('Invalid Business UUID').optional(),
+    clubUuid: z.string().uuid('Invalid Club UUID').optional(),
   }),
   body: z.object({
     tableCount: z.number().int().min(1).max(200),
@@ -87,3 +105,4 @@ export const generateQrCodesSchema = z.object({
     startFrom: z.number().int().min(1).optional(),
   }),
 });
+

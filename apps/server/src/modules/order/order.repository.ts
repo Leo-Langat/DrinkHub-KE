@@ -16,10 +16,10 @@ export class OrderRepository implements IOrderRepository {
     });
   }
 
-  async findOrdersByClub(clubUuid?: string, status?: OrderStatus, waiterUuid?: string): Promise<Order[]> {
+  async findOrdersByBusiness(businessUuid?: string, status?: OrderStatus, waiterUuid?: string): Promise<Order[]> {
     return prisma.order.findMany({
       where: {
-        ...(clubUuid ? { clubUuid } : {}),
+        ...(businessUuid ? { businessUuid } : {}),
         ...(status ? { status } : {}),
         ...(waiterUuid ? { waiterUuid } : {}),
       },
@@ -34,6 +34,10 @@ export class OrderRepository implements IOrderRepository {
     });
   }
 
+  async findOrdersByClub(clubUuid?: string, status?: OrderStatus, waiterUuid?: string): Promise<Order[]> {
+    return this.findOrdersByBusiness(clubUuid, status, waiterUuid);
+  }
+
   async findActiveClaimedOrderByWaiter(waiterUuid: string): Promise<Order | null> {
     return prisma.order.findFirst({
       where: {
@@ -43,7 +47,7 @@ export class OrderRepository implements IOrderRepository {
     });
   }
 
-  async createOrder(clubUuid: string, data: any): Promise<Order> {
+  async createOrder(businessUuid: string, data: any): Promise<Order> {
     const { tableUuid, items, notes, customerSessionUuid, offerUuid, ageVerified } = data;
 
     let subtotal = 0;
@@ -57,7 +61,7 @@ export class OrderRepository implements IOrderRepository {
         const itemSubtotal = Number(product.price) * item.quantity;
         subtotal += itemSubtotal;
         orderItemsData.push({
-          clubUuid,
+          businessUuid,
           productUuid: item.productUuid,
           quantity: item.quantity,
           unitPrice: product.price,
@@ -75,14 +79,14 @@ export class OrderRepository implements IOrderRepository {
     let matchedOffer = null;
     if (resolvedOfferUuid) {
       matchedOffer = await prisma.offer.findFirst({
-        where: { offerUuid: resolvedOfferUuid, clubUuid, isActive: true, deletedAt: null },
+        where: { offerUuid: resolvedOfferUuid, businessUuid, isActive: true, deletedAt: null },
       });
     }
 
     // 2. If no explicit offerUuid, check for any active offer that matches products in the order
     if (!matchedOffer) {
       const activeOffers = await prisma.offer.findMany({
-        where: { clubUuid, isActive: true, deletedAt: null },
+        where: { businessUuid, isActive: true, deletedAt: null },
         orderBy: { createdAt: 'desc' },
       });
 
@@ -96,7 +100,7 @@ export class OrderRepository implements IOrderRepository {
         }
 
         // Check if offer targets an item in the cart
-        const hasMatchingProduct = prodId 
+        const hasMatchingProduct = prodId
           ? items.some((it: any) => it.productUuid === prodId)
           : items.some((it: any) => {
               const p = productsMap.get(it.productUuid);
@@ -160,7 +164,7 @@ export class OrderRepository implements IOrderRepository {
 
     return prisma.order.create({
       data: {
-        clubUuid,
+        businessUuid,
         tableUuid,
         customerSessionUuid,
         offerUuid: resolvedOfferUuid,

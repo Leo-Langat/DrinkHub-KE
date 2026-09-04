@@ -8,11 +8,35 @@ generator client {
   binaryTargets = ["native", "debian-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
 }
 
+enum BusinessType {
+  RESTAURANT
+  CLUB
+  BAR
+  LOUNGE
+  CAFE
+  FAST_FOOD
+  HOTEL
+  FOOD_COURT
+  OTHER
+
+  @@map("business_type_enum")
+}
+
+enum BusinessStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+
+  @@map("business_status_enum")
+}
+
 enum UserRole {
-  PLATFORM_ADMIN
-  CLUB_ADMIN
+  SUPER_ADMIN
+  ADMIN
   MANAGER
   WAITER
+  CUSTOMER
 
   @@map("user_role_enum")
 }
@@ -87,46 +111,54 @@ enum SubscriptionStatus {
   @@map("subscription_status_enum")
 }
 
-model Club {
-  clubUuid         String             @id @default(dbgenerated("gen_random_uuid()")) @map("club_uuid") @db.Uuid
-  name             String
-  slug             String             @unique
-  logoUrl          String?            @map("logo_url")
-  phone            String?
-  email            String?
-  city             String             @default("Nairobi")
-  county           String             @default("Nairobi")
-  address          String?
-  gpsCoordinates   String?            @map("gps_coordinates")
-  brandColor       String             @default("#e11d48") @map("brand_color")
-  openingHours     String             @default("14:00") @map("opening_hours")
-  closingHours     String             @default("04:00") @map("closing_hours")
+model Business {
+  businessUuid       String             @id @default(dbgenerated("gen_random_uuid()")) @map("club_uuid") @db.Uuid
+  name               String
+  slug               String             @unique
+  businessType       BusinessType       @default(RESTAURANT) @map("business_type")
+  logoUrl            String?            @map("logo_url")
+  bannerUrl          String?            @map("banner_url")
+  themeColor         String             @default("#e11d48") @map("brand_color")
+  phone              String?
+  email              String?
+  city               String             @default("Nairobi")
+  county             String             @default("Nairobi")
+  address            String?
+  gpsCoordinates     String?            @map("gps_coordinates")
+  description        String?            @map("description")
+  country            String             @default("Kenya") @map("country")
+  currency           String             @default("KES") @map("currency")
+  timezone           String             @default("Africa/Nairobi") @map("timezone")
+  openingHours       String             @default("08:00") @map("opening_hours")
+  closingHours       String             @default("23:00") @map("closing_hours")
+  operatingSchedule  Json?              @map("operating_schedule")
+  status             BusinessStatus     @default(ACTIVE) @map("business_status")
   subscriptionStatus SubscriptionStatus @default(ACTIVE) @map("subscription_status")
-  isActive         Boolean            @default(true) @map("is_active")
-  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt        DateTime?          @map("deleted_at") @db.Timestamptz(6)
+  isActive           Boolean            @default(true) @map("is_active")
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt          DateTime?          @map("deleted_at") @db.Timestamptz(6)
 
-  users            User[]
-  userSessions     UserSession[]
-  customerSessions CustomerSession[]
-  venueTables      VenueTable[]
-  qrCodes          QrCode[]
-  menuCategories   MenuCategory[]
-  products         Product[]
-  offers           Offer[]
-  orders           Order[]
-  orderItems       OrderItem[]
-  payments         Payment[]
-  auditLogs        AuditLog[]
-  notifications    Notification[]
+  users              User[]
+  userSessions       UserSession[]
+  customerSessions   CustomerSession[]
+  venueTables        VenueTable[]
+  qrCodes            QrCode[]
+  menuCategories     MenuCategory[]
+  products           Product[]
+  offers             Offer[]
+  orders             Order[]
+  orderItems         OrderItem[]
+  payments           Payment[]
+  auditLogs          AuditLog[]
+  notifications      Notification[]
 
   @@map("clubs")
 }
 
 model User {
   userUuid               String        @id @default(dbgenerated("gen_random_uuid()")) @map("user_uuid") @db.Uuid
-  clubUuid               String?       @map("club_uuid") @db.Uuid
+  businessUuid           String?       @map("club_uuid") @db.Uuid
   email                  String        @unique
   passwordHash           String        @map("password_hash")
   fullName               String        @map("full_name")
@@ -142,21 +174,23 @@ model User {
   updatedAt              DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt              DateTime?     @map("deleted_at") @db.Timestamptz(6)
 
-  club                   Club?         @relation(fields: [clubUuid], references: [clubUuid], onDelete: Cascade)
+  business               Business?     @relation(fields: [businessUuid], references: [businessUuid], onDelete: Cascade)
   sessions               UserSession[]
   refreshTokens          RefreshToken[]
   orders                 Order[]
   auditLogs              AuditLog[]
   notifications          Notification[]
 
-  @@index([clubUuid])
+  @@index([businessUuid])
+  @@index([businessUuid, role, isActive, deletedAt])
+  @@index([businessUuid, role, deletedAt])
   @@map("users")
 }
 
 model UserSession {
   sessionUuid   String         @id @default(dbgenerated("gen_random_uuid()")) @map("session_uuid") @db.Uuid
   userUuid      String         @map("user_uuid") @db.Uuid
-  clubUuid      String?        @map("club_uuid") @db.Uuid
+  businessUuid  String?        @map("club_uuid") @db.Uuid
   ipAddress     String?        @map("ip_address")
   userAgent     String?        @map("user_agent")
   isValid       Boolean        @default(true) @map("is_valid")
@@ -165,11 +199,11 @@ model UserSession {
   updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   user          User           @relation(fields: [userUuid], references: [userUuid], onDelete: Cascade)
-  club          Club?          @relation(fields: [clubUuid], references: [clubUuid], onDelete: Cascade)
+  business      Business?      @relation(fields: [businessUuid], references: [businessUuid], onDelete: Cascade)
   refreshTokens RefreshToken[]
 
   @@index([userUuid])
-  @@index([clubUuid])
+  @@index([businessUuid])
   @@map("user_sessions")
 }
 
@@ -192,7 +226,7 @@ model RefreshToken {
 
 model CustomerSession {
   customerSessionUuid String      @id @default(dbgenerated("gen_random_uuid()")) @map("customer_session_uuid") @db.Uuid
-  clubUuid            String      @map("club_uuid") @db.Uuid
+  businessUuid        String      @map("club_uuid") @db.Uuid
   tableUuid           String?     @map("table_uuid") @db.Uuid
   sessionToken        String      @unique @map("session_token")
   customerPhone       String?     @map("customer_phone")
@@ -201,18 +235,18 @@ model CustomerSession {
   createdAt           DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  club                Club        @relation(fields: [clubUuid], references: [clubUuid], onDelete: Cascade)
+  business            Business    @relation(fields: [businessUuid], references: [businessUuid], onDelete: Cascade)
   table               VenueTable? @relation(fields: [tableUuid], references: [tableUuid], onDelete: SetNull)
   orders              Order[]
 
-  @@index([clubUuid])
+  @@index([businessUuid])
   @@index([tableUuid])
   @@map("customer_sessions")
 }
 
 model VenueTable {
   tableUuid       String            @id @default(dbgenerated("gen_random_uuid()")) @map("table_uuid") @db.Uuid
-  clubUuid        String            @map("club_uuid") @db.Uuid
+  businessUuid    String            @map("club_uuid") @db.Uuid
   tableNumber     Int               @map("table_number")
   sectionName     String            @default("Main Floor") @map("section_name")
   seatingCapacity Int               @default(4) @map("seating_capacity")
@@ -222,19 +256,19 @@ model VenueTable {
   updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt       DateTime?         @map("deleted_at") @db.Timestamptz(6)
 
-  club            Club              @relation(fields: [clubUuid], references: [clubUuid], onDelete: Cascade)
+  business        Business          @relation(fields: [businessUuid], references: [businessUuid], onDelete: Cascade)
   qrCode          QrCode?
   customerSessions CustomerSession[]
   orders          Order[]
 
-  @@unique([clubUuid, tableNumber])
-  @@index([clubUuid])
+  @@unique([businessUuid, tableNumber])
+  @@index([businessUuid])
   @@map("venue_tables")
 }
 
 model QrCode {
   qrUuid        String     @id @default(dbgenerated("gen_random_uuid()")) @map("qr_uuid") @db.Uuid
-  clubUuid      String     @map("club_uuid") @db.Uuid
+  businessUuid  String     @map("club_uuid") @db.Uuid
   tableUuid     String     @unique @map("table_uuid") @db.Uuid
   qrCodePayload String     @unique @map("qr_code_payload")
   imageUrl      String?    @map("image_url")
@@ -243,16 +277,16 @@ model QrCode {
   createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  club          Club       @relation(fields: [clubUuid], references: [clubUuid], onDelete: Cascade)
+  business      Business   @relation(fields: [businessUuid], references: [businessUuid], onDelete: Cascade)
   table         VenueTable @relation(fields: [tableUuid], references: [tableUuid], onDelete: Cascade)
 
-  @@index([clubUuid])
+  @@index([businessUuid])
   @@map("qr_codes")
 }
 
 model MenuCategory {
   categoryUuid String     @id @default(dbgenerated("gen_random_uuid()")) @map("category_uuid") @db.Uuid
-  clubUuid     String     @map("club_uuid") @db.Uuid
+  businessUuid String     @map("club_uuid") @db.Uuid
   name         String
   description  String?
   displayOrder Int        @default(0) @map("display_order")
@@ -261,41 +295,41 @@ model MenuCategory {
   updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt    DateTime?  @map("deleted_at") @db.Timestamptz(6)
 
-  club         Club       @relation(fields: [clubUuid], references: [clubUuid], onDelete: Cascade)
+  business     Business   @relation(fields: [businessUuid], references: [businessUuid], onDelete: Cascade)
   products     Product[]
 
-  @@unique([clubUuid, name])
-  @@index([clubUuid])
+  @@unique([businessUuid, name])
+  @@index([businessUuid])
   @@map("menu_categories")
 }
 
 model Product {
-  productUuid String       @id @default(dbgenerated("gen_random_uuid()")) @map("product_uuid") @db.Uuid
-  clubUuid    String       @map("club_uuid") @db.Uuid
-  categoryUuid String      @map("category_uuid") @db.Uuid
-  name        String
-  description String?
-  price       Decimal      @db.Decimal(10, 2)
-  imageUrl    String?      @map("image_url")
-  isAvailable Boolean      @default(true) @map("is_available")
-  sku         String?
-  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt   DateTime?    @map("deleted_at") @db.Timestamptz(6)
+  productUuid  String       @id @default(dbgenerated("gen_random_uuid()")) @map("product_uuid") @db.Uuid
+  businessUuid String       @map("club_uuid") @db.Uuid
+  categoryUuid String       @map("category_uuid") @db.Uuid
+  name         String
+  description  String?
+  price        Decimal      @db.Decimal(10, 2)
+  imageUrl     String?      @map("image_url")
+  isAvailable  Boolean      @default(true) @map("is_available")
+  sku          String?
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt    DateTime?    @map("deleted_at") @db.Timestamptz(6)
 
-  club        Club         @relation(fields: [clubUuid], references: [clubUuid], onDelete: Cascade)
-  category    MenuCategory @relation(fields: [categoryUuid], references: [categoryUuid], onDelete: Restrict)
-  orderItems  OrderItem[]
+  business     Business     @relation(fields: [businessUuid], references: [businessUuid], onDelete: Cascade)
+  category     MenuCategory @relation(fields: [categoryUuid], references: [categoryUuid], onDelete: Restrict)
+  orderItems   OrderItem[]
 
-  @@unique([clubUuid, sku])
-  @@index([clubUuid])
+  @@unique([businessUuid, sku])
+  @@index([businessUuid])
   @@index([categoryUuid])
   @@map("products")
 }
 
 model Offer {
   offerUuid     String    @id @default(dbgenerated("gen_random_uuid()")) @map("offer_uuid") @db.Uuid
-  clubUuid      String    @map("club_uuid") @db.Uuid
+  businessUuid  String    @map("club_uuid") @db.Uuid
   title         String
   description   String?
   offerType     OfferType @default(PERCENTAGE_DISCOUNT) @map("offer_type")
@@ -308,16 +342,16 @@ model Offer {
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt     DateTime? @map("deleted_at") @db.Timestamptz(6)
 
-  club          Club      @relation(fields: [clubUuid], references: [clubUuid], onDelete: Cascade)
+  business      Business  @relation(fields: [businessUuid], references: [businessUuid], onDelete: Cascade)
   orders        Order[]
 
-  @@index([clubUuid])
+  @@index([businessUuid])
   @@map("offers")
 }
 
 model Order {
   orderUuid           String           @id @default(dbgenerated("gen_random_uuid()")) @map("order_uuid") @db.Uuid
-  clubUuid            String           @map("club_uuid") @db.Uuid
+  businessUuid        String           @map("club_uuid") @db.Uuid
   tableUuid           String?          @map("table_uuid") @db.Uuid
   waiterUuid          String?          @map("waiter_uuid") @db.Uuid
   customerSessionUuid String?          @map("customer_session_uuid") @db.Uuid
@@ -332,7 +366,7 @@ model Order {
   createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  club                Club             @relation(fields: [clubUuid], references: [clubUuid], onDelete: Cascade)
+  business            Business         @relation(fields: [businessUuid], references: [businessUuid], onDelete: Cascade)
   table               VenueTable?      @relation(fields: [tableUuid], references: [tableUuid], onDelete: SetNull)
   waiter              User?            @relation(fields: [waiterUuid], references: [userUuid], onDelete: SetNull)
   customerSession     CustomerSession? @relation(fields: [customerSessionUuid], references: [customerSessionUuid], onDelete: SetNull)
@@ -340,14 +374,17 @@ model Order {
   orderItems          OrderItem[]
   payments            Payment[]
 
-  @@index([clubUuid])
+  @@index([businessUuid])
   @@index([tableUuid])
+  @@index([businessUuid, createdAt])
+  @@index([businessUuid, status])
+  @@index([businessUuid, waiterUuid])
   @@map("orders")
 }
 
 model OrderItem {
   orderItemUuid String   @id @default(dbgenerated("gen_random_uuid()")) @map("order_item_uuid") @db.Uuid
-  clubUuid      String   @map("club_uuid") @db.Uuid
+  businessUuid  String   @map("club_uuid") @db.Uuid
   orderUuid     String   @map("order_uuid") @db.Uuid
   productUuid   String   @map("product_uuid") @db.Uuid
   quantity      Int
@@ -356,18 +393,20 @@ model OrderItem {
   notes         String?
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  club          Club     @relation(fields: [clubUuid], references: [clubUuid], onDelete: Cascade)
+  business      Business @relation(fields: [businessUuid], references: [businessUuid], onDelete: Cascade)
   order         Order    @relation(fields: [orderUuid], references: [orderUuid], onDelete: Cascade)
   product       Product  @relation(fields: [productUuid], references: [productUuid], onDelete: Restrict)
 
-  @@index([clubUuid])
+  @@index([businessUuid])
   @@index([orderUuid])
+  @@index([productUuid])
+  @@index([businessUuid, productUuid])
   @@map("order_items")
 }
 
 model Payment {
   paymentUuid          String        @id @default(dbgenerated("gen_random_uuid()")) @map("payment_uuid") @db.Uuid
-  clubUuid             String        @map("club_uuid") @db.Uuid
+  businessUuid         String        @map("club_uuid") @db.Uuid
   orderUuid            String        @map("order_uuid") @db.Uuid
   amount               Decimal       @db.Decimal(10, 2)
   paymentMethod        PaymentMethod @default(MPESA_STK) @map("payment_method")
@@ -381,40 +420,42 @@ model Payment {
   customerCashAmount   Decimal?      @map("customer_cash_amount") @db.Decimal(10, 2)
   changeDue            Decimal?      @map("change_due") @db.Decimal(10, 2)
   paymentNotes         String?       @map("payment_notes")
+  paidAt               DateTime?     @map("paid_at") @db.Timestamptz(6)
   createdAt            DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  club                 Club          @relation(fields: [clubUuid], references: [clubUuid], onDelete: Cascade)
+  business             Business      @relation(fields: [businessUuid], references: [businessUuid], onDelete: Cascade)
   order                Order         @relation(fields: [orderUuid], references: [orderUuid], onDelete: Restrict)
 
-  @@index([clubUuid])
+  @@index([businessUuid])
   @@index([orderUuid])
+  @@index([businessUuid, paymentStatus, paidAt])
   @@map("payments")
 }
 
 model AuditLog {
-  auditUuid  String   @id @default(dbgenerated("gen_random_uuid()")) @map("audit_uuid") @db.Uuid
-  clubUuid   String?  @map("club_uuid") @db.Uuid
-  userUuid   String?  @map("user_uuid") @db.Uuid
-  action     String
-  entityType String   @map("entity_type")
-  entityUuid String?  @map("entity_uuid") @db.Uuid
-  oldValues  Json?    @map("old_values")
-  newValues  Json?    @map("new_values")
-  ipAddress  String?  @map("ip_address")
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  auditUuid    String    @id @default(dbgenerated("gen_random_uuid()")) @map("audit_uuid") @db.Uuid
+  businessUuid String?   @map("club_uuid") @db.Uuid
+  userUuid     String?   @map("user_uuid") @db.Uuid
+  action       String
+  entityType   String    @map("entity_type")
+  entityUuid   String?   @map("entity_uuid") @db.Uuid
+  oldValues    Json?     @map("old_values")
+  newValues    Json?     @map("new_values")
+  ipAddress    String?   @map("ip_address")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  club       Club?    @relation(fields: [clubUuid], references: [clubUuid], onDelete: Cascade)
-  user       User?    @relation(fields: [userUuid], references: [userUuid], onDelete: SetNull)
+  business     Business? @relation(fields: [businessUuid], references: [businessUuid], onDelete: Cascade)
+  user         User?     @relation(fields: [userUuid], references: [userUuid], onDelete: SetNull)
 
-  @@index([clubUuid])
+  @@index([businessUuid])
   @@index([userUuid])
   @@map("audit_logs")
 }
 
 model Notification {
   notificationUuid String           @id @default(dbgenerated("gen_random_uuid()")) @map("notification_uuid") @db.Uuid
-  clubUuid         String           @map("club_uuid") @db.Uuid
+  businessUuid     String           @map("club_uuid") @db.Uuid
   userUuid         String?          @map("user_uuid") @db.Uuid
   title            String
   message          String
@@ -422,10 +463,11 @@ model Notification {
   isRead           Boolean          @default(false) @map("is_read")
   createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  club             Club             @relation(fields: [clubUuid], references: [clubUuid], onDelete: Cascade)
+  business         Business         @relation(fields: [businessUuid], references: [businessUuid], onDelete: Cascade)
   user             User?            @relation(fields: [userUuid], references: [userUuid], onDelete: Cascade)
 
-  @@index([clubUuid])
+  @@index([businessUuid])
   @@index([userUuid, isRead])
   @@map("notifications")
 }
+

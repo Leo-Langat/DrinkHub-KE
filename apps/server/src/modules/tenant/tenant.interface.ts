@@ -1,41 +1,88 @@
-import { Club, User, VenueTable, QrCode } from '@prisma/client';
+import { Business, User, VenueTable, QrCode, BusinessType } from '@prisma/client';
 
-export interface CreateClubWithManagerInput {
-  // Club fields
+export interface CreateBusinessWithAdminInput {
+  // Business fields
   name: string;
   slug: string;
+  businessType?: BusinessType;
   city?: string;
   county?: string;
   address?: string;
   phone?: string;
   email?: string;
   logoUrl?: string;
-  brandColor?: string;
+  themeColor?: string;
   openingHours?: string;
   closingHours?: string;
   gpsCoordinates?: string;
-  // Manager fields (already hashed)
-  managerPasswordHash: string;
-  managerFullName: string;
-  managerEmail: string;
-  managerPhone?: string;
+  // Admin fields (already hashed)
+  adminPasswordHash: string;
+  adminFullName: string;
+  adminEmail: string;
+  adminPhone?: string;
 }
 
-export interface ClubWithManager {
-  club: Club;
-  manager: User;
+export interface BusinessWithAdmin {
+  business: Business;
+  admin: User;
+}
+
+// Backward compatibility aliases
+export type CreateClubWithManagerInput = CreateBusinessWithAdminInput;
+export type ClubWithManager = BusinessWithAdmin;
+
+export interface PlatformStats {
+  totalBusinesses: number;
+  activeBusinesses: number;
+  suspendedBusinesses: number;
+  totalUsers: number;
+  totalAdmins: number;
+  totalManagers: number;
+  totalWaiters: number;
+  totalOrders: number;
+  totalRevenue: number;
+  businessesByType: Record<string, number>;
+  recentBusinesses: Array<{
+    businessUuid: string;
+    name: string;
+    slug: string;
+    businessType: BusinessType;
+    status: string;
+    city: string;
+    county: string;
+    createdAt: Date;
+    admin?: {
+      fullName: string;
+      email: string;
+      phone?: string | null;
+    } | null;
+  }>;
+}
+
+export interface BusinessSummary {
+  business: Business;
+  managersCount: number;
+  waitersCount: number;
+  tablesCount: number;
+  totalOrders: number;
+  completedOrders: number;
+  pendingOrders: number;
+  totalRevenue: number;
 }
 
 export interface ITenantRepository {
-  findBySlug(slug: string): Promise<Club | null>;
-  findById(clubUuid: string): Promise<Club | null>;
-  findAll(): Promise<Club[]>;
-  create(data: Partial<Club>): Promise<Club>;
-  createClubWithManager(data: CreateClubWithManagerInput): Promise<ClubWithManager>;
-  update(clubUuid: string, data: Partial<Club>): Promise<Club>;
-  delete(clubUuid: string): Promise<boolean>;
-  assignManager(clubUuid: string, userUuid: string): Promise<User>;
-  getTables(clubUuid: string): Promise<VenueTable[]>;
-  generateTablesAndQrs(clubUuid: string, tableCount: number, sectionName: string, startFrom?: number): Promise<{ tables: VenueTable[]; qrs: QrCode[] }>;
-  deleteTable(clubUuid: string, tableNumber: number): Promise<boolean>;
+  findBySlug(slug: string): Promise<Business | null>;
+  findById(businessUuid: string): Promise<Business | null>;
+  findAll(): Promise<Business[]>;
+  getPlatformStats(): Promise<PlatformStats>;
+  getBusinessSummary(businessUuid: string): Promise<BusinessSummary | null>;
+  create(data: Partial<Business>): Promise<Business>;
+  createBusinessWithAdmin(data: CreateBusinessWithAdminInput): Promise<BusinessWithAdmin>;
+  update(businessUuid: string, data: Partial<Business>): Promise<Business>;
+  delete(businessUuid: string): Promise<boolean>;
+  assignManager(businessUuid: string, userUuid: string): Promise<User>;
+  getTables(businessUuid: string): Promise<VenueTable[]>;
+  generateTablesAndQrs(businessUuid: string, tableCount: number, sectionName: string, startFrom?: number): Promise<{ tables: VenueTable[]; qrs: QrCode[] }>;
+  deleteTable(businessUuid: string, tableNumber: number): Promise<boolean>;
 }
+

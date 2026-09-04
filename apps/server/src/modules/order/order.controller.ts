@@ -6,10 +6,36 @@ export class OrderController {
 
   getOrders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const clubUuid = (req.headers['x-tenant-id'] as string) || (req.query.clubUuid as string) || req.user?.tenantId;
+      const userRole = (req.user?.role || '').toUpperCase();
+      let businessUuid: string;
+
+      if (userRole === 'SUPER_ADMIN') {
+        businessUuid =
+          (req.query.businessUuid as string) ||
+          (req.query.clubUuid as string) ||
+          req.businessUuid ||
+          req.user?.businessUuid ||
+          '';
+      } else if (req.user) {
+        businessUuid =
+          req.user.businessUuid ||
+          req.user.tenantId ||
+          (req.user as any).clubUuid ||
+          req.businessUuid ||
+          '';
+      } else {
+        businessUuid =
+          (req.headers['x-business-uuid'] as string) ||
+          (req.headers['x-tenant-id'] as string) ||
+          (req.query.businessUuid as string) ||
+          (req.query.clubUuid as string) ||
+          req.businessUuid ||
+          '';
+      }
+
       const status = req.query.status as any;
       const waiterUuid = req.query.waiterUuid as string;
-      const orders = await this.orderService.getOrdersForClub(clubUuid, status, waiterUuid);
+      const orders = await this.orderService.getOrdersForBusiness(businessUuid, status, waiterUuid);
       res.json({
         success: true,
         data: orders,
@@ -58,8 +84,16 @@ export class OrderController {
 
   create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const clubUuid = (req.headers['x-tenant-id'] as string) || req.body.clubUuid;
-      const order = await this.orderService.createOrder(clubUuid, req.body);
+      const businessUuid =
+        req.businessUuid ||
+        req.user?.businessUuid ||
+        req.user?.tenantId ||
+        (req.headers['x-business-uuid'] as string) ||
+        (req.headers['x-tenant-id'] as string) ||
+        req.body.businessUuid ||
+        req.body.clubUuid;
+
+      const order = await this.orderService.createOrder(businessUuid, req.body);
       res.status(201).json({
         success: true,
         data: order,

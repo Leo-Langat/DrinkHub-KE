@@ -101,5 +101,5 @@ npm run docker:dev
 
 ## 🔒 Security & Multi-Tenancy Architecture
 - **Tenant Context Isolation**: Resolved via `X-Tenant-ID` header or subdomain, propagated through Node.js `AsyncLocalStorage`.
-- **RBAC Roles**: `SUPER_ADMIN`, `TENANT_ADMIN`, `MANAGER`, `KITCHEN_STAFF`, `WAITER`.
+- **RBAC Roles**: `SUPER_ADMIN`, `ADMIN`, `MANAGER`, `WAITER`, `CUSTOMER`.
 - **Payment Verification**: Secure Safaricom Daraja STK Push callbacks with checksum verification.

@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { IAuthRepository } from './auth.interface';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../../common/utils/jwt';
 import { UnauthorizedError, BadRequestError, NotFoundError } from '../../common/errors/app-error';
+import { normalizeRole, UserRole } from '@drinkhub/shared';
 
 // OWASP: bcrypt cost factor ≥ 12
 const BCRYPT_ROUNDS = 12;
@@ -18,7 +19,19 @@ export interface AuthTokens {
     fullName: string;
     phone?: string | null;
     role: string;
-    clubUuid?: string | null;
+    businessUuid?: string | null;
+    clubUuid?: string | null; // backward compatibility
+    business?: {
+      uuid: string;
+      name: string;
+      slug: string;
+      businessType?: string;
+      city?: string;
+      county?: string;
+      openingHours?: string;
+      closingHours?: string;
+      themeColor?: string;
+    } | null;
     club?: {
       uuid: string;
       name: string;
@@ -42,34 +55,32 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string,
   ): Promise<AuthTokens> {
-    // Always fetch the user — even if not found, run a dummy compare to
-    // prevent timing-based user enumeration attacks.
     const user = await this.authRepository.findByEmail(email);
 
     const dummyHash = '$2b$12$invalidhashusedfortimingprotection000000000000000000000000';
     const isMatch = await bcrypt.compare(password, user ? user.passwordHash : dummyHash);
 
     if (!user || !isMatch) {
-      // Generic message — OWASP: do not reveal whether email exists
       throw new UnauthorizedError('Invalid email or password');
     }
 
-    // ── Account checks ───────────────────────────────────────────────────────
     if (!user.isActive) {
       throw new UnauthorizedError('Your account has been deactivated. Please contact support.');
     }
 
     const session = await this.authRepository.createSession(
       user.userUuid,
-      user.clubUuid || undefined,
+      user.businessUuid || undefined,
       ipAddress,
       userAgent,
     );
 
     const payload = {
       userId: user.userUuid,
-      tenantId: user.clubUuid || undefined,
+      businessUuid: user.businessUuid || undefined,
+      tenantId: user.businessUuid || undefined,
       role: user.role,
+      email: user.email,
     };
 
     const accessToken = generateAccessToken(payload);
@@ -81,7 +92,21 @@ export class AuthService {
 
     await this.authRepository.createRefreshToken(session.sessionUuid, user.userUuid, tokenHash, expiresAt);
 
-    const rawClub = (user as any).club;
+    const rawBiz = (user as any).business;
+    const bizData = rawBiz
+      ? {
+          uuid: rawBiz.businessUuid,
+          name: rawBiz.name,
+          slug: rawBiz.slug,
+          businessType: rawBiz.businessType,
+          city: rawBiz.city,
+          county: rawBiz.county,
+          openingHours: rawBiz.openingHours,
+          closingHours: rawBiz.closingHours,
+          themeColor: rawBiz.themeColor,
+        }
+      : null;
+
     return {
       accessToken,
       refreshToken,
@@ -93,17 +118,21 @@ export class AuthService {
         fullName: user.fullName,
         phone: user.phone,
         role: user.role,
-        clubUuid: user.clubUuid,
-        club: rawClub ? {
-          uuid: rawClub.clubUuid,
-          name: rawClub.name,
-          slug: rawClub.slug,
-          city: rawClub.city,
-          county: rawClub.county,
-          openingHours: rawClub.openingHours,
-          closingHours: rawClub.closingHours,
-          brandColor: rawClub.brandColor,
-        } : null,
+        businessUuid: user.businessUuid,
+        clubUuid: user.businessUuid,
+        business: bizData,
+        club: bizData
+          ? {
+              uuid: bizData.uuid,
+              name: bizData.name,
+              slug: bizData.slug,
+              city: bizData.city,
+              county: bizData.county,
+              openingHours: bizData.openingHours,
+              closingHours: bizData.closingHours,
+              brandColor: bizData.themeColor,
+            }
+          : null,
       },
     };
   }
@@ -118,18 +147,19 @@ export class AuthService {
         throw new UnauthorizedError('Refresh token invalid or expired');
       }
 
-      // Rotate: revoke old token, issue new pair
       await this.authRepository.revokeRefreshToken(savedToken.tokenUuid);
 
       const newAccessToken = generateAccessToken({
         userId: payload.userId,
-        tenantId: payload.tenantId,
+        businessUuid: payload.businessUuid || payload.tenantId,
+        tenantId: payload.businessUuid || payload.tenantId,
         role: payload.role,
       });
 
       const newRefreshToken = generateRefreshToken({
         userId: payload.userId,
-        tenantId: payload.tenantId,
+        businessUuid: payload.businessUuid || payload.tenantId,
+        tenantId: payload.businessUuid || payload.tenantId,
         role: payload.role,
       });
 
@@ -140,7 +170,6 @@ export class AuthService {
 
       return { accessToken: newAccessToken, refreshToken: newRefreshToken };
     } catch (_err) {
-      // Normalize all errors to a single generic message
       throw new UnauthorizedError('Invalid refresh token');
     }
   }
@@ -152,7 +181,6 @@ export class AuthService {
       await this.authRepository.revokeRefreshToken(savedToken.tokenUuid);
       await this.authRepository.invalidateSession(savedToken.sessionUuid);
     }
-    // Silently succeed even if token not found (idempotent logout)
   }
 
   async registerUser(data: {
@@ -161,6 +189,7 @@ export class AuthService {
     fullName: string;
     phone?: string;
     role?: any;
+    businessUuid?: string;
     clubUuid?: string;
     mustChangePassword?: boolean;
   }) {
@@ -169,11 +198,21 @@ export class AuthService {
       throw new BadRequestError('An account with that email already exists');
     }
 
-    // Enforce club membership: WAITER, MANAGER, and CLUB_ADMIN must always belong to a club.
-    const roleRequiresClub = !data.role || data.role === 'WAITER' || data.role === 'MANAGER' || data.role === 'CLUB_ADMIN';
-    if (roleRequiresClub && !data.clubUuid) {
-      throw new BadRequestError('A club must be assigned for WAITER and MANAGER accounts');
+    const businessUuid = data.businessUuid || data.clubUuid;
+    const normalizedRole = normalizeRole(data.role || UserRole.WAITER);
+
+    // Enforce business membership for tenant roles (WAITER, MANAGER, ADMIN)
+    const roleRequiresBusiness =
+      normalizedRole === UserRole.WAITER ||
+      normalizedRole === UserRole.MANAGER ||
+      normalizedRole === UserRole.ADMIN;
+
+    if (roleRequiresBusiness && !businessUuid) {
+      throw new BadRequestError('A business must be assigned for staff and manager accounts');
     }
+
+    // SUPER_ADMIN should not have businessUuid
+    const finalBusinessUuid = normalizedRole === UserRole.SUPER_ADMIN ? undefined : businessUuid;
 
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
     const emailVerificationToken = crypto.randomBytes(32).toString('hex');
@@ -183,23 +222,22 @@ export class AuthService {
       passwordHash,
       fullName: data.fullName,
       phone: data.phone,
-      role: data.role,
-      clubUuid: data.clubUuid,
+      role: normalizedRole,
+      businessUuid: finalBusinessUuid,
       mustChangePassword: data.mustChangePassword || false,
       emailVerificationToken,
     });
 
-    // SECURITY: Do NOT return the raw email verification token in the response.
-    // In production this should be sent via email only.
     return {
       id: user.userUuid,
       email: user.email,
       fullName: user.fullName,
       phone: user.phone,
       role: user.role,
-      clubUuid: user.clubUuid,
+      businessUuid: user.businessUuid,
+      clubUuid: user.businessUuid,
       mustChangePassword: user.mustChangePassword,
-      message: 'Account created. Please verify your email before logging in.',
+      message: 'Account created successfully.',
     };
   }
 
@@ -217,8 +255,6 @@ export class AuthService {
 
   async requestPasswordReset(email: string): Promise<void> {
     const user = await this.authRepository.findByEmail(email);
-
-    // Always respond the same way to prevent user enumeration
     if (!user) return;
 
     const resetPasswordToken = crypto.randomBytes(32).toString('hex');
@@ -228,9 +264,6 @@ export class AuthService {
       resetPasswordToken,
       resetPasswordExpires,
     });
-
-    // TODO: Send email with reset link containing `resetPasswordToken`
-    // emailService.sendPasswordReset(user.email, resetPasswordToken);
   }
 
   async resetPassword(token: string, newPassword: string): Promise<void> {
@@ -293,15 +326,15 @@ export class AuthService {
     });
   }
 
-  async listStaff(clubUuid: string, role?: string) {
-    const users = await (this.authRepository as any).listStaffByClub(clubUuid, role);
+  async listStaff(businessUuid: string, role?: string) {
+    const users = await (this.authRepository as any).listStaffByBusiness(businessUuid, role);
     const now = Date.now();
     const FIVE_MINUTES_MS = 5 * 60 * 1000;
 
     return users.map((u: any) => {
       const activeSession = u.sessions?.[0];
       const isRecentlyActive = activeSession
-        ? (now - new Date(activeSession.updatedAt).getTime()) < FIVE_MINUTES_MS
+        ? now - new Date(activeSession.updatedAt).getTime() < FIVE_MINUTES_MS
         : false;
       const isOnline = Boolean(activeSession && isRecentlyActive);
 
@@ -318,8 +351,23 @@ export class AuthService {
         lastLogin: activeSession?.createdAt ?? u.createdAt,
         lastSeenAt: activeSession?.updatedAt ?? null,
         createdAt: u.createdAt,
-        clubUuid: u.clubUuid,
-        club: u.club ? { name: u.club.name, uuid: u.club.clubUuid, clubUuid: u.club.clubUuid } : null,
+        businessUuid: u.businessUuid,
+        clubUuid: u.businessUuid,
+        business: u.business
+          ? {
+              name: u.business.name,
+              uuid: u.business.businessUuid,
+              businessUuid: u.business.businessUuid,
+              businessType: u.business.businessType,
+            }
+          : null,
+        club: u.business
+          ? {
+              name: u.business.name,
+              uuid: u.business.businessUuid,
+              clubUuid: u.business.businessUuid,
+            }
+          : null,
       };
     });
   }
@@ -332,7 +380,7 @@ export class AuthService {
     return users.map((u: any) => {
       const activeSession = u.sessions?.[0];
       const isRecentlyActive = activeSession
-        ? (now - new Date(activeSession.updatedAt).getTime()) < FIVE_MINUTES_MS
+        ? now - new Date(activeSession.updatedAt).getTime() < FIVE_MINUTES_MS
         : false;
       const isOnline = Boolean(activeSession && isRecentlyActive);
 
@@ -349,8 +397,67 @@ export class AuthService {
         lastLogin: activeSession?.createdAt ?? u.createdAt,
         lastSeenAt: activeSession?.updatedAt ?? null,
         createdAt: u.createdAt,
-        clubUuid: u.clubUuid,
-        club: u.club ? { name: u.club.name, uuid: u.club.clubUuid, clubUuid: u.club.clubUuid } : null,
+        businessUuid: u.businessUuid,
+        clubUuid: u.businessUuid,
+        business: u.business
+          ? {
+              name: u.business.name,
+              uuid: u.business.businessUuid,
+              businessUuid: u.business.businessUuid,
+              businessType: u.business.businessType,
+            }
+          : null,
+        club: u.business
+          ? {
+              name: u.business.name,
+              uuid: u.business.businessUuid,
+              clubUuid: u.business.businessUuid,
+            }
+          : null,
+      };
+    });
+  }
+
+  async listAllUsers(filters: {
+    role?: string;
+    businessUuid?: string;
+    isActive?: boolean;
+    search?: string;
+  }) {
+    const users = await (this.authRepository as any).findAllUsers(filters);
+    const now = Date.now();
+    const FIVE_MINUTES_MS = 5 * 60 * 1000;
+
+    return users.map((u: any) => {
+      const activeSession = u.sessions?.[0];
+      const isRecentlyActive = activeSession
+        ? now - new Date(activeSession.updatedAt).getTime() < FIVE_MINUTES_MS
+        : false;
+      const isOnline = Boolean(activeSession && isRecentlyActive);
+
+      return {
+        uuid: u.userUuid,
+        userUuid: u.userUuid,
+        fullName: u.fullName,
+        email: u.email,
+        phone: u.phone,
+        role: u.role,
+        isActive: u.isActive,
+        isOnline,
+        onlineStatus: isOnline ? 'Online' : 'Offline',
+        lastLogin: activeSession?.createdAt ?? u.createdAt,
+        lastSeenAt: activeSession?.updatedAt ?? null,
+        createdAt: u.createdAt,
+        businessUuid: u.businessUuid,
+        clubUuid: u.businessUuid,
+        business: u.business
+          ? {
+              name: u.business.name,
+              uuid: u.business.businessUuid,
+              businessUuid: u.business.businessUuid,
+              businessType: u.business.businessType,
+            }
+          : null,
       };
     });
   }
@@ -381,6 +488,7 @@ export class AuthService {
       fullName?: string;
       email?: string;
       phone?: string;
+      businessUuid?: string;
       clubUuid?: string;
       isActive?: boolean;
     },
@@ -392,10 +500,12 @@ export class AuthService {
     if (data.fullName !== undefined) updateData.fullName = data.fullName.trim();
     if (data.email !== undefined) updateData.email = data.email.trim().toLowerCase();
     if (data.phone !== undefined) updateData.phone = data.phone ? data.phone.trim() : null;
-    if (data.clubUuid !== undefined) updateData.clubUuid = data.clubUuid || null;
+    const bUuid = data.businessUuid !== undefined ? data.businessUuid : data.clubUuid;
+    if (bUuid !== undefined) updateData.businessUuid = bUuid || null;
     if (data.isActive !== undefined) updateData.isActive = Boolean(data.isActive);
 
     const updated = await this.authRepository.updateUser(userUuid, updateData);
     return updated;
   }
 }
+

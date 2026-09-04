@@ -12,7 +12,7 @@ export class NotificationService {
   }
 
   async dispatchNotification(params: {
-    clubUuid: string;
+    businessUuid: string;
     userUuid?: string;
     title: string;
     message: string;
@@ -21,7 +21,7 @@ export class NotificationService {
   }) {
     // 1. Persist to Database
     const notification = await this.notificationRepository.createNotification({
-      clubUuid: params.clubUuid,
+      businessUuid: params.businessUuid,
       userUuid: params.userUuid,
       title: params.title,
       message: params.message,
@@ -39,7 +39,7 @@ export class NotificationService {
       if (params.userUuid) {
         io.to(`user:${params.userUuid}`).emit('user_notification', payload);
       } else {
-        io.to(`tenant:${params.clubUuid}`).emit('venue_notification', payload);
+        io.to(`tenant:${params.businessUuid}`).emit('venue_notification', payload);
       }
     } catch (_e) {
       logger.warn('Socket.IO instance not ready for notification emission.');
@@ -47,7 +47,7 @@ export class NotificationService {
 
     // 3. Dispatch Mobile Push Notification via FCM
     await this.fcmAdapter.sendPushNotification({
-      topic: `tenant_${params.clubUuid}`,
+      topic: `tenant_${params.businessUuid}`,
       title: params.title,
       body: params.message,
       data: { type: params.type, notificationUuid: notification.notificationUuid },
@@ -57,9 +57,9 @@ export class NotificationService {
   }
 
   // EVENT 1: NEW ORDER
-  async notifyNewOrder(clubUuid: string, orderNumber: string, tableNumber?: number) {
+  async notifyNewOrder(businessUuid: string, orderNumber: string, tableNumber?: number) {
     return this.dispatchNotification({
-      clubUuid,
+      businessUuid,
       title: '🔔 New Order Placed',
       message: `Order #${orderNumber} placed for Table #${tableNumber || 'N/A'}.`,
       type: 'NEW_ORDER',
@@ -67,9 +67,9 @@ export class NotificationService {
   }
 
   // EVENT 2: PAYMENT SUCCESS
-  async notifyPaymentSuccess(clubUuid: string, amount: number, receiptNumber: string, orderNumber: string) {
+  async notifyPaymentSuccess(businessUuid: string, amount: number, receiptNumber: string, orderNumber: string) {
     return this.dispatchNotification({
-      clubUuid,
+      businessUuid,
       title: '💰 M-Pesa Payment Confirmed',
       message: `Payment of KSh ${amount.toLocaleString()} received for Order #${orderNumber} (Receipt: ${receiptNumber}).`,
       type: 'PAYMENT_SUCCESS',
@@ -77,29 +77,29 @@ export class NotificationService {
   }
 
   // EVENT 3: ORDER CLAIMED
-  async notifyOrderClaimed(clubUuid: string, orderNumber: string, waiterName: string) {
+  async notifyOrderClaimed(businessUuid: string, orderNumber: string, staffName: string) {
     return this.dispatchNotification({
-      clubUuid,
+      businessUuid,
       title: '🤝 Order Claimed',
-      message: `Order #${orderNumber} claimed by ${waiterName}.`,
+      message: `Order #${orderNumber} claimed by ${staffName}.`,
       type: 'ORDER_CLAIMED',
     });
   }
 
   // EVENT 4: ORDER READY
-  async notifyOrderReady(clubUuid: string, orderNumber: string, tableNumber?: number) {
+  async notifyOrderReady(businessUuid: string, orderNumber: string, tableNumber?: number) {
     return this.dispatchNotification({
-      clubUuid,
-      title: '🍸 Order Ready for Pickup',
-      message: `Order #${orderNumber} for Table #${tableNumber || 'N/A'} is ready at the bar/kitchen.`,
+      businessUuid,
+      title: '✅ Order Ready for Pickup',
+      message: `Order #${orderNumber} for Table #${tableNumber || 'N/A'} is ready.`,
       type: 'ORDER_READY',
     });
   }
 
   // EVENT 5: ORDER DELIVERED
-  async notifyOrderDelivered(clubUuid: string, orderNumber: string, tableNumber?: number) {
+  async notifyOrderDelivered(businessUuid: string, orderNumber: string, tableNumber?: number) {
     return this.dispatchNotification({
-      clubUuid,
+      businessUuid,
       title: '✅ Order Delivered',
       message: `Order #${orderNumber} delivered to Table #${tableNumber || 'N/A'}.`,
       type: 'ORDER_DELIVERED',
@@ -107,18 +107,18 @@ export class NotificationService {
   }
 
   // EVENT 6: OFFER PUBLISHED
-  async notifyOfferPublished(clubUuid: string, offerTitle: string, promoCode: string) {
+  async notifyOfferPublished(businessUuid: string, offerTitle: string, promoCode: string) {
     return this.dispatchNotification({
-      clubUuid,
-      title: '🔥 New Happy Hour Offer Live!',
+      businessUuid,
+      title: '🔥 New Offer Live!',
       message: `${offerTitle} is now active. Use code: ${promoCode}`,
       type: 'OFFER_PUBLISHED',
     });
   }
 
-  async getUserNotifications(clubUuid: string, userUuid?: string) {
-    const notifications = await this.notificationRepository.getUserNotifications(clubUuid, userUuid);
-    const unreadCount = await this.notificationRepository.getUnreadCount(clubUuid, userUuid);
+  async getUserNotifications(businessUuid: string, userUuid?: string) {
+    const notifications = await this.notificationRepository.getUserNotifications(businessUuid, userUuid);
+    const unreadCount = await this.notificationRepository.getUnreadCount(businessUuid, userUuid);
     return { notifications, unreadCount };
   }
 
@@ -126,12 +126,12 @@ export class NotificationService {
     return this.notificationRepository.markAsRead(notificationUuid);
   }
 
-  async markAllAsRead(clubUuid: string, userUuid?: string) {
-    return this.notificationRepository.markAllAsRead(clubUuid, userUuid);
+  async markAllAsRead(businessUuid: string, userUuid?: string) {
+    return this.notificationRepository.markAllAsRead(businessUuid, userUuid);
   }
 
   async logAudit(params: {
-    clubUuid?: string;
+    businessUuid?: string;
     userUuid?: string;
     action: string;
     entityType: string;
@@ -143,7 +143,7 @@ export class NotificationService {
     return this.notificationRepository.createAuditLog(params);
   }
 
-  async getAuditLogs(clubUuid?: string) {
-    return this.notificationRepository.getAuditLogs(clubUuid);
+  async getAuditLogs(businessUuid?: string) {
+    return this.notificationRepository.getAuditLogs(businessUuid);
   }
 }

@@ -13,21 +13,23 @@ export class PaymentService {
 
   // WORKFLOW 1: M-PESA STK PUSH
   async initiateMpesaStkPush(params: {
-    clubUuid: string;
+    businessUuid: string;
+    clubUuid?: string; // backward compat
     orderUuid: string;
     phoneNumber: string;
     amount: number;
     accountReference: string;
   }) {
+    const businessUuid = params.businessUuid || params.clubUuid!;
     const stkResponse = await this.mpesaAdapter.initiateStkPush({
       phoneNumber: params.phoneNumber,
       amount: params.amount,
       accountReference: params.accountReference,
-      transactionDesc: `DrinkHub Order Payment ${params.accountReference}`,
+      transactionDesc: `Order Payment ${params.accountReference}`,
     });
 
     const payment = await this.paymentRepository.createPayment({
-      clubUuid: params.clubUuid,
+      businessUuid,
       orderUuid: params.orderUuid,
       amount: params.amount,
       paymentMethod: 'MPESA_STK',
@@ -75,7 +77,8 @@ export class PaymentService {
       // Notify Waiters & Kitchen via Socket.IO
       try {
         const io = getIO();
-        io.to(`tenant:${payment.clubUuid}`).emit('payment_notification', {
+        const tenantRoom = (payment as any).businessUuid || (payment as any).clubUuid;
+        io.to(`tenant:${tenantRoom}`).emit('payment_notification', {
           type: 'MPESA_SUCCESS',
           paymentUuid: payment.paymentUuid,
           orderUuid: payment.orderUuid,
@@ -94,15 +97,17 @@ export class PaymentService {
 
   // WORKFLOW 2: CREDIT / DEBIT CARD (POS MACHINE)
   async processCardPayment(params: {
-    clubUuid: string;
+    businessUuid: string;
+    clubUuid?: string; // backward compat
     orderUuid: string;
     amount: number;
     tableNumber?: number;
   }) {
+    const businessUuid = params.businessUuid || params.clubUuid!;
     const paymentNotes = `Bring POS Machine to Table #${params.tableNumber || 'N/A'}`;
 
     const payment = await this.paymentRepository.createPayment({
-      clubUuid: params.clubUuid,
+      businessUuid,
       orderUuid: params.orderUuid,
       amount: params.amount,
       paymentMethod: 'CARD',
@@ -115,7 +120,7 @@ export class PaymentService {
     // Notify Waiters via Socket.IO
     try {
       const io = getIO();
-      io.to(`tenant:${params.clubUuid}`).emit('waiter_notification', {
+      io.to(`tenant:${businessUuid}`).emit('waiter_notification', {
         type: 'CARD_POS_REQUEST',
         paymentUuid: payment.paymentUuid,
         orderUuid: params.orderUuid,
@@ -135,13 +140,15 @@ export class PaymentService {
 
   // WORKFLOW 3: CASH PAYMENT (EXACT CASH OR CHANGE CALCULATION)
   async processCashPayment(params: {
-    clubUuid: string;
+    businessUuid: string;
+    clubUuid?: string; // backward compat
     orderUuid: string;
     amount: number;
     tableNumber?: number;
     exactCash: boolean;
     customerCashAmount?: number;
   }) {
+    const businessUuid = params.businessUuid || params.clubUuid!;
     let customerCashAmount = params.amount;
     let changeDue = 0;
     let notificationMessage = '';
@@ -165,7 +172,7 @@ export class PaymentService {
     }
 
     const payment = await this.paymentRepository.createPayment({
-      clubUuid: params.clubUuid,
+      businessUuid,
       orderUuid: params.orderUuid,
       amount: params.amount,
       paymentMethod: 'CASH',
@@ -179,7 +186,7 @@ export class PaymentService {
     // Notify Waiters via Socket.IO
     try {
       const io = getIO();
-      io.to(`tenant:${params.clubUuid}`).emit('waiter_notification', {
+      io.to(`tenant:${businessUuid}`).emit('waiter_notification', {
         type: 'CASH_PAYMENT_REQUEST',
         paymentUuid: payment.paymentUuid,
         orderUuid: params.orderUuid,
@@ -207,5 +214,17 @@ export class PaymentService {
     const payment = await this.paymentRepository.findById(paymentUuid);
     if (!payment) throw new BadRequestError('Payment record not found');
     return this.paymentRepository.updateStatus(paymentUuid, status);
+  }
+
+  async getPaymentsForBusiness(options: {
+    businessUuid: string;
+    paymentMethod?: string;
+    paymentStatus?: any;
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+    offset?: number;
+  }) {
+    return this.paymentRepository.findPaymentsForBusiness(options);
   }
 }

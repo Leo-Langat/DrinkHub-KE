@@ -16,27 +16,32 @@ export class OrderService {
     return order;
   }
 
-  async getOrdersForClub(clubUuid?: string, status?: OrderStatus, waiterUuid?: string): Promise<Order[]> {
-    let targetClubUuid = clubUuid;
-    if (targetClubUuid === 'default-club') {
-      const firstClub = await prisma.club.findFirst({ where: { deletedAt: null } });
-      if (firstClub) targetClubUuid = firstClub.clubUuid;
+  async getOrdersForBusiness(businessUuid?: string, status?: OrderStatus, waiterUuid?: string): Promise<Order[]> {
+    let targetUuid = businessUuid;
+    if (targetUuid === 'default-club' || targetUuid === 'default-business') {
+      const firstBiz = await prisma.business.findFirst({ where: { deletedAt: null } });
+      if (firstBiz) targetUuid = firstBiz.businessUuid;
     }
-    return this.orderRepository.findOrdersByClub(targetClubUuid, status, waiterUuid);
+    return this.orderRepository.findOrdersByBusiness(targetUuid, status, waiterUuid);
+  }
+
+  // Backward compatibility alias
+  async getOrdersForClub(clubUuid?: string, status?: OrderStatus, waiterUuid?: string): Promise<Order[]> {
+    return this.getOrdersForBusiness(clubUuid, status, waiterUuid);
   }
 
   async getActiveClaimedOrderByWaiter(waiterUuid: string): Promise<Order | null> {
     return this.orderRepository.findActiveClaimedOrderByWaiter(waiterUuid);
   }
 
-  async createOrder(clubUuid: string, data: any): Promise<Order> {
-    const order = await this.orderRepository.createOrder(clubUuid, data);
+  async createOrder(businessUuid: string, data: any): Promise<Order> {
+    const order = await this.orderRepository.createOrder(businessUuid, data);
 
     // Emit Realtime Socket.IO Event for Kitchen & Waiters
     try {
       const io = getIO();
-      io.to(`tenant:${clubUuid}`).emit('new_order', order);
-      io.to(`tenant:${clubUuid}:kitchen`).emit('new_order_kitchen', order);
+      io.to(`tenant:${businessUuid}`).emit('new_order', order);
+      io.to(`tenant:${businessUuid}:kitchen`).emit('new_order_kitchen', order);
     } catch (_e) {
       logger.warn('Socket.IO not ready for new_order broadcast.');
     }
@@ -73,7 +78,8 @@ export class OrderService {
     // Emit Realtime Socket.IO Event - Disappears for all other waiters in real time!
     try {
       const io = getIO();
-      io.to(`tenant:${order.clubUuid}`).emit('order_claimed', {
+      const businessUuid = (order as any).businessUuid || (order as any).clubUuid;
+      io.to(`tenant:${businessUuid}`).emit('order_claimed', {
         orderUuid,
         waiterUuid,
         waiterName: (claimedOrder as any).waiter?.fullName || 'Waiter',
@@ -93,7 +99,8 @@ export class OrderService {
     // Broadcast Realtime Update
     try {
       const io = getIO();
-      io.to(`tenant:${order.clubUuid}`).emit('order_status_updated', {
+      const businessUuid = (order as any).businessUuid || (order as any).clubUuid;
+      io.to(`tenant:${businessUuid}`).emit('order_status_updated', {
         orderUuid,
         status,
         updatedOrder,

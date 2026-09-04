@@ -3,6 +3,8 @@ import { PaymentRepository } from './payment.repository';
 import { PaymentService } from './payment.service';
 import { PaymentController } from './payment.controller';
 import { validateRequest } from '../../common/middlewares/validate.middleware';
+import { authenticate, authorize } from '../../common/middlewares/auth.middleware';
+import { UserRole } from '@drinkhub/shared';
 import {
   initiateMpesaSchema,
   processCardPaymentSchema,
@@ -15,6 +17,13 @@ const paymentService = new PaymentService(paymentRepository);
 const paymentController = new PaymentController(paymentService);
 
 export const paymentRouter = Router();
+
+paymentRouter.get(
+  '/',
+  authenticate,
+  authorize([UserRole.ADMIN, UserRole.MANAGER, UserRole.SUPER_ADMIN]),
+  paymentController.getPayments,
+);
 
 /**
  * @openapi
@@ -118,4 +127,10 @@ paymentRouter.post('/cash', validateRequest(processCashPaymentSchema), paymentCo
  *       200:
  *         description: Payment status updated
  */
-paymentRouter.patch('/:paymentUuid/status', validateRequest(updatePaymentStatusSchema), paymentController.updateStatus);
+paymentRouter.patch(
+  '/:paymentUuid/status',
+  authenticate,
+  authorize([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER, UserRole.WAITER]),
+  validateRequest(updatePaymentStatusSchema),
+  paymentController.updateStatus,
+);

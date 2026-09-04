@@ -4,7 +4,7 @@ import { INotificationRepository } from './notification.interface';
 
 export class NotificationRepository implements INotificationRepository {
   async createNotification(data: {
-    clubUuid: string;
+    businessUuid: string;
     userUuid?: string;
     title: string;
     message: string;
@@ -12,7 +12,7 @@ export class NotificationRepository implements INotificationRepository {
   }): Promise<Notification> {
     return prisma.notification.create({
       data: {
-        clubUuid: data.clubUuid,
+        businessUuid: data.businessUuid,
         userUuid: data.userUuid,
         title: data.title,
         message: data.message,
@@ -21,10 +21,10 @@ export class NotificationRepository implements INotificationRepository {
     });
   }
 
-  async getUserNotifications(clubUuid: string, userUuid?: string): Promise<Notification[]> {
+  async getUserNotifications(businessUuid: string, userUuid?: string): Promise<Notification[]> {
     return prisma.notification.findMany({
       where: {
-        clubUuid,
+        businessUuid,
         ...(userUuid ? { userUuid } : {}),
       },
       orderBy: { createdAt: 'desc' },
@@ -32,10 +32,10 @@ export class NotificationRepository implements INotificationRepository {
     });
   }
 
-  async getUnreadCount(clubUuid: string, userUuid?: string): Promise<number> {
+  async getUnreadCount(businessUuid: string, userUuid?: string): Promise<number> {
     return prisma.notification.count({
       where: {
-        clubUuid,
+        businessUuid,
         isRead: false,
         ...(userUuid ? { userUuid } : {}),
       },
@@ -49,10 +49,10 @@ export class NotificationRepository implements INotificationRepository {
     });
   }
 
-  async markAllAsRead(clubUuid: string, userUuid?: string): Promise<void> {
+  async markAllAsRead(businessUuid: string, userUuid?: string): Promise<void> {
     await prisma.notification.updateMany({
       where: {
-        clubUuid,
+        businessUuid,
         isRead: false,
         ...(userUuid ? { userUuid } : {}),
       },
@@ -61,7 +61,7 @@ export class NotificationRepository implements INotificationRepository {
   }
 
   async createAuditLog(data: {
-    clubUuid?: string;
+    businessUuid?: string;
     userUuid?: string;
     action: string;
     entityType: string;
@@ -72,7 +72,7 @@ export class NotificationRepository implements INotificationRepository {
   }): Promise<AuditLog> {
     return prisma.auditLog.create({
       data: {
-        clubUuid: data.clubUuid,
+        businessUuid: data.businessUuid,
         userUuid: data.userUuid,
         action: data.action,
         entityType: data.entityType,
@@ -84,12 +84,12 @@ export class NotificationRepository implements INotificationRepository {
     });
   }
 
-  async getAuditLogs(clubUuid?: string): Promise<AuditLog[]> {
+  async getAuditLogs(businessUuid?: string): Promise<AuditLog[]> {
     return prisma.auditLog.findMany({
-      where: clubUuid ? { clubUuid } : {},
+      where: businessUuid ? { businessUuid } : {},
       orderBy: { createdAt: 'desc' },
       take: 100,
-      include: { user: true, club: true },
+      include: { user: true, business: true },
     });
   }
 }

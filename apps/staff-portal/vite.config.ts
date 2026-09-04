@@ -11,6 +11,23 @@ export default defineConfig({
       '@drinkhub/ui': path.resolve(__dirname, '../../packages/ui/src/index.ts'),
     },
   },
+  build: {
+    target: 'es2022',
+    minify: 'esbuild',
+    sourcemap: false,
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          query: ['@tanstack/react-query'],
+          socket: ['socket.io-client'],
+          lucide: ['lucide-react'],
+          charts: ['recharts'],
+        },
+      },
+    },
+  },
   server: {
     port: 3001,
   },

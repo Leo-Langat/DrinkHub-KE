@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { LoginPage } from './pages/LoginPage';
 import { WaiterDashboard } from './pages/WaiterDashboard';
 import { ManagerDashboard } from './pages/ManagerDashboard';
+import { AdminDashboard } from './pages/AdminDashboard';
 import {
   isJwtExpired,
   isSessionExpired,
@@ -13,7 +14,7 @@ import {
 import { useSessionTimeout, SessionTimeoutBanner } from '@drinkhub/ui';
 import { getApiUrl } from './config/api';
 
-type StaffRole = 'waiter' | 'manager';
+type StaffRole = 'waiter' | 'manager' | 'admin';
 interface Session {
   role: StaffRole;
 }
@@ -35,9 +36,14 @@ export const App: React.FC = () => {
         }
 
         const user = JSON.parse(userStr);
-        if (user.role === 'WAITER') return { role: 'waiter' };
-        if (user.role === 'MANAGER' || user.role === 'CLUB_ADMIN' || user.role === 'PLATFORM_ADMIN')
-          return { role: 'manager' };
+        const role = (user.role || '').toUpperCase();
+        if (role === 'WAITER') return { role: 'waiter' };
+        if (role === 'ADMIN') return { role: 'admin' };
+        if (role === 'MANAGER') return { role: 'manager' };
+
+        // Reject any other role (deprecated, customer, invalid, or unknown) — clear stale state
+        clearAllAuthData();
+        return null;
       }
     } catch {
       /* ignore parse error */
@@ -79,7 +85,8 @@ export const App: React.FC = () => {
     return false;
   }, []);
 
-  const currentRoleName = session?.role === 'waiter' ? 'Waiter' : 'Manager';
+  const currentRoleName =
+    session?.role === 'admin' ? 'Admin' : session?.role === 'waiter' ? 'Waiter' : 'Manager';
 
   const {
     idleWarning,
@@ -109,6 +116,12 @@ export const App: React.FC = () => {
         onLogoutNow={logoutNow}
       />
       <Routes>
+        {session.role === 'admin' && (
+          <>
+            <Route path="/admin/dashboard" element={<AdminDashboard onLogout={handleLogout} />} />
+            <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+          </>
+        )}
         {session.role === 'waiter' && (
           <>
             <Route path="/waiter/dashboard" element={<WaiterDashboard onLogout={handleLogout} />} />

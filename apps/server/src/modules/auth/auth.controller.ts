@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from './auth.service';
+import { UserRole, normalizeRole } from '@drinkhub/shared';
 
 export class AuthController {
+
   constructor(private authService: AuthService) {}
 
   login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -54,43 +56,83 @@ export class AuthController {
   register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const callerUserId = (req.user as any)?.userId || (req.user as any)?.id;
-      const callerRole = (req.user as any)?.role;
-      let callerClubUuid = (req.user as any)?.tenantId || (req.user as any)?.clubUuid;
+      const callerRole = normalizeRole((req.user as any)?.role);
+      let callerBusinessUuid =
+        req.businessUuid || (req.user as any)?.businessUuid || (req.user as any)?.tenantId || (req.user as any)?.clubUuid;
 
       let body = { ...req.body };
+      const requestedRole = normalizeRole(body.role || UserRole.WAITER);
 
-      // SECURITY: A MANAGER or CLUB_ADMIN may only create WAITER accounts for their own club.
-      if (callerRole === 'MANAGER' || callerRole === 'CLUB_ADMIN') {
-        if (body.role && body.role !== 'WAITER') {
+      // ── Strict User Creation Hierarchy Guards ─────────────────────────────
+      // 1. SUPER_ADMIN can create ADMIN or other SUPER_ADMIN accounts
+      if (callerRole === UserRole.SUPER_ADMIN) {
+        if (requestedRole === UserRole.SUPER_ADMIN) {
+          body.businessUuid = undefined;
+        } else {
+          body.role = UserRole.ADMIN;
+          body.businessUuid = body.businessUuid || body.clubUuid;
+        }
+      }
+      // 2. ADMIN can create MANAGER (or WAITER) inside their own business ONLY
+      else if (callerRole === UserRole.ADMIN) {
+        if (requestedRole === UserRole.SUPER_ADMIN || requestedRole === UserRole.ADMIN) {
           res.status(403).json({
             success: false,
-            error: { code: 'FORBIDDEN', message: 'Managers can only create WAITER accounts' },
+            error: { code: 'FORBIDDEN', message: 'Admins can only create Managers or Waiters for their own business' },
           });
           return;
         }
 
-        // Fallback: If clubUuid wasn't in token payload, fetch from DB user record
-        if (!callerClubUuid && callerUserId) {
+        if (!callerBusinessUuid && callerUserId) {
           const callerDbUser = await this.authService.getUserById(callerUserId);
-          if (callerDbUser?.clubUuid) {
-            callerClubUuid = callerDbUser.clubUuid;
-          }
+          callerBusinessUuid = callerDbUser?.businessUuid;
         }
 
-        // Guard: manager must have a club assigned in their account
-        if (!callerClubUuid) {
+        if (!callerBusinessUuid) {
           res.status(400).json({
             success: false,
-            error: { code: 'NO_CLUB', message: 'Your account is not assigned to a club. Contact your administrator.' },
+            error: { code: 'NO_BUSINESS', message: 'Your account is not assigned to a business.' },
           });
           return;
         }
 
-        // ALWAYS force role=WAITER and clubUuid=manager's club.
-        // Ignore any clubUuid the client may have sent — a waiter must
-        // belong to exactly the same club as the manager who created them.
-        body.role = 'WAITER';
-        body.clubUuid = callerClubUuid;
+        // Force businessUuid to Admin's business
+        body.role = requestedRole === UserRole.WAITER ? UserRole.WAITER : UserRole.MANAGER;
+        body.businessUuid = callerBusinessUuid;
+      }
+      // 3. MANAGER can ONLY create WAITER inside their own business
+      else if (callerRole === UserRole.MANAGER) {
+        if (requestedRole !== UserRole.WAITER) {
+          res.status(403).json({
+            success: false,
+            error: { code: 'FORBIDDEN', message: 'Managers can only create Waiter accounts for their own business' },
+          });
+          return;
+        }
+
+        if (!callerBusinessUuid && callerUserId) {
+          const callerDbUser = await this.authService.getUserById(callerUserId);
+          callerBusinessUuid = callerDbUser?.businessUuid;
+        }
+
+        if (!callerBusinessUuid) {
+          res.status(400).json({
+            success: false,
+            error: { code: 'NO_BUSINESS', message: 'Your account is not assigned to a business.' },
+          });
+          return;
+        }
+
+        body.role = UserRole.WAITER;
+        body.businessUuid = callerBusinessUuid;
+      }
+      // 4. WAITER / CUSTOMER cannot create staff
+      else {
+        res.status(403).json({
+          success: false,
+          error: { code: 'FORBIDDEN', message: 'You do not have permission to create staff accounts' },
+        });
+        return;
       }
 
       const user = await this.authService.registerUser(body);
@@ -103,7 +145,6 @@ export class AuthController {
       next(error);
     }
   };
-
 
   verifyEmail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -123,10 +164,9 @@ export class AuthController {
     try {
       const { email } = req.body;
       await this.authService.requestPasswordReset(email);
-      // Always respond the same way to prevent user enumeration
       res.json({
         success: true,
-        data: { message: 'If an account with that email exists, password reset instructions have been sent.' },
+        data: { message: 'If an account exists, a reset link has been dispatched' },
         meta: { timestamp: new Date().toISOString(), version: 'v1' },
       });
     } catch (error) {
@@ -140,7 +180,7 @@ export class AuthController {
       await this.authService.resetPassword(token, newPassword);
       res.json({
         success: true,
-        data: { message: 'Password reset successfully' },
+        data: { message: 'Password has been reset successfully' },
         meta: { timestamp: new Date().toISOString(), version: 'v1' },
       });
     } catch (error) {
@@ -180,26 +220,60 @@ export class AuthController {
 
   listStaff = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userRole = (req.user as any)?.role;
-      const clubUuid = (req.user as any)?.tenantId ?? (req.query.clubUuid as string);
+      const userRole = normalizeRole(req.user?.role || '');
+      const targetBusinessUuid =
+        (req.query.businessUuid as string) ||
+        (req.query.clubUuid as string) ||
+        req.businessUuid ||
+        req.user?.businessUuid ||
+        req.user?.tenantId;
       const { role } = req.query as { role?: string };
 
       let staff: any[];
 
-      if (userRole === 'PLATFORM_ADMIN' && !clubUuid) {
-        // Platform admin sees all staff across all clubs
+      if (userRole === UserRole.SUPER_ADMIN && !targetBusinessUuid) {
         staff = await this.authService.listAllStaff(role);
       } else {
-        if (!clubUuid) {
-          res.status(400).json({ success: false, error: { code: 'MISSING_CLUB', message: 'Club UUID is required' } });
+        if (!targetBusinessUuid) {
+          res.status(400).json({ success: false, error: { code: 'MISSING_BUSINESS', message: 'Business UUID is required' } });
           return;
         }
-        staff = await this.authService.listStaff(clubUuid, role);
+        staff = await this.authService.listStaff(targetBusinessUuid, role);
       }
 
       res.json({
         success: true,
         data: { staff },
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  listUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { role, businessUuid, clubUuid, isActive, search } = req.query as {
+        role?: string;
+        businessUuid?: string;
+        clubUuid?: string;
+        isActive?: string;
+        search?: string;
+      };
+
+      const finalBusinessUuid = businessUuid || clubUuid;
+      const parsedIsActive = isActive !== undefined ? isActive === 'true' || isActive === '1' : undefined;
+
+      const users = await this.authService.listAllUsers({
+        role,
+        businessUuid: finalBusinessUuid,
+        isActive: parsedIsActive,
+        search,
+      });
+
+      res.json({
+        success: true,
+        data: { users, total: users.length },
         meta: { timestamp: new Date().toISOString(), version: 'v1' },
       });
     } catch (error) {
@@ -262,12 +336,12 @@ export class AuthController {
   updateUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { uuid } = req.params;
-      const { fullName, email, phone, clubUuid, isActive } = req.body;
+      const { fullName, email, phone, businessUuid, clubUuid, isActive } = req.body;
       const updated = await (this.authService as any).updateUserDetails(uuid, {
         fullName,
         email,
         phone,
-        clubUuid,
+        businessUuid: businessUuid || clubUuid,
         isActive,
       });
 
@@ -279,7 +353,8 @@ export class AuthController {
             fullName: updated.fullName,
             email: updated.email,
             phone: updated.phone,
-            clubUuid: updated.clubUuid,
+            businessUuid: updated.businessUuid,
+            clubUuid: updated.businessUuid,
             isActive: updated.isActive,
           },
           message: 'User details updated successfully',
@@ -291,5 +366,3 @@ export class AuthController {
     }
   };
 }
-
-

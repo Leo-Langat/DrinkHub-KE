@@ -3,14 +3,18 @@ import { prisma } from '../../config/prisma';
 import { IMenuRepository } from './menu.interface';
 
 export class MenuRepository implements IMenuRepository {
-  async findCategoriesByClub(clubUuid: string): Promise<MenuCategory[]> {
+  async findCategoriesByBusiness(businessUuid: string): Promise<MenuCategory[]> {
     return prisma.menuCategory.findMany({
-      where: { clubUuid, deletedAt: null },
+      where: { businessUuid, deletedAt: null },
       orderBy: { displayOrder: 'asc' },
       include: {
         products: { where: { deletedAt: null } },
       },
     });
+  }
+
+  async findCategoriesByClub(clubUuid: string): Promise<MenuCategory[]> {
+    return this.findCategoriesByBusiness(clubUuid);
   }
 
   async findCategoryById(categoryUuid: string): Promise<MenuCategory | null> {
@@ -19,10 +23,10 @@ export class MenuRepository implements IMenuRepository {
     });
   }
 
-  async createCategory(clubUuid: string, data: Partial<MenuCategory>): Promise<MenuCategory> {
+  async createCategory(businessUuid: string, data: Partial<MenuCategory>): Promise<MenuCategory> {
     return prisma.menuCategory.create({
       data: {
-        clubUuid,
+        businessUuid,
         name: data.name!,
         description: data.description,
         displayOrder: data.displayOrder || 0,
@@ -51,25 +55,29 @@ export class MenuRepository implements IMenuRepository {
   }
 
   async updateCategoryOrders(
-    clubUuid: string,
+    businessUuid: string,
     orders: { categoryUuid: string; displayOrder: number }[],
   ): Promise<void> {
     await prisma.$transaction(
       orders.map((item) =>
         prisma.menuCategory.updateMany({
-          where: { categoryUuid: item.categoryUuid, clubUuid },
+          where: { categoryUuid: item.categoryUuid, businessUuid },
           data: { displayOrder: item.displayOrder },
         }),
       ),
     );
   }
 
-  async findProductsByClub(clubUuid: string): Promise<Product[]> {
+  async findProductsByBusiness(businessUuid: string): Promise<Product[]> {
     return prisma.product.findMany({
-      where: { clubUuid, deletedAt: null },
+      where: { businessUuid, deletedAt: null },
       orderBy: { createdAt: 'desc' },
       include: { category: true },
     });
+  }
+
+  async findProductsByClub(clubUuid: string): Promise<Product[]> {
+    return this.findProductsByBusiness(clubUuid);
   }
 
   async findProductById(productUuid: string): Promise<Product | null> {
@@ -78,10 +86,10 @@ export class MenuRepository implements IMenuRepository {
     });
   }
 
-  async createProduct(clubUuid: string, data: Partial<Product>): Promise<Product> {
+  async createProduct(businessUuid: string, data: Partial<Product>): Promise<Product> {
     return prisma.product.create({
       data: {
-        clubUuid,
+        businessUuid,
         categoryUuid: data.categoryUuid!,
         name: data.name!,
         description: data.description,
@@ -108,17 +116,21 @@ export class MenuRepository implements IMenuRepository {
     return true;
   }
 
-  async findOffersByClub(clubUuid: string): Promise<Offer[]> {
+  async findOffersByBusiness(businessUuid: string): Promise<Offer[]> {
     return prisma.offer.findMany({
-      where: { clubUuid, deletedAt: null },
+      where: { businessUuid, deletedAt: null },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async createOffer(clubUuid: string, data: Partial<Offer>): Promise<Offer> {
+  async findOffersByClub(clubUuid: string): Promise<Offer[]> {
+    return this.findOffersByBusiness(clubUuid);
+  }
+
+  async createOffer(businessUuid: string, data: Partial<Offer>): Promise<Offer> {
     return prisma.offer.create({
       data: {
-        clubUuid,
+        businessUuid,
         title: data.title!,
         description: data.description,
         offerType: data.offerType || 'PERCENTAGE_DISCOUNT',
@@ -145,3 +157,4 @@ export class MenuRepository implements IMenuRepository {
     });
   }
 }
+

@@ -58,6 +58,22 @@ export const errorHandler = (
     return;
   }
 
+  // Handle Invalid role validation errors
+  if (err.message && err.message.startsWith('Invalid role')) {
+    res.status(400).json({
+      success: false,
+      data: null,
+      error: {
+        code: 'INVALID_ROLE',
+        message: err.message,
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+      },
+    });
+    return;
+  }
+
   logger.error(`Unhandled Exception: ${err.message}`, { stack: err.stack });
 
   res.status(500).json({

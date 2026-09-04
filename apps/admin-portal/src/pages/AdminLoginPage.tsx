@@ -44,12 +44,13 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
         throw new Error(msg);
       }
 
-      if (data.data?.user?.role !== 'PLATFORM_ADMIN') {
-        const r = data.data?.user?.role;
-        if (r === 'WAITER' || r === 'CLUB_ADMIN' || r === 'MANAGER') {
-          throw new Error('Access denied. Managers and Waiters must log into the Staff Portal, not the Platform Admin Portal.');
+      const normalizedUserRole = data.data?.user?.role;
+      if (normalizedUserRole !== 'SUPER_ADMIN') {
+        const r = normalizedUserRole;
+        if (r === 'WAITER' || r === 'MANAGER' || r === 'ADMIN') {
+          throw new Error('Access denied. Managers, Admins, and Waiters must log into the Staff Portal, not the Super Admin Portal.');
         }
-        throw new Error('Access denied. Account lacks Platform Administrator privileges.');
+        throw new Error('Access denied. Account lacks Super Administrator privileges.');
       }
 
       if (data.data?.accessToken) {
@@ -69,7 +70,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
           uuid: 'd0000000-0000-0000-0000-000000000001',
           email: 'superadmin@drinkhub.co.ke',
           fullName: 'Platform Super Admin',
-          role: 'PLATFORM_ADMIN',
+          role: 'SUPER_ADMIN',
           isActive: true,
         };
         localStorage.setItem('drinkhub_token', 'demo-platform-admin-token');
@@ -80,7 +81,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
       }
 
       if (cleanUser.toLowerCase().includes('waiter') || cleanUser.toLowerCase().includes('kamau') || cleanUser.toLowerCase().includes('alchemist.co.ke') || cleanUser.toLowerCase().includes('bclub.co.ke') || cleanUser.toLowerCase().includes('gplace.co.ke') || cleanUser.toLowerCase().includes('belvin')) {
-        setError('Access denied. Managers and Waiters must log into the Staff Portal, not the Platform Admin Portal.');
+        setError('Access denied. Managers and Waiters must log into the Staff Portal, not the Super Admin Portal.');
       } else if (err.name === 'TypeError' || err.message?.includes('fetch') || err.message?.includes('Failed')) {
         setError('Cannot connect to backend server. For instant demo access, use superadmin@drinkhub.co.ke / Password123!');
       } else {
@@ -112,16 +113,16 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
               <span className="text-xs font-medium text-slate-400">System Operational</span>
             </div>
             <h2 className="text-3xl font-black text-white leading-tight">
-              System<br />Administration
+              Super Admin<br />Console
             </h2>
             <p className="mt-2 text-slate-400 text-sm max-w-xs leading-relaxed">
-              Platform-level control for the DrinkHub SaaS across all Kenyan venues, clubs, and subscriptions.
+              Platform-level control across all registered businesses, admins, subscriptions, and platform telemetry.
             </p>
           </div>
 
           <div className="space-y-2">
             {[
-              { icon: <Globe className="h-4 w-4 text-blue-400" />, label: 'Multi-tenant SaaS management' },
+              { icon: <Globe className="h-4 w-4 text-blue-400" />, label: 'Multi-tenant business management' },
               { icon: <Server className="h-4 w-4 text-purple-400" />, label: 'System health & infrastructure' },
               { icon: <ShieldCheck className="h-4 w-4 text-emerald-400" />, label: 'Security, audit logs & compliance' },
               { icon: <Lock className="h-4 w-4 text-amber-400" />, label: 'Subscription & billing control' },
@@ -181,7 +182,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
           <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
             <ShieldCheck className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
             <div className="text-xs text-amber-800 leading-relaxed">
-              <p className="font-semibold">Demo Platform Admin Account:</p>
+              <p className="font-semibold">Demo Super Admin Account:</p>
               <button
                 type="button"
                 onClick={() => {
@@ -260,7 +261,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <>
-                  Sign In to Admin Portal
+                  Sign In to Super Admin Console
                   <ChevronRight className="h-4 w-4" />
                 </>
               )}

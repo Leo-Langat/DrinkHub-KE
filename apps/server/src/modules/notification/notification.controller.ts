@@ -6,9 +6,17 @@ export class NotificationController {
 
   getNotifications = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const clubUuid = (req.headers['x-tenant-id'] as string) || (req.query.clubUuid as string);
+      const businessUuid =
+        req.businessUuid ||
+        req.user?.businessUuid ||
+        req.user?.tenantId ||
+        (req.headers['x-business-uuid'] as string) ||
+        (req.headers['x-tenant-id'] as string) ||
+        (req.query.businessUuid as string) ||
+        (req.query.clubUuid as string);
+
       const userUuid = req.user?.userId;
-      const data = await this.notificationService.getUserNotifications(clubUuid, userUuid);
+      const data = await this.notificationService.getUserNotifications(businessUuid!, userUuid);
       res.json({
         success: true,
         data,
@@ -35,9 +43,17 @@ export class NotificationController {
 
   markAllAsRead = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const clubUuid = (req.headers['x-tenant-id'] as string) || req.body.clubUuid;
+      const businessUuid =
+        req.businessUuid ||
+        req.user?.businessUuid ||
+        req.user?.tenantId ||
+        (req.headers['x-business-uuid'] as string) ||
+        (req.headers['x-tenant-id'] as string) ||
+        req.body.businessUuid ||
+        req.body.clubUuid;
+
       const userUuid = req.user?.userId;
-      await this.notificationService.markAllAsRead(clubUuid, userUuid);
+      await this.notificationService.markAllAsRead(businessUuid!, userUuid);
       res.json({
         success: true,
         message: 'All notifications marked as read',
@@ -50,8 +66,14 @@ export class NotificationController {
 
   getAuditLogs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const clubUuid = req.query.clubUuid as string;
-      const auditLogs = await this.notificationService.getAuditLogs(clubUuid);
+      const businessUuid =
+        (req.query.businessUuid as string) ||
+        (req.query.clubUuid as string) ||
+        req.businessUuid ||
+        req.user?.businessUuid ||
+        req.user?.tenantId;
+
+      const auditLogs = await this.notificationService.getAuditLogs(businessUuid);
       res.json({
         success: true,
         data: auditLogs,

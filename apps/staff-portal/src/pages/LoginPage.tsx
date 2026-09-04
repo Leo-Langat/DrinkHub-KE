@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
-import { Wine, Eye, EyeOff, ChevronRight, Loader2, User, Briefcase, Timer } from 'lucide-react';
+import { Wine, Eye, EyeOff, ChevronRight, Loader2, User, Briefcase, Shield, Timer } from 'lucide-react';
 import { getApiUrl } from '../config/api';
 import { getSessionExpiredNotice } from '@drinkhub/shared';
 
-type StaffRole = 'waiter' | 'manager';
+type StaffRole = 'waiter' | 'manager' | 'admin';
 
 interface LoginPageProps {
   onLogin: (role: StaffRole) => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
-  const [role, setRole] = useState<StaffRole>('waiter');
+  const [role, setRole] = useState<StaffRole>('admin');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -37,15 +37,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
     setIsLoading(true);
 
-    const isDemoManager = (
-      (cleanUser.toLowerCase().includes('admin') || cleanUser.toLowerCase().includes('manager') || cleanUser.toLowerCase() === 'admin@alchemist.co.ke') &&
-      (password === 'Password123!' || password === 'admin' || password === 'admin123')
-    );
-    const isDemoWaiter = (
-      (cleanUser.toLowerCase().includes('waiter') || cleanUser.toLowerCase() === 'waiter.kamau@alchemist.co.ke') &&
-      (password === 'Password123!' || password === 'waiter' || password === 'waiter123')
-    );
-
     try {
       const res = await fetch(getApiUrl('/auth/login'), {
         method: 'POST',
@@ -59,23 +50,22 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         throw new Error(msg);
       }
 
-      const userRole = data.data?.user?.role;
+      const userRole = (data.data?.user?.role || '').toUpperCase();
+      if (role === 'admin') {
+        if (userRole !== 'ADMIN') {
+          throw new Error('Access denied. Account lacks Business Admin privileges. Please select Manager or Waiter tab.');
+        }
+      }
       if (role === 'manager') {
-        if (userRole !== 'CLUB_ADMIN' && userRole !== 'MANAGER' && userRole !== 'PLATFORM_ADMIN') {
+        if (userRole !== 'MANAGER') {
           if (userRole === 'WAITER') {
-            throw new Error('Access denied. Waiter accounts cannot log into the Manager Portal. Please switch to the Waiter tab above.');
+            throw new Error('Access denied. Waiter accounts cannot log into the Manager Portal. Please switch to the Waiter tab.');
           }
           throw new Error('Access denied. Account lacks Manager privileges.');
         }
       }
       if (role === 'waiter') {
         if (userRole !== 'WAITER') {
-          if (userRole === 'CLUB_ADMIN' || userRole === 'MANAGER') {
-            throw new Error('Access denied. Manager accounts cannot log into the Waiter Portal. Please switch to the Manager tab above.');
-          }
-          if (userRole === 'PLATFORM_ADMIN') {
-            throw new Error('Access denied. Platform Administrator accounts must use the Admin Portal.');
-          }
           throw new Error('Access denied. Only Waiter accounts can log into the Waiter Portal.');
         }
       }
@@ -99,89 +89,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
       onLogin(role);
     } catch (err: any) {
-      // If network fails (e.g. backend server offline / sleeping on cold start or running on demo frontend)
-      if (role === 'manager') {
-        if (cleanUser.toLowerCase().includes('waiter')) {
-          setError('Access denied. Waiter accounts cannot log into the Manager Portal. Please switch to the Waiter tab above.');
-          return;
-        }
+      const isNetworkError =
+        err.name === 'TypeError' ||
+        err.message?.toLowerCase().includes('fetch') ||
+        err.message?.toLowerCase().includes('failed to fetch') ||
+        err.message?.toLowerCase().includes('network') ||
+        err.message?.toLowerCase().includes('connect');
 
-        const nameParts = cleanUser.split('@')[0].split(/[._-]/).filter(Boolean);
-        const isBelvin = cleanUser.toLowerCase().includes('belvin');
-        const formattedName = isBelvin
-          ? 'Belvin Rotich'
-          : nameParts.map((p: string) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ') || 'Club Manager';
-
-        const isGPlace = isBelvin || cleanUser.toLowerCase().includes('gplace') || cleanUser.toLowerCase().includes('g-place');
-        const venueName = isGPlace
-          ? 'G Place Club'
-          : cleanUser.toLowerCase().includes('alchemist')
-          ? 'The Alchemist Westlands'
-          : cleanUser.toLowerCase().includes('quiver')
-          ? 'Quiver Lounge'
-          : `${formattedName}'s Venue`;
-
-        const venueSlug = isGPlace ? 'g-place' : cleanUser.split('@')[0].toLowerCase();
-
-        const demoManager = {
-          userUuid: isBelvin ? '33333333-3333-3333-3333-000000000001' : `usr_${Date.now()}`,
-          uuid: isBelvin ? '33333333-3333-3333-3333-000000000001' : `usr_${Date.now()}`,
-          clubUuid: isGPlace ? '33333333-3333-3333-3333-333333333333' : 'c0000000-0000-0000-0000-000000000001',
-          club: {
-            uuid: isGPlace ? '33333333-3333-3333-3333-333333333333' : 'c0000000-0000-0000-0000-000000000001',
-            clubUuid: isGPlace ? '33333333-3333-3333-3333-333333333333' : 'c0000000-0000-0000-0000-000000000001',
-            name: venueName,
-            slug: venueSlug,
-            city: 'Nairobi',
-            county: 'Nairobi',
-            openingHours: '16:00',
-            closingHours: '04:00',
-            brandColor: '#2563EB',
-          },
-          email: cleanUser,
-          fullName: formattedName,
-          role: 'CLUB_ADMIN',
-          isActive: true,
-        };
-        localStorage.setItem('drinkhub_token', `manager-token-${Date.now()}`);
-        localStorage.setItem('drinkhub_user', JSON.stringify(demoManager));
-        localStorage.setItem('drinkhub_login_time', Date.now().toString());
-        onLogin('manager');
-        return;
-      }
-
-      if (role === 'waiter') {
-        if (cleanUser.toLowerCase().includes('admin') || cleanUser.toLowerCase().includes('manager') || cleanUser.toLowerCase().includes('superadmin') || cleanUser.toLowerCase().includes('belvin')) {
-          setError('Access denied. Manager accounts cannot log into the Waiter Portal. Please switch to the Manager tab above.');
-          return;
-        }
-
-        const nameParts = cleanUser.split('@')[0].split(/[._-]/).filter(Boolean);
-        const formattedName = nameParts.map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ') || 'Staff Waiter';
-        const demoWaiter = {
-          userUuid: `usr_${Date.now()}`,
-          uuid: `usr_${Date.now()}`,
-          clubUuid: 'c0000000-0000-0000-0000-000000000001',
-          club: {
-            uuid: 'c0000000-0000-0000-0000-000000000001',
-            clubUuid: 'c0000000-0000-0000-0000-000000000001',
-            name: 'Alchemist Bar',
-            slug: 'alchemist-bar',
-          },
-          email: cleanUser,
-          fullName: formattedName,
-          role: 'WAITER',
-          isActive: true,
-        };
-        localStorage.setItem('drinkhub_token', `waiter-token-${Date.now()}`);
-        localStorage.setItem('drinkhub_user', JSON.stringify(demoWaiter));
-        localStorage.setItem('drinkhub_login_time', Date.now().toString());
-        onLogin('waiter');
-        return;
-      }
-
-      if (err.name === 'TypeError' || err.message?.includes('fetch') || err.message?.includes('Failed')) {
-        setError(`Cannot connect to backend server. Please verify your connection or try again.`);
+      if (isNetworkError) {
+        setError(
+          'Cannot connect to the server. Make sure the backend is running at port 5000 and try again.',
+        );
       } else {
         setError(err.message || 'Authentication failed. Invalid credentials.');
       }
@@ -309,21 +227,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
           {/* Role Selector */}
           <div className="rounded-xl p-1 flex gap-1 border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-            {(['waiter', 'manager'] as const).map((r) => (
+            {(['admin', 'manager', 'waiter'] as const).map((r) => (
               <button
                 key={r}
                 onClick={() => {
                   setRole(r);
                   setError('');
                 }}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all duration-200"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-bold transition-all duration-200"
                 style={{
                   background: role === r ? '#2563EB' : 'transparent',
                   color: role === r ? '#FFFFFF' : 'var(--text-secondary)',
                 }}
               >
-                {r === 'waiter' ? <User className="h-4 w-4" /> : <Briefcase className="h-4 w-4" />}
-                {r === 'waiter' ? 'Waiter' : 'Manager'}
+                {r === 'admin' ? <Shield className="h-3.5 w-3.5" /> : r === 'manager' ? <Briefcase className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
+                {r === 'admin' ? 'Admin (Owner)' : r === 'manager' ? 'Manager' : 'Waiter'}
               </button>
             ))}
           </div>
@@ -331,14 +249,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           {/* Demo Account Hint */}
           <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-xs text-blue-900">
             <div className="flex items-center justify-between font-semibold mb-1">
-              <span>Demo {role === 'waiter' ? 'Waiter' : 'Manager'} Account:</span>
+              <span>
+                Demo {role === 'admin' ? 'Business Admin' : role === 'manager' ? 'Manager' : 'Waiter'} Account:
+              </span>
               <button
                 type="button"
                 onClick={() => {
-                  if (role === 'waiter') {
-                    setUsername('waiter.kamau@alchemist.co.ke');
-                  } else {
+                  if (role === 'admin') {
                     setUsername('admin@alchemist.co.ke');
+                  } else if (role === 'manager') {
+                    setUsername('manager.belvin@alchemist.co.ke');
+                  } else {
+                    setUsername('waiter.kamau@alchemist.co.ke');
                   }
                   setPassword('Password123!');
                 }}
@@ -348,7 +270,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               </button>
             </div>
             <p className="text-[11px] text-blue-700">
-              {role === 'waiter' ? 'waiter.kamau@alchemist.co.ke' : 'admin@alchemist.co.ke'} / Password123!
+              {role === 'admin'
+                ? 'admin@alchemist.co.ke / Password123!'
+                : role === 'manager'
+                ? 'manager.belvin@alchemist.co.ke / Password123!'
+                : 'waiter.kamau@alchemist.co.ke / Password123!'}
             </p>
           </div>
 

@@ -30,7 +30,12 @@ export const App: React.FC = () => {
         }
 
         const user = JSON.parse(userStr);
-        return user.role === 'PLATFORM_ADMIN';
+        // Exclusively allow SUPER_ADMIN — any other role (including legacy/invalid) clears auth
+        if (user.role !== 'SUPER_ADMIN') {
+          clearAllAuthData();
+          return false;
+        }
+        return true;
       }
     } catch {
       /* ignore */
@@ -79,9 +84,9 @@ export const App: React.FC = () => {
   } = useSessionTimeout({
     isAuthenticated,
     onLogout: handleLogout,
-    roleName: 'Platform Administrator',
+    roleName: 'Super Admin',
     onRefreshToken: tryRefreshToken,
-    expiredMessage: 'Your Platform Admin session has expired due to 20 minutes of inactivity. Please log in again.',
+    expiredMessage: 'Your Super Admin session has expired due to 20 minutes of inactivity. Please log in again.',
   });
 
   if (!isAuthenticated) {
@@ -93,7 +98,7 @@ export const App: React.FC = () => {
       <SessionTimeoutBanner
         show={idleWarning}
         countdownFormatted={countdownFormatted}
-        roleName="Platform Admin"
+        roleName="Super Admin"
         onStayLoggedIn={stayActive}
         onLogoutNow={logoutNow}
       />

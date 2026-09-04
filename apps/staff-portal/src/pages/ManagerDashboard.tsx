@@ -3274,7 +3274,7 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
   const displayName = `${firstName} ${lastName ? lastName.charAt(0) + '.' : ''}`;
   const initials = `${firstName[0] || 'M'}${lastName[0] ? lastName[0] : ''}`;
   const userEmail = user.email || 'manager@drinkhub.co.ke';
-  const userRoleDisplay = user.role === 'CLUB_ADMIN' ? 'Club Manager' : 'Manager';
+  const userRoleDisplay = 'Manager';
 
   /* Dropdowns */
   const [notifOpen, setNotifOpen] = React.useState(false);

@@ -1,4 +1,16 @@
-import { PrismaClient, UserRole, SubscriptionStatus, TableStatus, OfferType, OrderStatus, PaymentMethod, PaymentStatus, NotificationType } from '@prisma/client';
+import {
+  PrismaClient,
+  UserRole,
+  BusinessType,
+  BusinessStatus,
+  SubscriptionStatus,
+  TableStatus,
+  OfferType,
+  OrderStatus,
+  PaymentMethod,
+  PaymentStatus,
+  NotificationType,
+} from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -9,106 +21,130 @@ async function main() {
   // OWASP: bcrypt cost factor ≥ 12
   const passwordHash = await bcrypt.hash('Password123!', 12);
 
-  // 1. Seed Clubs
-  const alchemist = await prisma.club.upsert({
+  // 1. Seed Diverse Businesses (Restaurant, Club, Lounge, Café)
+  const alchemist = await prisma.business.upsert({
     where: { slug: 'alchemist-westlands' },
     update: {},
     create: {
-      clubUuid: '11111111-1111-1111-1111-111111111111',
+      businessUuid: '11111111-1111-1111-1111-111111111111',
       name: 'The Alchemist Westlands',
       slug: 'alchemist-westlands',
+      businessType: BusinessType.LOUNGE,
       logoUrl: 'https://drinkhub.co.ke/logos/alchemist.png',
       phone: '+254712345678',
       email: 'info@alchemist.co.ke',
       city: 'Nairobi',
       county: 'Nairobi',
       address: 'Parklands Road, Westlands',
-      brandColor: '#e11d48',
+      themeColor: '#e11d48',
       openingHours: '14:00',
       closingHours: '04:00',
+      status: BusinessStatus.ACTIVE,
       subscriptionStatus: SubscriptionStatus.ACTIVE,
       isActive: true,
     },
   });
 
-  const bclub = await prisma.club.upsert({
+  const bclub = await prisma.business.upsert({
     where: { slug: 'bclub-kilimani' },
     update: {},
     create: {
-      clubUuid: '22222222-2222-2222-2222-222222222222',
+      businessUuid: '22222222-2222-2222-2222-222222222222',
       name: 'B-Club Kilimani',
       slug: 'bclub-kilimani',
+      businessType: BusinessType.CLUB,
       logoUrl: 'https://drinkhub.co.ke/logos/bclub.png',
       phone: '+254722998877',
       email: 'vip@bclub.co.ke',
       city: 'Nairobi',
       county: 'Nairobi',
       address: 'Galana Plaza, Kilimani',
-      brandColor: '#7c3aed',
+      themeColor: '#7c3aed',
       openingHours: '18:00',
       closingHours: '05:00',
+      status: BusinessStatus.ACTIVE,
       subscriptionStatus: SubscriptionStatus.ACTIVE,
       isActive: true,
     },
   });
 
-  const gplace = await prisma.club.upsert({
+  const gplace = await prisma.business.upsert({
     where: { slug: 'g-place' },
     update: {},
     create: {
-      clubUuid: '33333333-3333-3333-3333-333333333333',
-      name: 'G Place Club',
+      businessUuid: '33333333-3333-3333-3333-333333333333',
+      name: 'G Place Restaurant & Lounge',
       slug: 'g-place',
+      businessType: BusinessType.RESTAURANT,
       logoUrl: 'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?w=400&auto=format&fit=crop&q=80',
       phone: '+254722334455',
       email: 'info@gplace.co.ke',
       city: 'Nairobi',
       county: 'Nairobi',
       address: 'Kiambu Road, Nairobi',
-      brandColor: '#2563EB',
-      openingHours: '16:00',
-      closingHours: '04:00',
+      themeColor: '#2563EB',
+      openingHours: '08:00',
+      closingHours: '23:00',
+      status: BusinessStatus.ACTIVE,
       subscriptionStatus: SubscriptionStatus.ACTIVE,
       isActive: true,
     },
   });
 
-  console.info('✅ Clubs seeded');
+  console.info('✅ Businesses seeded');
 
-  // 2. Seed Users
+  // 2. Seed Users across the Role Hierarchy
+  // Super Admin (businessUuid: NULL)
   await prisma.user.upsert({
     where: { email: 'superadmin@drinkhub.co.ke' },
-    update: { passwordHash },  // refresh hash on re-seed
+    update: { passwordHash, role: UserRole.SUPER_ADMIN },
     create: {
       userUuid: '00000000-0000-0000-0000-000000000001',
       email: 'superadmin@drinkhub.co.ke',
       passwordHash,
-      fullName: 'Platform Admin',
+      fullName: 'Super Administrator',
       phone: '+254700000000',
-      role: UserRole.PLATFORM_ADMIN,
+      role: UserRole.SUPER_ADMIN,
     },
   });
 
+  // Business Admin (Owner) for Alchemist
   await prisma.user.upsert({
     where: { email: 'admin@alchemist.co.ke' },
-    update: { passwordHash },  // refresh hash on re-seed
+    update: { passwordHash, role: UserRole.ADMIN, businessUuid: alchemist.businessUuid },
     create: {
       userUuid: '11111111-1111-1111-1111-000000000001',
-      clubUuid: alchemist.clubUuid,
+      businessUuid: alchemist.businessUuid,
       email: 'admin@alchemist.co.ke',
       passwordHash,
-      fullName: 'John Alchemist Manager',
+      fullName: 'John Alchemist Admin',
       phone: '+254711111111',
-      role: UserRole.CLUB_ADMIN,
+      role: UserRole.ADMIN,
     },
   });
 
+  // Manager for Alchemist
+  await prisma.user.upsert({
+    where: { email: 'manager@alchemist.co.ke' },
+    update: { passwordHash, role: UserRole.MANAGER, businessUuid: alchemist.businessUuid },
+    create: {
+      userUuid: '11111111-1111-1111-1111-000000000003',
+      businessUuid: alchemist.businessUuid,
+      email: 'manager@alchemist.co.ke',
+      passwordHash,
+      fullName: 'David Alchemist Manager',
+      phone: '+254711999999',
+      role: UserRole.MANAGER,
+    },
+  });
+
+  // Waiter for Alchemist
   await prisma.user.upsert({
     where: { email: 'waiter.kamau@alchemist.co.ke' },
-    update: { passwordHash },  // refresh hash on re-seed
+    update: { passwordHash, role: UserRole.WAITER, businessUuid: alchemist.businessUuid },
     create: {
       userUuid: '11111111-1111-1111-1111-000000000002',
-      clubUuid: alchemist.clubUuid,
+      businessUuid: alchemist.businessUuid,
       email: 'waiter.kamau@alchemist.co.ke',
       passwordHash,
       fullName: 'Kamau Njoroge',
@@ -117,47 +153,48 @@ async function main() {
     },
   });
 
+  // Business Admin for B-Club
   await prisma.user.upsert({
     where: { email: 'admin@bclub.co.ke' },
-    update: { passwordHash },  // refresh hash on re-seed
+    update: { passwordHash, role: UserRole.ADMIN, businessUuid: bclub.businessUuid },
     create: {
       userUuid: '22222222-2222-2222-2222-000000000001',
-      clubUuid: bclub.clubUuid,
+      businessUuid: bclub.businessUuid,
       email: 'admin@bclub.co.ke',
       passwordHash,
-      fullName: 'Sarah B-Club Manager',
+      fullName: 'Sarah B-Club Admin',
       phone: '+254722000111',
-      role: UserRole.CLUB_ADMIN,
+      role: UserRole.ADMIN,
     },
   });
 
-  // Assign Belvin Rotich as Manager to G Place Club
+  // Business Admin for G-Place
   await prisma.user.upsert({
     where: { email: 'belvin.rotich@gplace.co.ke' },
-    update: { passwordHash, clubUuid: gplace.clubUuid, fullName: 'Belvin Rotich', role: UserRole.CLUB_ADMIN, isActive: true },
+    update: { passwordHash, businessUuid: gplace.businessUuid, fullName: 'Belvin Rotich', role: UserRole.ADMIN, isActive: true },
     create: {
       userUuid: '33333333-3333-3333-3333-000000000001',
-      clubUuid: gplace.clubUuid,
+      businessUuid: gplace.businessUuid,
       email: 'belvin.rotich@gplace.co.ke',
       passwordHash,
       fullName: 'Belvin Rotich',
       phone: '+254722334455',
-      role: UserRole.CLUB_ADMIN,
+      role: UserRole.ADMIN,
       isActive: true,
     },
   });
 
   await prisma.user.upsert({
     where: { email: 'belvin@gplace.co.ke' },
-    update: { passwordHash, clubUuid: gplace.clubUuid, fullName: 'Belvin Rotich', role: UserRole.CLUB_ADMIN, isActive: true },
+    update: { passwordHash, businessUuid: gplace.businessUuid, fullName: 'Belvin Rotich', role: UserRole.ADMIN, isActive: true },
     create: {
       userUuid: '33333333-3333-3333-3333-000000000002',
-      clubUuid: gplace.clubUuid,
+      businessUuid: gplace.businessUuid,
       email: 'belvin@gplace.co.ke',
       passwordHash,
       fullName: 'Belvin Rotich',
       phone: '+254722334455',
-      role: UserRole.CLUB_ADMIN,
+      role: UserRole.ADMIN,
       isActive: true,
     },
   });
@@ -166,11 +203,11 @@ async function main() {
 
   // 3. Seed Venue Tables
   await prisma.venueTable.upsert({
-    where: { clubUuid_tableNumber: { clubUuid: alchemist.clubUuid, tableNumber: 1 } },
+    where: { businessUuid_tableNumber: { businessUuid: alchemist.businessUuid, tableNumber: 1 } },
     update: {},
     create: {
       tableUuid: '11111111-4444-1111-1111-000000000001',
-      clubUuid: alchemist.clubUuid,
+      businessUuid: alchemist.businessUuid,
       tableNumber: 1,
       sectionName: 'Main Courtyard',
       seatingCapacity: 4,
@@ -179,11 +216,11 @@ async function main() {
   });
 
   await prisma.venueTable.upsert({
-    where: { clubUuid_tableNumber: { clubUuid: alchemist.clubUuid, tableNumber: 2 } },
+    where: { businessUuid_tableNumber: { businessUuid: alchemist.businessUuid, tableNumber: 2 } },
     update: {},
     create: {
       tableUuid: '11111111-4444-1111-1111-000000000002',
-      clubUuid: alchemist.clubUuid,
+      businessUuid: alchemist.businessUuid,
       tableNumber: 2,
       sectionName: 'Main Courtyard',
       seatingCapacity: 6,
@@ -192,11 +229,11 @@ async function main() {
   });
 
   await prisma.venueTable.upsert({
-    where: { clubUuid_tableNumber: { clubUuid: alchemist.clubUuid, tableNumber: 10 } },
+    where: { businessUuid_tableNumber: { businessUuid: alchemist.businessUuid, tableNumber: 10 } },
     update: {},
     create: {
       tableUuid: '11111111-4444-1111-1111-000000000003',
-      clubUuid: alchemist.clubUuid,
+      businessUuid: alchemist.businessUuid,
       tableNumber: 10,
       sectionName: 'VIP Lounge',
       seatingCapacity: 8,
@@ -208,11 +245,11 @@ async function main() {
 
   // 4. Seed Menu Categories
   const beersCat = await prisma.menuCategory.upsert({
-    where: { clubUuid_name: { clubUuid: alchemist.clubUuid, name: 'Local & Craft Beers' } },
+    where: { businessUuid_name: { businessUuid: alchemist.businessUuid, name: 'Local & Craft Beers' } },
     update: {},
     create: {
       categoryUuid: '11111111-3333-1111-1111-000000000001',
-      clubUuid: alchemist.clubUuid,
+      businessUuid: alchemist.businessUuid,
       name: 'Local & Craft Beers',
       description: 'Cold Kenyan lager and craft beers',
       displayOrder: 1,
@@ -220,11 +257,11 @@ async function main() {
   });
 
   const cocktailsCat = await prisma.menuCategory.upsert({
-    where: { clubUuid_name: { clubUuid: alchemist.clubUuid, name: 'Cocktails & Mixers' } },
+    where: { businessUuid_name: { businessUuid: alchemist.businessUuid, name: 'Cocktails & Mixers' } },
     update: {},
     create: {
       categoryUuid: '11111111-3333-1111-1111-000000000002',
-      clubUuid: alchemist.clubUuid,
+      businessUuid: alchemist.businessUuid,
       name: 'Cocktails & Mixers',
       description: 'Signature African infused cocktails',
       displayOrder: 2,
@@ -232,11 +269,11 @@ async function main() {
   });
 
   const foodCat = await prisma.menuCategory.upsert({
-    where: { clubUuid_name: { clubUuid: alchemist.clubUuid, name: 'Bitings & Grill' } },
+    where: { businessUuid_name: { businessUuid: alchemist.businessUuid, name: 'Bitings & Grill' } },
     update: {},
     create: {
       categoryUuid: '11111111-3333-1111-1111-000000000003',
-      clubUuid: alchemist.clubUuid,
+      businessUuid: alchemist.businessUuid,
       name: 'Bitings & Grill',
       description: 'Nyama Choma and bar snacks',
       displayOrder: 3,
@@ -247,11 +284,11 @@ async function main() {
 
   // 5. Seed Products
   await prisma.product.upsert({
-    where: { clubUuid_sku: { clubUuid: alchemist.clubUuid, sku: 'TUSK-500' } },
+    where: { businessUuid_sku: { businessUuid: alchemist.businessUuid, sku: 'TUSK-500' } },
     update: {},
     create: {
       productUuid: '11111111-5555-1111-1111-000000000001',
-      clubUuid: alchemist.clubUuid,
+      businessUuid: alchemist.businessUuid,
       categoryUuid: beersCat.categoryUuid,
       name: 'Tusker Lager (500ml)',
       description: 'Kenya finest ice cold lager',
@@ -262,11 +299,11 @@ async function main() {
   });
 
   await prisma.product.upsert({
-    where: { clubUuid_sku: { clubUuid: alchemist.clubUuid, sku: 'WCAP-500' } },
+    where: { businessUuid_sku: { businessUuid: alchemist.businessUuid, sku: 'WCAP-500' } },
     update: {},
     create: {
       productUuid: '11111111-5555-1111-1111-000000000002',
-      clubUuid: alchemist.clubUuid,
+      businessUuid: alchemist.businessUuid,
       categoryUuid: beersCat.categoryUuid,
       name: 'White Cap Crisp (500ml)',
       description: 'Sugar-free crisp lager',
@@ -277,11 +314,11 @@ async function main() {
   });
 
   await prisma.product.upsert({
-    where: { clubUuid_sku: { clubUuid: alchemist.clubUuid, sku: 'DAWA-01' } },
+    where: { businessUuid_sku: { businessUuid: alchemist.businessUuid, sku: 'DAWA-01' } },
     update: {},
     create: {
       productUuid: '11111111-5555-1111-1111-000000000003',
-      clubUuid: alchemist.clubUuid,
+      businessUuid: alchemist.businessUuid,
       categoryUuid: cocktailsCat.categoryUuid,
       name: 'Nairobi Dawa Cocktail',
       description: 'Vodka, honey, lime & ginger stem',
@@ -292,11 +329,11 @@ async function main() {
   });
 
   await prisma.product.upsert({
-    where: { clubUuid_sku: { clubUuid: alchemist.clubUuid, sku: 'CHOMA-1KG' } },
+    where: { businessUuid_sku: { businessUuid: alchemist.businessUuid, sku: 'CHOMA-1KG' } },
     update: {},
     create: {
       productUuid: '11111111-5555-1111-1111-000000000004',
-      clubUuid: alchemist.clubUuid,
+      businessUuid: alchemist.businessUuid,
       categoryUuid: foodCat.categoryUuid,
       name: 'Nyama Choma Platter (1kg)',
       description: 'Grilled goat meat served with Kachumbari',
@@ -308,11 +345,11 @@ async function main() {
 
   // G-Place Venue Tables
   await prisma.venueTable.upsert({
-    where: { clubUuid_tableNumber: { clubUuid: gplace.clubUuid, tableNumber: 1 } },
+    where: { businessUuid_tableNumber: { businessUuid: gplace.businessUuid, tableNumber: 1 } },
     update: {},
     create: {
       tableUuid: '33333333-4444-1111-1111-000000000001',
-      clubUuid: gplace.clubUuid,
+      businessUuid: gplace.businessUuid,
       tableNumber: 1,
       sectionName: 'Main Lounge',
       seatingCapacity: 4,
@@ -321,11 +358,11 @@ async function main() {
   });
 
   await prisma.venueTable.upsert({
-    where: { clubUuid_tableNumber: { clubUuid: gplace.clubUuid, tableNumber: 2 } },
+    where: { businessUuid_tableNumber: { businessUuid: gplace.businessUuid, tableNumber: 2 } },
     update: {},
     create: {
       tableUuid: '33333333-4444-1111-1111-000000000002',
-      clubUuid: gplace.clubUuid,
+      businessUuid: gplace.businessUuid,
       tableNumber: 2,
       sectionName: 'VIP Section',
       seatingCapacity: 6,
@@ -335,11 +372,11 @@ async function main() {
 
   // G-Place Menu Categories
   const gplaceBeers = await prisma.menuCategory.upsert({
-    where: { clubUuid_name: { clubUuid: gplace.clubUuid, name: 'Whiskey & Spirits' } },
+    where: { businessUuid_name: { businessUuid: gplace.businessUuid, name: 'Whiskey & Spirits' } },
     update: {},
     create: {
       categoryUuid: '33333333-3333-1111-1111-000000000001',
-      clubUuid: gplace.clubUuid,
+      businessUuid: gplace.businessUuid,
       name: 'Whiskey & Spirits',
       description: 'Premium whiskeys and spirits',
       displayOrder: 1,
@@ -347,11 +384,11 @@ async function main() {
   });
 
   const gplaceBeersCat = await prisma.menuCategory.upsert({
-    where: { clubUuid_name: { clubUuid: gplace.clubUuid, name: 'Cold Beers & Ciders' } },
+    where: { businessUuid_name: { businessUuid: gplace.businessUuid, name: 'Cold Beers & Ciders' } },
     update: {},
     create: {
       categoryUuid: '33333333-3333-1111-1111-000000000002',
-      clubUuid: gplace.clubUuid,
+      businessUuid: gplace.businessUuid,
       name: 'Cold Beers & Ciders',
       description: 'Ice cold lagers and ciders',
       displayOrder: 2,
@@ -360,11 +397,11 @@ async function main() {
 
   // G-Place Products (Jack Daniels, Johnnie Walker Black, Tusker)
   await prisma.product.upsert({
-    where: { clubUuid_sku: { clubUuid: gplace.clubUuid, sku: 'JD-750' } },
+    where: { businessUuid_sku: { businessUuid: gplace.businessUuid, sku: 'JD-750' } },
     update: {},
     create: {
       productUuid: '33333333-5555-1111-1111-000000000001',
-      clubUuid: gplace.clubUuid,
+      businessUuid: gplace.businessUuid,
       categoryUuid: gplaceBeers.categoryUuid,
       name: "Jack Daniel's Old No. 7 (750ml)",
       description: 'Tennessee sour mash whiskey',
@@ -376,11 +413,11 @@ async function main() {
   });
 
   await prisma.product.upsert({
-    where: { clubUuid_sku: { clubUuid: gplace.clubUuid, sku: 'JW-BLACK-750' } },
+    where: { businessUuid_sku: { businessUuid: gplace.businessUuid, sku: 'JW-BLACK-750' } },
     update: {},
     create: {
       productUuid: '33333333-5555-1111-1111-000000000002',
-      clubUuid: gplace.clubUuid,
+      businessUuid: gplace.businessUuid,
       categoryUuid: gplaceBeers.categoryUuid,
       name: 'Johnnie Walker Black Label (750ml)',
       description: 'Iconic 12 year blended Scotch whisky',
@@ -392,11 +429,11 @@ async function main() {
   });
 
   await prisma.product.upsert({
-    where: { clubUuid_sku: { clubUuid: gplace.clubUuid, sku: 'TUSK-GPLACE' } },
+    where: { businessUuid_sku: { businessUuid: gplace.businessUuid, sku: 'TUSK-GPLACE' } },
     update: {},
     create: {
       productUuid: '33333333-5555-1111-1111-000000000003',
-      clubUuid: gplace.clubUuid,
+      businessUuid: gplace.businessUuid,
       categoryUuid: gplaceBeersCat.categoryUuid,
       name: 'Tusker Lager (500ml)',
       description: 'Ice cold Kenyan lager',

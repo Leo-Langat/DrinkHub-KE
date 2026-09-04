@@ -6,28 +6,33 @@ import { prisma } from '../../config/prisma';
 export class MenuService {
   constructor(private menuRepository: IMenuRepository) {}
 
-  async getMenuForClub(clubUuid?: string) {
-    let targetClubUuid = clubUuid;
-    if (!targetClubUuid || targetClubUuid === 'default-club') {
-      const firstClub = await prisma.club.findFirst({ where: { deletedAt: null } });
-      if (firstClub) targetClubUuid = firstClub.clubUuid;
+  async getMenuForBusiness(businessUuid?: string) {
+    let targetUuid = businessUuid;
+    if (!targetUuid || targetUuid === 'default-club' || targetUuid === 'default-business') {
+      const firstBiz = await prisma.business.findFirst({ where: { deletedAt: null } });
+      if (firstBiz) targetUuid = firstBiz.businessUuid;
     }
-    if (!targetClubUuid) {
+    if (!targetUuid) {
       return { categories: [], products: [], offers: [] };
     }
     const [categories, products, offers] = await Promise.all([
-      this.menuRepository.findCategoriesByClub(targetClubUuid),
-      this.menuRepository.findProductsByClub(targetClubUuid),
-      this.menuRepository.findOffersByClub(targetClubUuid),
+      this.menuRepository.findCategoriesByBusiness(targetUuid),
+      this.menuRepository.findProductsByBusiness(targetUuid),
+      this.menuRepository.findOffersByBusiness(targetUuid),
     ]);
     return { categories, products, offers };
   }
 
-  async createCategory(clubUuid: string, data: Partial<MenuCategory>): Promise<MenuCategory> {
+  // Alias
+  async getMenuForClub(clubUuid?: string) {
+    return this.getMenuForBusiness(clubUuid);
+  }
+
+  async createCategory(businessUuid: string, data: Partial<MenuCategory>): Promise<MenuCategory> {
     if (!data.name) {
       throw new BadRequestError('Category name is required');
     }
-    return this.menuRepository.createCategory(clubUuid, data);
+    return this.menuRepository.createCategory(businessUuid, data);
   }
 
   async updateCategory(categoryUuid: string, data: Partial<MenuCategory>): Promise<MenuCategory> {
@@ -46,13 +51,16 @@ export class MenuService {
     return this.menuRepository.archiveCategory(categoryUuid);
   }
 
-  async updateCategoryOrders(clubUuid: string, orders: { categoryUuid: string; displayOrder: number }[]): Promise<void> {
-    return this.menuRepository.updateCategoryOrders(clubUuid, orders);
+  async updateCategoryOrders(
+    businessUuid: string,
+    orders: { categoryUuid: string; displayOrder: number }[],
+  ): Promise<void> {
+    return this.menuRepository.updateCategoryOrders(businessUuid, orders);
   }
 
-  async createProduct(clubUuid: string, data: any): Promise<Product> {
-    if (!clubUuid) {
-      throw new BadRequestError('Venue context is required to add menu items');
+  async createProduct(businessUuid: string, data: any): Promise<Product> {
+    if (!businessUuid) {
+      throw new BadRequestError('Business venue context is required to add menu items');
     }
     if (!data.name || data.price === undefined) {
       throw new BadRequestError('Product name and price are required');
@@ -65,7 +73,7 @@ export class MenuService {
       const trimmedCatName = String(categoryName).trim();
       let category = await prisma.menuCategory.findFirst({
         where: {
-          clubUuid,
+          businessUuid,
           name: { equals: trimmedCatName, mode: 'insensitive' },
           deletedAt: null,
         },
@@ -74,7 +82,7 @@ export class MenuService {
       if (!category) {
         category = await prisma.menuCategory.create({
           data: {
-            clubUuid,
+            businessUuid,
             name: trimmedCatName,
             displayOrder: 0,
           },
@@ -86,17 +94,17 @@ export class MenuService {
 
     if (!categoryUuid) {
       let defaultCat = await prisma.menuCategory.findFirst({
-        where: { clubUuid, name: 'General', deletedAt: null },
+        where: { businessUuid, name: 'General', deletedAt: null },
       });
       if (!defaultCat) {
         defaultCat = await prisma.menuCategory.create({
-          data: { clubUuid, name: 'General', displayOrder: 99 },
+          data: { businessUuid, name: 'General', displayOrder: 99 },
         });
       }
       categoryUuid = defaultCat.categoryUuid;
     }
 
-    return this.menuRepository.createProduct(clubUuid, {
+    return this.menuRepository.createProduct(businessUuid, {
       ...data,
       categoryUuid,
       price: Number(data.price),
@@ -123,11 +131,11 @@ export class MenuService {
     return this.menuRepository.archiveProduct(productUuid);
   }
 
-  async createOffer(clubUuid: string, data: any): Promise<Offer> {
+  async createOffer(businessUuid: string, data: any): Promise<Offer> {
     if (!data.title || data.discountValue === undefined) {
       throw new BadRequestError('Offer title and discount value are required');
     }
-    return this.menuRepository.createOffer(clubUuid, {
+    return this.menuRepository.createOffer(businessUuid, {
       ...data,
       discountValue: Number(data.discountValue),
       startTime: data.startTime ? new Date(data.startTime) : new Date(),
@@ -143,3 +151,4 @@ export class MenuService {
     return this.menuRepository.toggleOffer(offerUuid, isActive);
   }
 }
+

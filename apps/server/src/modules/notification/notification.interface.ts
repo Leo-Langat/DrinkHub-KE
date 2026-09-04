@@ -2,20 +2,20 @@ import { Notification, NotificationType, AuditLog } from '@prisma/client';
 
 export interface INotificationRepository {
   createNotification(data: {
-    clubUuid: string;
+    businessUuid: string;
     userUuid?: string;
     title: string;
     message: string;
     type: NotificationType;
   }): Promise<Notification>;
 
-  getUserNotifications(clubUuid: string, userUuid?: string): Promise<Notification[]>;
-  getUnreadCount(clubUuid: string, userUuid?: string): Promise<number>;
+  getUserNotifications(businessUuid: string, userUuid?: string): Promise<Notification[]>;
+  getUnreadCount(businessUuid: string, userUuid?: string): Promise<number>;
   markAsRead(notificationUuid: string): Promise<Notification>;
-  markAllAsRead(clubUuid: string, userUuid?: string): Promise<void>;
+  markAllAsRead(businessUuid: string, userUuid?: string): Promise<void>;
 
   createAuditLog(data: {
-    clubUuid?: string;
+    businessUuid?: string;
     userUuid?: string;
     action: string;
     entityType: string;
@@ -25,5 +25,5 @@ export interface INotificationRepository {
     ipAddress?: string;
   }): Promise<AuditLog>;
 
-  getAuditLogs(clubUuid?: string): Promise<AuditLog[]>;
+  getAuditLogs(businessUuid?: string): Promise<AuditLog[]>;
 }

@@ -3,9 +3,12 @@ import { env } from '../../config/env';
 
 export interface JwtPayload {
   userId: string;
-  tenantId?: string;
+  businessUuid?: string;
+  tenantId?: string; // backward-compatibility alias
   role: string;
+  email?: string;
 }
+
 
 export const generateAccessToken = (payload: JwtPayload): string => {
   return jwt.sign(payload, env.JWT_ACCESS_SECRET, {

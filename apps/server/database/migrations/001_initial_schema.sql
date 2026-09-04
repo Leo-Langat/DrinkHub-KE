@@ -11,10 +11,11 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- -----------------------------------------------------------------------------
 
 CREATE TYPE user_role_enum AS ENUM (
-  'PLATFORM_ADMIN',
-  'CLUB_ADMIN',
+  'SUPER_ADMIN',
+  'ADMIN',
   'MANAGER',
-  'WAITER'
+  'WAITER',
+  'CUSTOMER'
 );
 
 CREATE TYPE table_status_enum AS ENUM (
@@ -82,6 +83,25 @@ $$ LANGUAGE plpgsql;
 -- 1. CLUBS (TENANTS)
 -- -----------------------------------------------------------------------------
 
+CREATE TYPE business_type_enum AS ENUM (
+  'RESTAURANT',
+  'CLUB',
+  'BAR',
+  'LOUNGE',
+  'CAFE',
+  'FAST_FOOD',
+  'HOTEL',
+  'FOOD_COURT',
+  'OTHER'
+);
+
+CREATE TYPE business_status_enum AS ENUM (
+  'TRIAL',
+  'ACTIVE',
+  'SUSPENDED',
+  'CANCELLED'
+);
+
 CREATE TYPE subscription_status_enum AS ENUM (
   'TRIAL',
   'ACTIVE',
@@ -93,16 +113,24 @@ CREATE TABLE clubs (
   club_uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(255) NOT NULL,
   slug VARCHAR(100) NOT NULL UNIQUE,
+  business_type business_type_enum NOT NULL DEFAULT 'RESTAURANT',
   logo_url TEXT,
+  banner_url TEXT,
   phone VARCHAR(20),
   email VARCHAR(255),
   city VARCHAR(100) NOT NULL DEFAULT 'Nairobi',
   county VARCHAR(100) NOT NULL DEFAULT 'Nairobi',
   address TEXT,
   gps_coordinates VARCHAR(100),
+  description TEXT,
+  country VARCHAR(100) NOT NULL DEFAULT 'Kenya',
+  currency VARCHAR(10) NOT NULL DEFAULT 'KES',
+  timezone VARCHAR(100) NOT NULL DEFAULT 'Africa/Nairobi',
   brand_color VARCHAR(10) NOT NULL DEFAULT '#e11d48',
-  opening_hours VARCHAR(10) NOT NULL DEFAULT '14:00',
-  closing_hours VARCHAR(10) NOT NULL DEFAULT '04:00',
+  opening_hours VARCHAR(10) NOT NULL DEFAULT '08:00',
+  closing_hours VARCHAR(10) NOT NULL DEFAULT '23:00',
+  operating_schedule JSONB,
+  business_status business_status_enum NOT NULL DEFAULT 'ACTIVE',
   subscription_status subscription_status_enum NOT NULL DEFAULT 'ACTIVE',
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -355,6 +383,7 @@ CREATE TABLE orders (
   total_amount NUMERIC(10, 2) NOT NULL CHECK (total_amount >= 0),
   status order_status_enum NOT NULL DEFAULT 'PENDING',
   notes TEXT,
+  age_verified BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -408,6 +437,7 @@ CREATE TABLE payments (
   customer_cash_amount NUMERIC(10, 2),
   change_due NUMERIC(10, 2),
   payment_notes TEXT,
+  paid_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

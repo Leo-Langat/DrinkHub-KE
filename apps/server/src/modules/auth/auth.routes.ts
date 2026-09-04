@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { validateRequest } from '../../common/middlewares/validate.middleware';
 import { authenticate, authorize } from '../../common/middlewares/auth.middleware';
+import { UserRole } from '@drinkhub/shared';
 import {
   loginSchema,
   registerSchema,
@@ -14,6 +15,7 @@ import {
   firstLoginPasswordChangeSchema,
   changePasswordSchema,
 } from './auth.schema';
+
 
 const authRepository = new AuthRepository();
 const authService = new AuthService(authRepository);
@@ -103,19 +105,19 @@ authRouter.post('/logout', validateRequest(refreshTokenSchema), authController.l
  *               email: { type: string }
  *               password: { type: string }
  *               fullName: { type: string }
- *               role: { type: string, enum: [PLATFORM_ADMIN, CLUB_ADMIN, MANAGER, WAITER] }
+ *               role: { type: string, enum: [SUPER_ADMIN, ADMIN, MANAGER, WAITER, CUSTOMER] }
  *               clubUuid: { type: string }
  *               mustChangePassword: { type: boolean }
  *     responses:
  *       201:
  *         description: Registered user details
  */
-// SECURITY: Only authenticated PLATFORM_ADMIN, CLUB_ADMIN, or MANAGER may register new users
+// SECURITY: Only authenticated SUPER_ADMIN, ADMIN, or MANAGER may register new users
 // MANAGER can only create WAITER accounts (enforced in the controller)
 authRouter.post(
   '/register',
   authenticate,
-  authorize(['PLATFORM_ADMIN', 'CLUB_ADMIN', 'MANAGER']),
+  authorize([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER]),
   validateRequest(registerSchema),
   authController.register,
 );
@@ -236,19 +238,46 @@ authRouter.post('/change-password', authenticate, validateRequest(changePassword
  * @openapi
  * /auth/staff:
  *   get:
- *     summary: List all staff users belonging to the authenticated manager's club
+ *     summary: List all staff users belonging to the authenticated manager's business
  *     tags: [Auth]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: role
- *         schema: { type: string, enum: [WAITER, MANAGER, CLUB_ADMIN] }
+ *         schema: { type: string, enum: [WAITER, MANAGER, ADMIN] }
  *     responses:
  *       200:
  *         description: Array of staff user objects
  */
-authRouter.get('/staff', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PLATFORM_ADMIN']), authController.listStaff);
+authRouter.get('/staff', authenticate, authorize([UserRole.MANAGER, UserRole.ADMIN, UserRole.SUPER_ADMIN]), authController.listStaff);
+
+/**
+ * @openapi
+ * /auth/users:
+ *   get:
+ *     summary: List all platform users with filtering (Super Admin only)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: role
+ *         schema: { type: string }
+ *       - in: query
+ *         name: businessUuid
+ *         schema: { type: string }
+ *       - in: query
+ *         name: isActive
+ *         schema: { type: boolean }
+ *       - in: query
+ *         name: search
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Array of platform user objects
+ */
+authRouter.get('/users', authenticate, authorize([UserRole.SUPER_ADMIN]), authController.listUsers);
 
 /**
  * @openapi
@@ -276,7 +305,7 @@ authRouter.get('/staff', authenticate, authorize(['MANAGER', 'CLUB_ADMIN', 'PLAT
  *       200:
  *         description: User status updated
  */
-authRouter.patch('/users/:uuid/status', authenticate, authorize(['PLATFORM_ADMIN', 'CLUB_ADMIN', 'MANAGER']), authController.toggleUserStatus);
+authRouter.patch('/users/:uuid/status', authenticate, authorize([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER]), authController.toggleUserStatus);
 
 /**
  * @openapi
@@ -307,8 +336,8 @@ authRouter.patch('/users/:uuid/status', authenticate, authorize(['PLATFORM_ADMIN
  *       200:
  *         description: User details updated
  */
-authRouter.patch('/users/:uuid', authenticate, authorize(['PLATFORM_ADMIN', 'CLUB_ADMIN', 'MANAGER']), authController.updateUser);
-authRouter.put('/users/:uuid', authenticate, authorize(['PLATFORM_ADMIN', 'CLUB_ADMIN', 'MANAGER']), authController.updateUser);
+authRouter.patch('/users/:uuid', authenticate, authorize([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER]), authController.updateUser);
+authRouter.put('/users/:uuid', authenticate, authorize([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER]), authController.updateUser);
 
 /**
  * @openapi
@@ -327,7 +356,8 @@ authRouter.put('/users/:uuid', authenticate, authorize(['PLATFORM_ADMIN', 'CLUB_
  *       200:
  *         description: User deleted
  */
-authRouter.delete('/users/:uuid', authenticate, authorize(['PLATFORM_ADMIN', 'CLUB_ADMIN', 'MANAGER']), authController.deleteUser);
+authRouter.delete('/users/:uuid', authenticate, authorize([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER]), authController.deleteUser);
+
 
 /**
  * @openapi

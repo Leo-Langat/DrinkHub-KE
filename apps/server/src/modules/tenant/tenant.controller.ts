@@ -17,6 +17,19 @@ export class TenantController {
     }
   };
 
+  getPlatformStats = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const stats = await this.tenantService.getPlatformStats();
+      res.json({
+        success: true,
+        data: stats,
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   getBySlug = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { slug } = req.params;
@@ -45,23 +58,34 @@ export class TenantController {
   };
 
   /**
-   * POST /tenants/provision — Unified Club + Manager provisioning (§23–24).
-   * Creates Club and Manager atomically. Manager password hash is NEVER returned.
+   * POST /tenants/provision — Unified Business + Admin provisioning.
+   * Creates Business and initial Admin atomically. Password hash is never returned.
    */
   provision = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const result = await this.tenantService.createClubWithManager(req.body);
+      const result = await this.tenantService.createBusinessWithAdmin(req.body);
       res.status(201).json({
         success: true,
         data: {
-          club: result.club,
+          business: result.business,
+          club: result.business, // backward compatibility
+          admin: {
+            userUuid: result.admin.userUuid,
+            email: result.admin.email,
+            fullName: result.admin.fullName,
+            role: result.admin.role,
+            mustChangePassword: result.admin.mustChangePassword,
+            businessUuid: result.admin.businessUuid,
+            clubUuid: result.admin.businessUuid,
+          },
           manager: {
-            userUuid: result.manager.userUuid,
-            email: result.manager.email,
-            fullName: result.manager.fullName,
-            role: result.manager.role,
-            mustChangePassword: result.manager.mustChangePassword,
-            clubUuid: result.manager.clubUuid,
+            userUuid: result.admin.userUuid,
+            email: result.admin.email,
+            fullName: result.admin.fullName,
+            role: result.admin.role,
+            mustChangePassword: result.admin.mustChangePassword,
+            businessUuid: result.admin.businessUuid,
+            clubUuid: result.admin.businessUuid,
           },
         },
         meta: { timestamp: new Date().toISOString(), version: 'v1' },
@@ -71,11 +95,54 @@ export class TenantController {
     }
   };
 
+  getCurrentBusiness = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userRole = (req.user?.role || '').toUpperCase();
+      let businessUuid: string;
+
+      if (userRole === 'SUPER_ADMIN') {
+        businessUuid = (req.query.businessUuid as string) || (req.query.clubUuid as string) || req.user?.businessUuid || req.businessUuid || '';
+      } else {
+        businessUuid = req.user?.businessUuid || req.user?.tenantId || (req.user as any)?.clubUuid || req.businessUuid || '';
+      }
+
+      if (!businessUuid) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'MISSING_BUSINESS', message: 'No business is associated with your account' },
+        });
+        return;
+      }
+
+      const summary = await this.tenantService.getBusinessSummary(businessUuid);
+      res.json({
+        success: true,
+        data: summary,
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 
   update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { clubUuid } = req.params;
-      const tenant = await this.tenantService.updateTenant(clubUuid, req.body);
+      const targetBusinessUuid = req.params.businessUuid || req.params.clubUuid;
+      const userRole = (req.user?.role || '').toUpperCase();
+      const callerBusinessUuid = req.user?.businessUuid || req.user?.tenantId || (req.user as any)?.clubUuid;
+
+      // Tenant isolation: Non-SUPER_ADMIN users can ONLY update their own assigned business
+      if (userRole !== 'SUPER_ADMIN') {
+        if (callerBusinessUuid !== targetBusinessUuid) {
+          res.status(403).json({
+            success: false,
+            error: { code: 'FORBIDDEN', message: 'Access denied: You can only update settings for your own business' },
+          });
+          return;
+        }
+      }
+
+      const tenant = await this.tenantService.updateTenant(targetBusinessUuid, req.body);
       res.json({
         success: true,
         data: tenant,
@@ -88,8 +155,8 @@ export class TenantController {
 
   suspend = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { clubUuid } = req.params;
-      const tenant = await this.tenantService.suspendTenant(clubUuid);
+      const businessUuid = req.params.businessUuid || req.params.clubUuid;
+      const tenant = await this.tenantService.suspendTenant(businessUuid);
       res.json({
         success: true,
         data: tenant,
@@ -102,8 +169,8 @@ export class TenantController {
 
   activate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { clubUuid } = req.params;
-      const tenant = await this.tenantService.activateTenant(clubUuid);
+      const businessUuid = req.params.businessUuid || req.params.clubUuid;
+      const tenant = await this.tenantService.activateTenant(businessUuid);
       res.json({
         success: true,
         data: tenant,
@@ -116,11 +183,11 @@ export class TenantController {
 
   delete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { clubUuid } = req.params;
-      await this.tenantService.deleteTenant(clubUuid);
+      const businessUuid = req.params.businessUuid || req.params.clubUuid;
+      await this.tenantService.deleteTenant(businessUuid);
       res.json({
         success: true,
-        data: { message: 'Club deleted successfully' },
+        data: { message: 'Business deleted successfully' },
         meta: { timestamp: new Date().toISOString(), version: 'v1' },
       });
     } catch (error) {
@@ -130,9 +197,9 @@ export class TenantController {
 
   assignManager = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { clubUuid } = req.params;
+      const businessUuid = req.params.businessUuid || req.params.clubUuid;
       const { userUuid } = req.body;
-      const manager = await this.tenantService.assignManager(clubUuid, userUuid);
+      const manager = await this.tenantService.assignManager(businessUuid, userUuid);
       res.json({
         success: true,
         data: manager,
@@ -145,8 +212,8 @@ export class TenantController {
 
   getTables = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { clubUuid } = req.params;
-      const tables = await this.tenantService.getTables(clubUuid);
+      const businessUuid = req.params.businessUuid || req.params.clubUuid;
+      const tables = await this.tenantService.getTables(businessUuid);
       res.json({
         success: true,
         data: tables,
@@ -159,9 +226,9 @@ export class TenantController {
 
   generateQrCodes = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { clubUuid } = req.params;
+      const businessUuid = req.params.businessUuid || req.params.clubUuid;
       const { tableCount, sectionName, startFrom } = req.body;
-      const result = await this.tenantService.generateQrCodes(clubUuid, tableCount, sectionName, startFrom);
+      const result = await this.tenantService.generateQrCodes(businessUuid, tableCount, sectionName, startFrom);
       res.json({
         success: true,
         data: result,
@@ -174,8 +241,9 @@ export class TenantController {
 
   deleteTable = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { clubUuid, tableNumber } = req.params;
-      await this.tenantService.deleteTable(clubUuid, parseInt(tableNumber, 10));
+      const businessUuid = req.params.businessUuid || req.params.clubUuid;
+      const { tableNumber } = req.params;
+      await this.tenantService.deleteTable(businessUuid, parseInt(tableNumber, 10));
       res.json({
         success: true,
         data: { message: `Table ${tableNumber} deleted successfully` },
@@ -186,3 +254,4 @@ export class TenantController {
     }
   };
 }
+

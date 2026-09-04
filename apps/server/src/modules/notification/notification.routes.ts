@@ -3,6 +3,7 @@ import { NotificationRepository } from './notification.repository';
 import { NotificationService } from './notification.service';
 import { NotificationController } from './notification.controller';
 import { authenticate, authorize } from '../../common/middlewares/auth.middleware';
+import { UserRole } from '@drinkhub/shared';
 
 const notificationRepository = new NotificationRepository();
 const notificationService = new NotificationService(notificationRepository);
@@ -69,4 +70,9 @@ notificationRouter.post('/read-all', authenticate, notificationController.markAl
  *       200:
  *         description: List of audit log entries
  */
-notificationRouter.get('/audit-logs', authenticate, authorize(['PLATFORM_ADMIN', 'CLUB_ADMIN', 'MANAGER']), notificationController.getAuditLogs);
+notificationRouter.get(
+  '/audit-logs',
+  authenticate,
+  authorize([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER]),
+  notificationController.getAuditLogs,
+);

@@ -563,15 +563,18 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
         setAnalytics(analyticsRes.value.data);
       }
       if (staffRes.status === 'fulfilled' && staffRes.value.success) {
-        const staff = staffRes.value.data || [];
+        const rawStaff = staffRes.value.data?.staff ?? staffRes.value.data ?? [];
+        const staff = Array.isArray(rawStaff) ? rawStaff : [];
         setStaffList(staff);
         setManagers(staff.filter((s: any) => s.role === 'MANAGER'));
       }
       if (ordersRes.status === 'fulfilled' && ordersRes.value.success) {
-        setOrders(ordersRes.value.data || []);
+        const rawOrders = ordersRes.value.data?.orders ?? ordersRes.value.data ?? [];
+        setOrders(Array.isArray(rawOrders) ? rawOrders : []);
       }
       if (paymentsRes.status === 'fulfilled' && paymentsRes.value.success) {
-        setPayments(paymentsRes.value.data?.payments || paymentsRes.value.data || []);
+        const rawPayments = paymentsRes.value.data?.payments ?? paymentsRes.value.data ?? [];
+        setPayments(Array.isArray(rawPayments) ? rawPayments : []);
       }
     } catch (err: any) {
       showToast(err.message || 'Failed to load business data', 'error');
@@ -728,8 +731,8 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       inProgressOrders: 0,
       completedOrders: 0,
       cancelledOrders: 0,
-      totalManagers: managers.length,
-      totalWaiters: staffList.filter((s: any) => s.role === 'WAITER').length,
+      totalManagers: (Array.isArray(managers) ? managers : []).length,
+      totalWaiters: (Array.isArray(staffList) ? staffList : []).filter((s: any) => s.role === 'WAITER').length,
     };
 
     const revTrend = overview?.revenue;
@@ -3979,8 +3982,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
      FEATURE 7: STAFF PERFORMANCE VIEW
   ───────────────────────────────────────────────────────────── */
   const renderStaffPerformance = () => {
-    const waiterStats = analytics?.waiterPerformance || [];
-    const waiters = staffList.filter((s) => s.role === 'WAITER');
+    const waiterStats = Array.isArray(analytics?.waiterPerformance) ? analytics.waiterPerformance : [];
+    const waiters = (Array.isArray(staffList) ? staffList : []).filter((s) => s.role === 'WAITER');
+    const managerList = Array.isArray(managers) ? managers : [];
 
     return (
       <div className="space-y-6">
@@ -4001,17 +4005,21 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
             <div className="flex items-center gap-3 mb-2">
               <Shield className="h-5 w-5 text-blue-600" />
               <h4 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>
-                Management Team ({managers.length})
+                Management Team ({managerList.length})
               </h4>
             </div>
             <p className="text-xs text-slate-500 mb-3">Managers oversee waiter dispatch and menu operations.</p>
             <div className="space-y-2">
-              {managers.map((m) => (
-                <div key={m.userUuid} className="flex items-center justify-between p-2 rounded-xl bg-slate-500/5 text-xs">
-                  <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{m.fullName}</span>
-                  <StatusBadge status={m.isActive ? 'ACTIVE' : 'SUSPENDED'} />
-                </div>
-              ))}
+              {managerList.length === 0 ? (
+                <p className="text-xs text-slate-400 py-2">No managers assigned to this business yet.</p>
+              ) : (
+                managerList.map((m) => (
+                  <div key={m.userUuid || m.email || String(Math.random())} className="flex items-center justify-between p-2 rounded-xl bg-slate-500/5 text-xs">
+                    <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{m.fullName || m.email}</span>
+                    <StatusBadge status={m.isActive ? 'ACTIVE' : 'SUSPENDED'} />
+                  </div>
+                ))
+              )}
             </div>
           </div>
 

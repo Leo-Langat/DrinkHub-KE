@@ -4,6 +4,7 @@ import { LoginPage } from './pages/LoginPage';
 import { WaiterDashboard } from './pages/WaiterDashboard';
 import { ManagerDashboard } from './pages/ManagerDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import {
   isJwtExpired,
   isSessionExpired,
@@ -115,26 +116,28 @@ export const App: React.FC = () => {
         onStayLoggedIn={stayActive}
         onLogoutNow={logoutNow}
       />
-      <Routes>
-        {session.role === 'admin' && (
-          <>
-            <Route path="/admin/dashboard" element={<AdminDashboard onLogout={handleLogout} />} />
-            <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
-          </>
-        )}
-        {session.role === 'waiter' && (
-          <>
-            <Route path="/waiter/dashboard" element={<WaiterDashboard onLogout={handleLogout} />} />
-            <Route path="*" element={<Navigate to="/waiter/dashboard" replace />} />
-          </>
-        )}
-        {session.role === 'manager' && (
-          <>
-            <Route path="/manager/dashboard" element={<ManagerDashboard onLogout={handleLogout} />} />
-            <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
-          </>
-        )}
-      </Routes>
+      <ErrorBoundary>
+        <Routes>
+          {session.role === 'admin' && (
+            <>
+              <Route path="/admin/dashboard" element={<AdminDashboard onLogout={handleLogout} />} />
+              <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+            </>
+          )}
+          {session.role === 'waiter' && (
+            <>
+              <Route path="/waiter/dashboard" element={<WaiterDashboard onLogout={handleLogout} />} />
+              <Route path="*" element={<Navigate to="/waiter/dashboard" replace />} />
+            </>
+          )}
+          {session.role === 'manager' && (
+            <>
+              <Route path="/manager/dashboard" element={<ManagerDashboard onLogout={handleLogout} />} />
+              <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
+            </>
+          )}
+        </Routes>
+      </ErrorBoundary>
     </Router>
   );
 };

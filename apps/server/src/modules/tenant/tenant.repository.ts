@@ -195,6 +195,8 @@ export class TenantRepository implements ITenantRepository {
         city: data.city || 'Nairobi',
         county: data.county || 'Nairobi',
         logoUrl: data.logoUrl,
+        bannerUrl: (data as any).bannerUrl,
+        description: (data as any).description,
         phone: data.phone,
         email: data.email,
         address: data.address,
@@ -222,6 +224,8 @@ export class TenantRepository implements ITenantRepository {
           phone: data.phone,
           email: data.email,
           logoUrl: data.logoUrl,
+          bannerUrl: data.bannerUrl,
+          description: data.description,
           themeColor: data.themeColor || '#e11d48',
           openingHours: data.openingHours || '08:00',
           closingHours: data.closingHours || '23:00',
@@ -355,7 +359,9 @@ export class TenantRepository implements ITenantRepository {
         },
       });
 
-      const qrPayload = `https://drink-hub-ke-customer-pwa.vercel.app/v/${business.slug}/t/${tableNum}`;
+      const pwaBase = process.env.CUSTOMER_PWA_URL || process.env.CLIENT_URL || 'https://drink-hub-ke-customer-pwa.vercel.app';
+      const cleanPwaBase = pwaBase.endsWith('/') ? pwaBase.slice(0, -1) : pwaBase;
+      const qrPayload = `${cleanPwaBase}/v/${business.slug}/t/${tableNum}`;
       const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrPayload)}`;
 
       const qr = await prisma.qrCode.upsert({

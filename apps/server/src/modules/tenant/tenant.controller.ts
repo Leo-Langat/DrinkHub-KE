@@ -253,5 +253,23 @@ export class TenantController {
       next(error);
     }
   };
+
+  uploadImage = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const file = (req as Request & { file?: Express.Multer.File }).file;
+      if (!file) {
+        res.status(400).json({ success: false, error: { message: 'No image file uploaded' } });
+        return;
+      }
+      const imageUrl = `/uploads/${file.filename}`;
+      res.json({
+        success: true,
+        data: { imageUrl, url: imageUrl },
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 

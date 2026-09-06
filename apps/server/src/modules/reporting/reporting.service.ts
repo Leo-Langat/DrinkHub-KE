@@ -978,7 +978,7 @@ export class ReportingService {
     else if (period === 'YEARLY') rangeEnum = 'LAST_30_DAYS';
 
     const range = this.resolveDateRange(rangeEnum);
-    const [overview, _revenue, orders, _payments, _products, waiters] = await Promise.all([
+    const [overview, paidPayments, orders, paymentsAgg, productsData, waitersData] = await Promise.all([
       this.reportingRepository.getRevenueForPeriod(businessUuid, range.start, range.end),
       this.reportingRepository.getPaidPaymentsInRange(businessUuid, range.start, range.end),
       this.reportingRepository.getOrdersForTrend(businessUuid, range.start, range.end),
@@ -987,15 +987,119 @@ export class ReportingService {
       this.reportingRepository.getWaiterPerformanceData(businessUuid, range.start, range.end),
     ]);
 
+    // 1. Daily Revenue
+    const dailyMap: Record<string, number> = {};
+    for (const p of paidPayments) {
+      if (!p.paidAt) continue;
+      const dateKey = p.paidAt.toISOString().split('T')[0];
+      dailyMap[dateKey] = (dailyMap[dateKey] || 0) + Number(p.amount || 0);
+    }
+    const allDates = this.getDateList(range.start, range.end);
+    const dailyRevenue = allDates.map((date) => ({
+      date,
+      day: date,
+      revenue: Math.round((dailyMap[date] || 0) * 100) / 100,
+    }));
+
+    // 2. Hourly Orders
+    const hourlyMap: Record<number, number> = {};
+    for (let h = 0; h < 24; h++) hourlyMap[h] = 0;
+    for (const o of orders) {
+      const hr = new Date(o.createdAt).getHours();
+      hourlyMap[hr] = (hourlyMap[hr] || 0) + 1;
+    }
+    const hourlyOrders = Object.entries(hourlyMap).map(([h, count]) => ({
+      hour: Number(h),
+      h: Number(h),
+      count,
+      n: count,
+    }));
+
+    // 3. Payment Breakdown
+    let totalPaymentTx = 0;
+    const methodCounts: Record<string, number> = { MPESA_STK: 0, CARD: 0, CASH: 0 };
+    for (const mb of paymentsAgg.methodBreakdown) {
+      const c = mb._count.paymentUuid;
+      methodCounts[mb.paymentMethod] = (methodCounts[mb.paymentMethod] || 0) + c;
+      totalPaymentTx += c;
+    }
+    const paymentBreakdown = {
+      mpesa: {
+        count: methodCounts['MPESA_STK'] || 0,
+        percentage: totalPaymentTx > 0 ? Math.round(((methodCounts['MPESA_STK'] || 0) / totalPaymentTx) * 100) : 0,
+      },
+      card: {
+        count: methodCounts['CARD'] || 0,
+        percentage: totalPaymentTx > 0 ? Math.round(((methodCounts['CARD'] || 0) / totalPaymentTx) * 100) : 0,
+      },
+      cash: {
+        count: methodCounts['CASH'] || 0,
+        percentage: totalPaymentTx > 0 ? Math.round(((methodCounts['CASH'] || 0) / totalPaymentTx) * 100) : 0,
+      },
+    };
+
+    // 4. Top Products
+    const prodMap: Record<string, { name: string; category: string; unitsSold: number; revenue: number }> = {};
+    for (const item of productsData.orderItems) {
+      const pId = item.productUuid;
+      const name = item.product?.name || 'Product';
+      const category = item.product?.category?.name || 'General';
+      const qty = item.quantity || 1;
+      const rev = Number(item.subtotal || Number(item.unitPrice || 0) * qty);
+      if (!prodMap[pId]) prodMap[pId] = { name, category, unitsSold: 0, revenue: 0 };
+      prodMap[pId].unitsSold += qty;
+      prodMap[pId].revenue += rev;
+    }
+    const topProducts = Object.values(prodMap)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+
+    // 5. Waiter Performance
+    const waiterMap: Record<string, { name: string; ordersServed: number; revenueGenerated: number; totalMs: number }> = {};
+    for (const w of waitersData.waiters) {
+      waiterMap[w.userUuid] = { name: w.fullName, ordersServed: 0, revenueGenerated: 0, totalMs: 0 };
+    }
+    for (const o of waitersData.orders) {
+      if (!o.waiterUuid) continue;
+      if (!waiterMap[o.waiterUuid]) {
+        waiterMap[o.waiterUuid] = { name: (o as any).waiter?.fullName || 'Staff', ordersServed: 0, revenueGenerated: 0, totalMs: 0 };
+      }
+      if (o.status === OrderStatus.COMPLETED || o.status === OrderStatus.DELIVERED) {
+        waiterMap[o.waiterUuid].ordersServed += 1;
+        waiterMap[o.waiterUuid].revenueGenerated += Number(o.totalAmount || 0);
+        if (o.createdAt && o.updatedAt) {
+          waiterMap[o.waiterUuid].totalMs += Math.max(0, o.updatedAt.getTime() - o.createdAt.getTime());
+        }
+      }
+    }
+    const waiterPerformance = Object.values(waiterMap).map((w) => ({
+      name: w.name,
+      ordersServed: w.ordersServed,
+      revenueGenerated: Math.round(w.revenueGenerated * 100) / 100,
+      avgFulfillmentMins: w.ordersServed > 0 ? Math.round(w.totalMs / (w.ordersServed * 60 * 1000) * 10) / 10 : 0,
+    }));
+
+    // 6. KPIs
+    const completedOrders = orders.filter((o) => o.status === OrderStatus.COMPLETED || o.status === OrderStatus.DELIVERED).length;
+    const cancelledOrders = orders.filter((o) => o.status === OrderStatus.CANCELLED).length;
+
     return {
       period,
       generatedAt: new Date().toISOString(),
       kpis: {
         totalRevenue: overview,
+        totalOrders: orders.length,
         totalOrdersCount: orders.length,
-        averageOrderValue: orders.length > 0 ? Math.round(overview / orders.length) : 0,
-        activeWaitersCount: waiters.waiters.length,
+        completedOrders,
+        cancelledOrders,
+        averageOrderValue: completedOrders > 0 ? Math.round((overview / completedOrders) * 100) / 100 : 0,
+        activeWaitersCount: waitersData.waiters.length,
       },
+      dailyRevenue,
+      hourlyOrders,
+      paymentBreakdown,
+      topProducts,
+      waiterPerformance,
     };
   }
 

@@ -4,6 +4,7 @@ import { TenantService } from './tenant.service';
 import { TenantController } from './tenant.controller';
 import { validateRequest } from '../../common/middlewares/validate.middleware';
 import { authenticate, authorize } from '../../common/middlewares/auth.middleware';
+import { uploadImage } from '../../common/middlewares/upload.middleware';
 import { UserRole } from '@drinkhub/shared';
 import {
   createBusinessSchema,
@@ -35,6 +36,14 @@ tenantRouter.get(
 
 tenantRouter.get('/', tenantController.getAll);
 tenantRouter.get('/:slug', tenantController.getBySlug);
+
+tenantRouter.post(
+  '/upload',
+  authenticate,
+  authorize([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER]),
+  uploadImage.single('file'),
+  tenantController.uploadImage,
+);
 
 tenantRouter.post(
   '/provision',

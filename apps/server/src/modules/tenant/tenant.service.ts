@@ -68,6 +68,8 @@ export class TenantService {
     phone?: string;
     email?: string;
     logoUrl?: string;
+    bannerUrl?: string;
+    description?: string;
     themeColor?: string;
     brandColor?: string;
     openingHours?: string;
@@ -105,6 +107,8 @@ export class TenantService {
       phone: data.phone,
       email: data.email,
       logoUrl: data.logoUrl,
+      bannerUrl: data.bannerUrl,
+      description: data.description,
       themeColor: data.themeColor || data.brandColor,
       openingHours: data.openingHours,
       closingHours: data.closingHours,

@@ -11,6 +11,8 @@ export interface CreateBusinessWithAdminInput {
   phone?: string;
   email?: string;
   logoUrl?: string;
+  bannerUrl?: string;
+  description?: string;
   themeColor?: string;
   openingHours?: string;
   closingHours?: string;

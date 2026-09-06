@@ -183,7 +183,8 @@ export const DigitalStorefrontPage: React.FC = () => {
         }
         const tenantData = await tenantRes.json();
         const club = tenantData.data?.club ?? tenantData.data ?? tenantData;
-        const resolvedClubUuid = club.clubUuid ?? club.uuid ?? club.id ?? null;
+        // Support both local backend (businessUuid) and Render backend (clubUuid)
+        const resolvedClubUuid = club.clubUuid ?? club.businessUuid ?? club.uuid ?? club.id ?? null;
         setClubUuid(resolvedClubUuid);
 
         const fallbackLogo =

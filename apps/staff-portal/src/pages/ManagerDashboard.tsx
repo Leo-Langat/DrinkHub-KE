@@ -2752,7 +2752,9 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
   const clubSlug = user.club?.slug || user.clubSlug || user.tenantSlug || (user.club?.name ? user.club.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'g-place');
   const clubName = user.club?.name || 'Your Venue';
   const clubUuid = user.club?.clubUuid || user.clubUuid || user.tenantId || '';
-  const fullBaseUrl = `https://drink-hub-ke-customer-pwa.vercel.app/v/${clubSlug}`;
+  const pwaBase = (import.meta as any).env?.VITE_CUSTOMER_PWA_URL || 'https://drink-hub-ke-customer-pwa.vercel.app';
+  const cleanPwaBase = pwaBase.endsWith('/') ? pwaBase.slice(0, -1) : pwaBase;
+  const fullBaseUrl = `${cleanPwaBase}/v/${clubSlug}`;
 
   const storageKey = `drinkhub_qr_tables_${clubSlug}`;
 

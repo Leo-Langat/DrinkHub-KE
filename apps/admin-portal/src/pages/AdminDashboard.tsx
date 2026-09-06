@@ -165,9 +165,32 @@ const generatePassword = (): string => {
 const readFile = (e: React.ChangeEvent<HTMLInputElement>, cb: (url: string) => void) => {
   const file = e.target.files?.[0];
   if (!file) return;
+
+  // 1. Instant local preview
   const reader = new FileReader();
-  reader.onload = ev => cb(ev.target?.result as string);
+  reader.onload = ev => {
+    if (ev.target?.result) cb(ev.target.result as string);
+  };
   reader.readAsDataURL(file);
+
+  // 2. Upload to server in background for static persistent asset URL
+  const formData = new FormData();
+  formData.append('file', file);
+  const token = localStorage.getItem('drinkhub_token') || localStorage.getItem('drinkhub_admin_token');
+  fetch(getApiUrl('/tenants/upload'), {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success && (data.data?.imageUrl || data.data?.url)) {
+        cb(data.data.imageUrl || data.data.url);
+      }
+    })
+    .catch(() => {
+      // Keep existing base64 preview on network failure
+    });
 };
 
 const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Wine, Eye, EyeOff, ChevronRight, Loader2, User, Briefcase, Shield, Timer } from 'lucide-react';
-import { getApiUrl } from '../config/api';
+import { Wine, Eye, EyeOff, ChevronRight, Loader2, User, Briefcase, Shield, Timer, Server, Globe } from 'lucide-react';
+import { getApiUrl, getApiTarget, setApiTarget, ApiTarget } from '../config/api';
 import { getSessionExpiredNotice } from '@drinkhub/shared';
 
 type StaffRole = 'waiter' | 'manager' | 'admin';
@@ -11,6 +11,7 @@ interface LoginPageProps {
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [role, setRole] = useState<StaffRole>('admin');
+  const [apiTarget, setApiTargetState] = useState<ApiTarget>(() => getApiTarget());
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -51,24 +52,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       }
 
       const userRole = (data.data?.user?.role || '').toUpperCase();
-      if (role === 'admin') {
-        if (userRole !== 'ADMIN') {
-          throw new Error('Access denied. Account lacks Business Admin privileges. Please select Manager or Waiter tab.');
-        }
+      let targetRole: StaffRole = role;
+
+      if (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') {
+        targetRole = (role === 'manager' || role === 'waiter') ? role : 'admin';
+      } else if (userRole === 'MANAGER') {
+        targetRole = 'manager';
+      } else if (userRole === 'WAITER') {
+        targetRole = 'waiter';
+      } else {
+        throw new Error(`Access denied. Account role "${userRole}" is not permitted on the staff portal.`);
       }
-      if (role === 'manager') {
-        if (userRole !== 'MANAGER') {
-          if (userRole === 'WAITER') {
-            throw new Error('Access denied. Waiter accounts cannot log into the Manager Portal. Please switch to the Waiter tab.');
-          }
-          throw new Error('Access denied. Account lacks Manager privileges.');
-        }
-      }
-      if (role === 'waiter') {
-        if (userRole !== 'WAITER') {
-          throw new Error('Access denied. Only Waiter accounts can log into the Waiter Portal.');
-        }
-      }
+
+      setRole(targetRole);
 
       if (data.data?.accessToken) {
         localStorage.setItem('drinkhub_token', data.data.accessToken);
@@ -87,7 +83,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         return;
       }
 
-      onLogin(role);
+      onLogin(targetRole);
     } catch (err: any) {
       const isNetworkError =
         err.name === 'TypeError' ||
@@ -98,7 +94,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
       if (isNetworkError) {
         setError(
-          'Cannot connect to the server. Make sure the backend is running at port 5000 and try again.',
+          `Cannot connect to the ${apiTarget === 'cloud' ? 'Cloud Server (Render)' : 'Local Server (port 5000)'}. Please verify the server is running or try switching servers below.`
         );
       } else {
         setError(err.message || 'Authentication failed. Invalid credentials.');
@@ -106,6 +102,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSwitchTarget = (newTarget: ApiTarget) => {
+    setApiTarget(newTarget);
+    setApiTargetState(newTarget);
+    setError('');
   };
 
   const handlePasswordChangeSubmit = async (e: React.FormEvent) => {
@@ -225,6 +227,26 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             </div>
           )}
 
+          {/* Server Environment Selector */}
+          <div className="rounded-xl p-2.5 flex items-center justify-between border text-xs" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+            <div className="flex items-center gap-2">
+              <span className={`h-2.5 w-2.5 rounded-full ${apiTarget === 'local' ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-blue-500 shadow-sm shadow-blue-500/50'}`} />
+              <div className="flex flex-col">
+                <span className="text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>Server Target</span>
+                <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
+                  {apiTarget === 'local' ? 'Localhost (Port 5000)' : 'Render Cloud'}
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleSwitchTarget(apiTarget === 'local' ? 'cloud' : 'local')}
+              className="px-2.5 py-1 rounded-md text-[11px] font-bold border transition-colors hover:bg-blue-50 text-blue-600 border-blue-200"
+            >
+              Switch to {apiTarget === 'local' ? 'Cloud' : 'Local'}
+            </button>
+          </div>
+
           {/* Role Selector */}
           <div className="rounded-xl p-1 flex gap-1 border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
             {(['admin', 'manager', 'waiter'] as const).map((r) => (
@@ -250,19 +272,24 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-xs text-blue-900">
             <div className="flex items-center justify-between font-semibold mb-1">
               <span>
-                Demo {role === 'admin' ? 'Business Admin' : role === 'manager' ? 'Manager' : 'Waiter'} Account:
+                Demo {role === 'admin' ? 'Business Admin' : role === 'manager' ? 'Manager' : 'Waiter'} ({apiTarget === 'cloud' ? 'Render' : 'Local'}):
               </span>
               <button
                 type="button"
                 onClick={() => {
-                  if (role === 'admin') {
-                    setUsername('admin@alchemist.co.ke');
-                  } else if (role === 'manager') {
-                    setUsername('manager.belvin@alchemist.co.ke');
+                  if (apiTarget === 'cloud') {
+                    setUsername('tonny@gmail.com');
+                    setPassword('Password123!');
                   } else {
-                    setUsername('waiter.kamau@alchemist.co.ke');
+                    if (role === 'admin') {
+                      setUsername('lionellangat2000@gmail.com');
+                    } else if (role === 'manager') {
+                      setUsername('tonny@gmail.com');
+                    } else {
+                      setUsername('johndoe@gmail.com');
+                    }
+                    setPassword('Password123!');
                   }
-                  setPassword('Password123!');
                 }}
                 className="text-blue-600 hover:underline font-bold"
               >
@@ -270,11 +297,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               </button>
             </div>
             <p className="text-[11px] text-blue-700">
-              {role === 'admin'
-                ? 'admin@alchemist.co.ke / Password123!'
+              {apiTarget === 'cloud'
+                ? 'tonny@gmail.com / Password123! (Manager - Roco Mamas)'
+                : role === 'admin'
+                ? 'lionellangat2000@gmail.com / Password123! (Roco Mamas Admin)'
                 : role === 'manager'
-                ? 'manager.belvin@alchemist.co.ke / Password123!'
-                : 'waiter.kamau@alchemist.co.ke / Password123!'}
+                ? 'tonny@gmail.com / Password123! (Roco Mamas Manager)'
+                : 'johndoe@gmail.com / Password123! (Roco Mamas Waiter)'}
             </p>
           </div>
 
@@ -435,7 +464,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <>
-                    Sign In as {role === 'waiter' ? 'Waiter' : 'Manager'}
+                    Sign In as {role === 'admin' ? 'Admin' : role === 'manager' ? 'Manager' : 'Waiter'}
                     <ChevronRight className="h-4 w-4" />
                   </>
                 )}

@@ -158,17 +158,30 @@ const resolveImageUrl = (url?: string | null): string => {
 };
 
 const authHeaders = (): Record<string, string> => {
-  const token = localStorage.getItem('drinkhub_token') || localStorage.getItem('drinkhub_admin_token');
+  const token =
+    localStorage.getItem('drinkhub_token') ||
+    localStorage.getItem('drinkhub_admin_token') ||
+    localStorage.getItem('accessToken');
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 };
 
 const generatePassword = (): string => {
   const u = 'ABCDEFGHJKLMNPQRSTUVWXYZ', l = 'abcdefghjkmnpqrstuvwxyz', d = '23456789', s = '@#$!';
   const all = u + l + d + s;
-  const pwd = [u, l, d, s].map(c => c[Math.floor(Math.random() * c.length)]);
-  for (let i = 0; i < 8; i++) pwd.push(all[Math.floor(Math.random() * all.length)]);
+  
+  const getRandomIndex = (max: number): number => {
+    if (typeof window !== 'undefined' && window.crypto) {
+      const arr = new Uint32Array(1);
+      window.crypto.getRandomValues(arr);
+      return arr[0] % max;
+    }
+    return Math.floor(Math.random() * max);
+  };
+
+  const pwd = [u, l, d, s].map(c => c[getRandomIndex(c.length)]);
+  for (let i = 0; i < 8; i++) pwd.push(all[getRandomIndex(all.length)]);
   for (let i = pwd.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = getRandomIndex(i + 1);
     [pwd[i], pwd[j]] = [pwd[j], pwd[i]];
   }
   return pwd.join('');

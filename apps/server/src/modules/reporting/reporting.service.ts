@@ -946,6 +946,8 @@ export class ReportingService {
         }
         break;
       }
+      default:
+        throw new BadRequestError(`Unsupported report type: ${query.reportType}`);
     }
 
     // Audit log

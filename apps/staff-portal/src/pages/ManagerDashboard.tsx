@@ -298,10 +298,7 @@ type MenuItem = {
   description?: string | null;
 };
 
-const orderData: OrderRow[] = [];
-const menuItems: MenuItem[] = [];
-const dailyRevenue: { day: string; rev: number }[] = [];
-const hourlyOrders: { h: string; n: number }[] = [];
+
 
 /* ------------------------------------------------ 
    ADD WAITER MODAL
@@ -578,6 +575,27 @@ const StaffManagementPage = ({ showToast }: { showToast: (m: string) => void }) 
     }
   };
 
+  const handleResetPassword = async (waiter: Waiter) => {
+    if (!waiter.email) {
+      showToast('No email address on file for this waiter');
+      return;
+    }
+    try {
+      const res = await fetch(getApiUrl('/auth/request-password-reset'), {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ email: waiter.email }),
+      });
+      if (res.ok) {
+        showToast(`Password reset link sent to ${waiter.email}`);
+      } else {
+        showToast('Failed to dispatch password reset link');
+      }
+    } catch {
+      showToast('Network error dispatching reset link');
+    }
+  };
+
   return (
     <div className="space-y-5">
       <SectionHeader title="Staff Management" subtitle="Manage waiters for your venue — only managers can create staff" action={
@@ -650,7 +668,7 @@ const StaffManagementPage = ({ showToast }: { showToast: (m: string) => void }) 
                 <td className="px-4 py-3.5 text-xs" style={{ color: 'var(--text-muted)' }}>{w.lastLogin}</td>
                 <td className="px-4 py-3.5">
                   <div className="flex items-center gap-1.5">
-                    <button onClick={() => showToast(`Password reset link sent to ${w.firstName}`)} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="Reset Password">
+                    <button onClick={() => handleResetPassword(w)} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="Reset Password">
                       <Key className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} />
                     </button>
                     <button onClick={() => toggleStatus(w.id)} className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors" title={w.status === 'Active' ? 'Deactivate' : 'Activate'}>

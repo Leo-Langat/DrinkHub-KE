@@ -10,8 +10,14 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken');
-  const tenantId = localStorage.getItem('tenantId');
+  const token =
+    localStorage.getItem('accessToken') ||
+    localStorage.getItem('drinkhub_token') ||
+    localStorage.getItem('drinkhub_admin_token');
+  const tenantId =
+    localStorage.getItem('tenantId') ||
+    localStorage.getItem('businessUuid') ||
+    localStorage.getItem('drinkhub_business_uuid');
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -19,6 +25,8 @@ apiClient.interceptors.request.use((config) => {
 
   if (tenantId) {
     config.headers['X-Tenant-ID'] = tenantId;
+    config.headers['X-Business-Uuid'] = tenantId;
+    config.headers['X-Club-Uuid'] = tenantId;
   }
 
   return config;
@@ -28,7 +36,9 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      // Handle automatic token refresh or logout redirection
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('drinkhub:unauthorized'));
+      }
     }
     return Promise.reject(error);
   }

@@ -221,24 +221,24 @@ export class AuthController {
   listStaff = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userRole = normalizeRole(req.user?.role || '');
-      const targetBusinessUuid =
-        (req.query.businessUuid as string) ||
-        (req.query.clubUuid as string) ||
-        req.businessUuid ||
-        req.user?.businessUuid ||
-        req.user?.tenantId;
+      const userBusinessUuid = req.businessUuid || req.user?.businessUuid || req.user?.tenantId;
       const { role } = req.query as { role?: string };
 
       let staff: any[];
 
-      if (userRole === UserRole.SUPER_ADMIN && !targetBusinessUuid) {
-        staff = await this.authService.listAllStaff(role);
+      if (userRole === UserRole.SUPER_ADMIN) {
+        const queryBizUuid = (req.query.businessUuid as string) || (req.query.clubUuid as string);
+        if (queryBizUuid) {
+          staff = await this.authService.listStaff(queryBizUuid, role);
+        } else {
+          staff = await this.authService.listAllStaff(role);
+        }
       } else {
-        if (!targetBusinessUuid) {
-          res.status(400).json({ success: false, error: { code: 'MISSING_BUSINESS', message: 'Business UUID is required' } });
+        if (!userBusinessUuid) {
+          res.status(400).json({ success: false, error: { code: 'MISSING_BUSINESS', message: 'Business context is required' } });
           return;
         }
-        staff = await this.authService.listStaff(targetBusinessUuid, role);
+        staff = await this.authService.listStaff(userBusinessUuid, role);
       }
 
       res.json({
@@ -291,7 +291,7 @@ export class AuthController {
         return;
       }
 
-      await (this.authService as any).setUserActive(uuid, isActive);
+      await this.authService.setUserActive(uuid, isActive);
 
       res.json({
         success: true,
@@ -307,7 +307,7 @@ export class AuthController {
     try {
       const userId = req.user?.userId;
       if (userId) {
-        await (this.authService as any).recordHeartbeat(userId);
+        await this.authService.recordHeartbeat(userId);
       }
       res.json({
         success: true,
@@ -322,7 +322,7 @@ export class AuthController {
   deleteUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { uuid } = req.params;
-      await (this.authService as any).deleteUser(uuid);
+      await this.authService.deleteUser(uuid);
       res.json({
         success: true,
         data: { message: 'User deleted successfully' },
@@ -337,7 +337,7 @@ export class AuthController {
     try {
       const { uuid } = req.params;
       const { fullName, email, phone, businessUuid, clubUuid, isActive } = req.body;
-      const updated = await (this.authService as any).updateUserDetails(uuid, {
+      const updated = await this.authService.updateUserDetails(uuid, {
         fullName,
         email,
         phone,

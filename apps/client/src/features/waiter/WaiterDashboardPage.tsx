@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { useSocket } from '../../context/SocketContext';
+import { apiClient } from '../../config/api';
 
 interface OrderItem {
   name: string;
@@ -47,12 +48,11 @@ interface Order {
   payment: PaymentInfo;
 }
 
-import { apiClient } from '../../config/api';
-
 export const WaiterDashboardPage: React.FC = () => {
   const { socket } = useSocket();
   const [activeTab, setActiveTab] = useState<'AVAILABLE' | 'MY_ORDERS' | 'HISTORY'>('AVAILABLE');
   const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
   const [toastAlert, setToastAlert] = useState<string | null>(null);
 
   const loggedInUser = React.useMemo(() => {
@@ -112,12 +112,14 @@ export const WaiterDashboardPage: React.FC = () => {
       }
     } catch {
       /* ignore */
+    } finally {
+      setLoading(false);
     }
   }, [mapApiOrder]);
 
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 4000);
+    const interval = setInterval(fetchOrders, 12000);
     return () => clearInterval(interval);
   }, [fetchOrders]);
 
@@ -161,7 +163,7 @@ export const WaiterDashboardPage: React.FC = () => {
   // Actions
   const claimOrder = async (id: string) => {
     if (myActiveOrder) {
-      alert(`⚠️ You can claim only ONE active order at a time! Complete or deliver Order #${myActiveOrder.orderNumber} first.`);
+      triggerToast(`⚠️ You can claim only ONE active order at a time! Complete or deliver Order #${myActiveOrder.orderNumber} first.`);
       return;
     }
 
@@ -424,20 +426,28 @@ export const WaiterDashboardPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/80">
-              {historyOrders.map((o) => (
-                <tr key={o.id} className="hover:bg-dark-900/50">
-                  <td className="py-3 px-4 font-bold text-white">{o.orderNumber}</td>
-                  <td className="py-3 px-4">Table #{o.tableNumber}</td>
-                  <td className="py-3 px-4">{o.waiterName || 'Unassigned'}</td>
-                  <td className="py-3 px-4 font-black text-brand-500">KSh {o.totalAmount.toLocaleString()}</td>
-                  <td className="py-3 px-4">{o.payment.method}</td>
-                  <td className="py-3 px-4">
-                    <span className="rounded-full bg-slate-800 px-2.5 py-1 text-[10px] font-bold text-slate-300">
-                      {o.status}
-                    </span>
+              {historyOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-slate-500">
+                    No order history recorded yet.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                historyOrders.map((o) => (
+                  <tr key={o.id} className="hover:bg-dark-900/50">
+                    <td className="py-3 px-4 font-bold text-white">{o.orderNumber}</td>
+                    <td className="py-3 px-4">Table #{o.tableNumber}</td>
+                    <td className="py-3 px-4">{o.waiterName || 'Unassigned'}</td>
+                    <td className="py-3 px-4 font-black text-brand-500">KSh {o.totalAmount.toLocaleString()}</td>
+                    <td className="py-3 px-4">{o.payment.method}</td>
+                    <td className="py-3 px-4">
+                      <span className="rounded-full bg-slate-800 px-2.5 py-1 text-[10px] font-bold text-slate-300">
+                        {o.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

@@ -53,11 +53,17 @@ export class OrderRepository implements IOrderRepository {
     let subtotal = 0;
     const orderItemsData = [];
     const productsMap = new Map<string, any>();
+    const productUuids = Array.from(new Set(items.map((it: any) => it.productUuid).filter(Boolean))) as string[];
+    const products = await prisma.product.findMany({
+      where: { productUuid: { in: productUuids } },
+    });
+    for (const p of products) {
+      productsMap.set(p.productUuid, p);
+    }
 
     for (const item of items) {
-      const product = await prisma.product.findUnique({ where: { productUuid: item.productUuid } });
+      const product = productsMap.get(item.productUuid);
       if (product) {
-        productsMap.set(item.productUuid, product);
         const itemSubtotal = Number(product.price) * item.quantity;
         subtotal += itemSubtotal;
         orderItemsData.push({
@@ -168,7 +174,7 @@ export class OrderRepository implements IOrderRepository {
         tableUuid,
         customerSessionUuid,
         offerUuid: resolvedOfferUuid,
-        orderNumber: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
+        orderNumber: `ORD-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
         subtotalAmount: subtotal,
         discountAmount,
         totalAmount,

@@ -15,34 +15,51 @@ import {
 } from 'lucide-react';
 import { apiClient } from '../../config/api';
 
+interface RevenueTrendPoint {
+  month: string;
+  revenue: number;
+  orders: number;
+}
+
 export const PlatformAdminDashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
   const [tenants, setTenants] = useState<any[]>([]);
 
   const fetchPlatformData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [statsRes, analyticsRes, tenantsRes] = await Promise.allSettled([
         apiClient.get('/tenants/platform/stats'),
-        apiClient.get('/reports/analytics?period=MONTHLY&businessUuid=ALL'),
+        apiClient.get('/reports/analytics?period=MONTHLY'),
         apiClient.get('/tenants'),
       ]);
 
+      let hasSuccess = false;
+
       if (statsRes.status === 'fulfilled') {
         setStats(statsRes.value.data?.data);
+        hasSuccess = true;
       }
       if (analyticsRes.status === 'fulfilled') {
         const d = analyticsRes.value.data?.data;
         setAnalytics(d?.report || d);
+        hasSuccess = true;
       }
       if (tenantsRes.status === 'fulfilled') {
         const d = tenantsRes.value.data?.data;
         setTenants(Array.isArray(d) ? d : d?.businesses || []);
+        hasSuccess = true;
       }
-    } catch {
-      /* ignore */
+
+      if (!hasSuccess && (statsRes.status === 'rejected' || tenantsRes.status === 'rejected')) {
+        setError('Failed to load platform dashboard data. Please check your connection.');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load platform data.');
     } finally {
       setLoading(false);
     }
@@ -58,12 +75,6 @@ export const PlatformAdminDashboardPage: React.FC = () => {
   const totalRevenue = stats?.totalRevenue ?? Number(analytics?.kpis?.totalRevenue || 0);
   const totalUsers = stats?.totalUsers ?? 0;
   const totalOrders = stats?.totalOrders ?? Number(analytics?.kpis?.totalOrders || 0);
-
-  interface RevenueTrendPoint {
-    month: string;
-    revenue: number;
-    orders: number;
-  }
 
   // Monthly Revenue Growth from actual database daily/monthly analytics
   const revenueTrend = useMemo<RevenueTrendPoint[]>(() => {
@@ -88,7 +99,7 @@ export const PlatformAdminDashboardPage: React.FC = () => {
   const countyDistribution = useMemo(() => {
     const map: Record<string, number> = {};
     tenants.forEach((t) => {
-      const c = t.county || t.city || 'Nairobi';
+      const c = t.county || t.city || 'Unspecified';
       map[c] = (map[c] || 0) + 1;
     });
 
@@ -131,6 +142,19 @@ export const PlatformAdminDashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-xs font-semibold text-red-400 flex items-center justify-between">
+          <span>{error}</span>
+          <button
+            onClick={fetchPlatformData}
+            className="rounded-lg bg-red-500/20 px-3 py-1 text-xs font-bold text-red-300 hover:bg-red-500/30 transition"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* 1. METRIC STAT CARDS GRID */}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">

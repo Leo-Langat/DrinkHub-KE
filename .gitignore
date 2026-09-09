@@ -31,3 +31,8 @@ yarn-error.log*
 
 # Docker
 docker/data/
+
+# Uploads
+uploads/
+apps/server/uploads/
+

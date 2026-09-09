@@ -23,12 +23,14 @@ interface TopProduct {
 
 export const ManagerAnalyticsDashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
   const [business, setBusiness] = useState<any>(null);
 
   const fetchData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [bizRes, ordRes, analyticsRes] = await Promise.allSettled([
         apiClient.get('/tenants/current'),
@@ -36,20 +38,29 @@ export const ManagerAnalyticsDashboardPage: React.FC = () => {
         apiClient.get('/reports/analytics?period=WEEKLY'),
       ]);
 
+      let hasSuccess = false;
+
       if (bizRes.status === 'fulfilled') {
         const d = bizRes.value.data?.data;
         setBusiness(d?.business || d?.club || d);
+        hasSuccess = true;
       }
       if (ordRes.status === 'fulfilled') {
         const d = ordRes.value.data?.data;
         setOrders(d?.orders || (Array.isArray(d) ? d : []));
+        hasSuccess = true;
       }
       if (analyticsRes.status === 'fulfilled') {
         const d = analyticsRes.value.data?.data;
         setAnalytics(d?.report || d);
+        hasSuccess = true;
       }
-    } catch {
-      /* ignore */
+
+      if (!hasSuccess && (bizRes.status === 'rejected' || ordRes.status === 'rejected')) {
+        setError('Failed to load operational analytics. Please check your network connection.');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load analytics.');
     } finally {
       setLoading(false);
     }
@@ -59,8 +70,8 @@ export const ManagerAnalyticsDashboardPage: React.FC = () => {
     fetchData();
   }, []);
 
-  const businessName = business?.name || 'DrinkHub Venue';
-  const businessCity = business?.city || 'Kenya';
+  const businessName = business?.name || 'Venue Operations';
+  const businessCity = business?.city || business?.county || 'Kenya';
 
   const paidOrCompletedOrders = useMemo(() => {
     return orders.filter(
@@ -203,6 +214,19 @@ export const ManagerAnalyticsDashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-xs font-semibold text-red-400 flex items-center justify-between">
+          <span>{error}</span>
+          <button
+            onClick={fetchData}
+            className="rounded-lg bg-red-500/20 px-3 py-1 text-xs font-bold text-red-300 hover:bg-red-500/30 transition"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* 1. METRIC CARDS GRID */}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">

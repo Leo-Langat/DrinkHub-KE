@@ -9,6 +9,7 @@ import {
   ChevronLeft, Check, UserCog, Mail, Phone, MapPin,
   RotateCcw, UserX, UserCheck, Calendar, Lock, ShieldAlert,
   UtensilsCrossed, Store, Coffee, Hotel, Filter, SlidersHorizontal,
+  UserPlus,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis,
@@ -165,6 +166,94 @@ const authHeaders = (): Record<string, string> => {
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 };
 
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+const subscribeTokenRefresh = (cb: (token: string) => void) => {
+  refreshSubscribers.push(cb);
+};
+
+const onRefreshed = (token: string) => {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+};
+
+const apiFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
+  const getToken = () =>
+    localStorage.getItem('drinkhub_token') ||
+    localStorage.getItem('drinkhub_admin_token') ||
+    localStorage.getItem('accessToken');
+
+  let token = getToken();
+
+  const baseHeaders: Record<string, string> = {
+    ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...((options.headers as Record<string, string>) || {}),
+  };
+
+  let response = await fetch(url, { ...options, headers: baseHeaders });
+
+  if (response.status === 401) {
+    const refreshToken =
+      localStorage.getItem('drinkhub_refresh_token') ||
+      localStorage.getItem('refreshToken');
+
+    if (refreshToken && !url.includes('/auth/refresh') && !url.includes('/auth/login')) {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        try {
+          const refreshRes = await fetch(getApiUrl('/auth/refresh'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken }),
+          });
+          const refreshData = await refreshRes.json().catch(() => ({}));
+          if (refreshRes.ok && refreshData.success && refreshData.data?.accessToken) {
+            const newToken = refreshData.data.accessToken;
+            localStorage.setItem('drinkhub_token', newToken);
+            if (refreshData.data.refreshToken) {
+              localStorage.setItem('drinkhub_refresh_token', refreshData.data.refreshToken);
+            }
+            isRefreshing = false;
+            onRefreshed(newToken);
+            return fetch(url, {
+              ...options,
+              headers: {
+                ...baseHeaders,
+                Authorization: `Bearer ${newToken}`,
+              },
+            });
+          }
+        } catch {
+          // refresh failed
+        }
+        isRefreshing = false;
+      } else {
+        return new Promise((resolve, reject) => {
+          subscribeTokenRefresh((newToken) => {
+            fetch(url, {
+              ...options,
+              headers: {
+                ...baseHeaders,
+                Authorization: `Bearer ${newToken}`,
+              },
+            })
+              .then(resolve)
+              .catch(reject);
+          });
+        });
+      }
+    }
+
+    if (token === 'demo-platform-admin-token') {
+      localStorage.removeItem('drinkhub_token');
+    }
+  }
+
+  return response;
+};
+
 const generatePassword = (): string => {
   const u = 'ABCDEFGHJKLMNPQRSTUVWXYZ', l = 'abcdefghjkmnpqrstuvwxyz', d = '23456789', s = '@#$!';
   const all = u + l + d + s;
@@ -201,10 +290,8 @@ const readFile = (e: React.ChangeEvent<HTMLInputElement>, cb: (url: string) => v
   // 2. Upload to server in background for static persistent asset URL
   const formData = new FormData();
   formData.append('file', file);
-  const token = localStorage.getItem('drinkhub_token') || localStorage.getItem('drinkhub_admin_token');
-  fetch(getApiUrl('/tenants/upload'), {
+  apiFetch(getApiUrl('/tenants/upload'), {
     method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
   })
     .then(res => res.json())
@@ -801,16 +888,17 @@ const Step3 = ({ f, set }: { f: BusinessFormState; set: (k: keyof BusinessFormSt
   </div>
 );
 
-/* Create Business Stepper Wrapper */
 const CreateBusinessStepper = ({ onSuccess, onCancel }: { onSuccess: (b: Business, a: BusinessAdmin) => void; onCancel: () => void }) => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [form, setForm] = useState<BusinessFormState>({ ...defaultBusinessForm, tempPwd: generatePassword() });
   const [errors, setErrors] = useState<Partial<Record<keyof BusinessFormState, string>>>({});
 
   const set = (k: keyof BusinessFormState, v: any) => {
     setForm(p => ({ ...p, [k]: v }));
     setErrors(p => ({ ...p, [k]: '' }));
+    setSubmitError(null);
   };
 
   const validate1 = () => {
@@ -837,6 +925,7 @@ const CreateBusinessStepper = ({ onSuccess, onCancel }: { onSuccess: (b: Busines
     if (step === 2 && !validate2()) return;
     if (step === 3) {
       setLoading(true);
+      setSubmitError(null);
       try {
         const slug = form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `biz-${Date.now()}`;
         const adminFullName = `${form.adminFirstName} ${form.adminLastName}`.trim();
@@ -867,15 +956,16 @@ const CreateBusinessStepper = ({ onSuccess, onCancel }: { onSuccess: (b: Busines
           managerPassword: form.tempPwd,
         };
 
-        const res = await fetch(getApiUrl('/tenants/provision'), {
+        const res = await apiFetch(getApiUrl('/tenants/provision'), {
           method: 'POST',
-          headers: authHeaders(),
           body: JSON.stringify(payload),
         });
 
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.success) {
-          throw new Error(data.error?.message || data.message || 'Failed to provision business');
+          const msg = data.error?.message || data.message || (res.status === 401 ? 'Session expired. Please log out and log back in.' : 'Failed to provision business');
+          setSubmitError(msg);
+          throw new Error(msg);
         }
 
         const bData = data.data?.business || data.data?.club || {};
@@ -931,7 +1021,7 @@ const CreateBusinessStepper = ({ onSuccess, onCancel }: { onSuccess: (b: Busines
 
         onSuccess(newBusiness, newAdmin);
       } catch (err: any) {
-        alert(err.message || 'Error creating business.');
+        setSubmitError(err.message || 'Error creating business.');
       } finally {
         setLoading(false);
       }
@@ -956,6 +1046,13 @@ const CreateBusinessStepper = ({ onSuccess, onCancel }: { onSuccess: (b: Busines
       <StepProgress current={step} />
 
       <div className="rounded-2xl border p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
+        {submitError && (
+          <div className="mb-5 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-xs font-semibold text-red-500 flex items-center justify-between">
+            <span>{submitError}</span>
+            <button onClick={() => setSubmitError(null)} className="text-xs underline text-red-400">Dismiss</button>
+          </div>
+        )}
+
         <div className="mb-5 pb-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
           <h3 className="text-base font-black text-slate-900 dark:text-white">{STEPS[step - 1].label}</h3>
           <span className="text-xs font-bold text-slate-400">Step {step} of 3</span>
@@ -1056,9 +1153,8 @@ const EditBusinessModal = ({
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch(getApiUrl(`/tenants/${business.id}`), {
+      const res = await apiFetch(getApiUrl(`/tenants/${business.id}`), {
         method: 'PATCH',
-        headers: authHeaders(),
         body: JSON.stringify({
           name: form.name.trim(),
           businessType: form.businessType,
@@ -1363,7 +1459,7 @@ const DashboardOverviewPage = ({
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
-        const res = await fetch(getApiUrl('/reports/analytics?period=WEEKLY&businessUuid=ALL'), { headers: authHeaders() });
+        const res = await apiFetch(getApiUrl('/reports/analytics?period=WEEKLY&businessUuid=ALL'));
         if (res.ok) {
           const data = await res.json();
           setAnalytics(data.data);
@@ -1578,23 +1674,20 @@ const BusinessesPage = ({
     setActionLoading(true);
     try {
       if (action === 'suspend') {
-        const res = await fetch(getApiUrl(`/tenants/${business.id}/suspend`), {
+        const res = await apiFetch(getApiUrl(`/tenants/${business.id}/suspend`), {
           method: 'PATCH',
-          headers: authHeaders(),
         });
         if (!res.ok) throw new Error('Failed to suspend business');
         showToast(`${business.name} suspended successfully`);
       } else if (action === 'activate') {
-        const res = await fetch(getApiUrl(`/tenants/${business.id}/activate`), {
+        const res = await apiFetch(getApiUrl(`/tenants/${business.id}/activate`), {
           method: 'PATCH',
-          headers: authHeaders(),
         });
         if (!res.ok) throw new Error('Failed to activate business');
         showToast(`${business.name} activated successfully`);
       } else if (action === 'delete') {
-        const res = await fetch(getApiUrl(`/tenants/${business.id}`), {
+        const res = await apiFetch(getApiUrl(`/tenants/${business.id}`), {
           method: 'DELETE',
-          headers: authHeaders(),
         });
         if (!res.ok) throw new Error('Failed to delete business');
         showToast(`${business.name} deleted successfully`);
@@ -1867,6 +1960,240 @@ const BusinessesPage = ({
   );
 };
 
+/* Create User Modal */
+const CreateUserModal = ({
+  businesses,
+  defaultRole = 'ADMIN',
+  onClose,
+  onSuccess,
+}: {
+  businesses: Business[];
+  defaultRole?: 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'WAITER';
+  onClose: () => void;
+  onSuccess: (message: string) => void;
+}) => {
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [role, setRole] = useState<'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'WAITER'>(defaultRole);
+  const [businessUuid, setBusinessUuid] = useState(businesses[0]?.id || '');
+  const [password, setPassword] = useState(generatePassword());
+  const [showPassword, setShowPassword] = useState(false);
+  const [mustChangePassword, setMustChangePassword] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fullName.trim() || !email.trim()) {
+      setError('Please fill in full name and email address.');
+      return;
+    }
+    if (role !== 'SUPER_ADMIN' && !businessUuid) {
+      setError('Please select a business for this user.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const payload: any = {
+        fullName: fullName.trim(),
+        email: email.trim().toLowerCase(),
+        role,
+        password,
+        mustChangePassword,
+      };
+      if (phone.trim()) {
+        payload.phone = phone.trim();
+      }
+      if (role !== 'SUPER_ADMIN' && businessUuid) {
+        payload.businessUuid = businessUuid;
+      }
+
+      const res = await apiFetch(getApiUrl('/auth/register'), {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.error?.message || data.message || 'Failed to create user');
+      }
+
+      onSuccess(`User "${fullName}" created successfully.`);
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Error creating user');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+      <div className="w-full max-w-lg rounded-2xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/10 text-orange-500">
+              <UserPlus className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Add Platform User</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Provision a new user account with assigned role and business</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {error && (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3.5 text-xs font-semibold text-red-500 flex items-center justify-between">
+              <span>{error}</span>
+              <button type="button" onClick={() => setError(null)} className="text-xs underline text-red-400">Dismiss</button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Full Name *</label>
+              <input
+                type="text"
+                required
+                value={fullName}
+                onChange={e => setFullName(e.target.value)}
+                placeholder="e.g. Peter Otieno"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:border-orange-500 transition"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Email Address *</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="user@example.com"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:border-orange-500 transition"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Phone Number</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="+254 7..."
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:border-orange-500 transition"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Platform Role *</label>
+              <select
+                value={role}
+                onChange={e => setRole(e.target.value as any)}
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:border-orange-500 transition"
+              >
+                <option value="ADMIN">Business Admin</option>
+                <option value="MANAGER">Manager</option>
+                <option value="WAITER">Waiter</option>
+                <option value="SUPER_ADMIN">Platform Super Admin</option>
+              </select>
+            </div>
+          </div>
+
+          {role !== 'SUPER_ADMIN' && (
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Assigned Business *</label>
+              <select
+                value={businessUuid}
+                onChange={e => setBusinessUuid(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:border-orange-500 transition"
+              >
+                {businesses.length === 0 && <option value="">No businesses available</option>}
+                {businesses.map(b => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} ({b.businessType})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Initial Password *</label>
+              <button
+                type="button"
+                onClick={() => setPassword(generatePassword())}
+                className="text-xs font-semibold text-orange-500 hover:text-orange-600 flex items-center gap-1"
+              >
+                <RefreshCcw className="h-3 w-3" /> Regenerate
+              </button>
+            </div>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 px-3.5 py-2.5 pr-10 text-sm font-mono text-slate-900 dark:text-white outline-none focus:border-orange-500 transition"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2.5 cursor-pointer pt-1">
+            <input
+              type="checkbox"
+              checked={mustChangePassword}
+              onChange={e => setMustChangePassword(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-orange-500 focus:ring-orange-500"
+            />
+            <span className="text-xs text-slate-600 dark:text-slate-400 select-none">
+              Require user to change password on first login
+            </span>
+          </label>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-2 text-xs font-bold text-white shadow-lg shadow-orange-500/25 hover:bg-orange-600 disabled:opacity-50 transition"
+            >
+              {loading ? <RefreshCcw className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
+              {loading ? 'Creating User…' : 'Create User'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 /* ══════════════════════════════════════
    FEATURE 6: BUSINESS ADMINS
 ══════════════════════════════════════ */
@@ -1881,6 +2208,7 @@ const BusinessAdminsPage = ({
   onRefresh: () => void;
   showToast: (m: string, t?: 'success' | 'error') => void;
 }) => {
+  const [showAddAdmin, setShowAddAdmin] = useState(false);
   const [search, setSearch] = useState('');
   const [businessFilter, setBusinessFilter] = useState('ALL');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -1900,9 +2228,8 @@ const BusinessAdminsPage = ({
     setActionLoading(admin.userUuid);
     try {
       const newStatus = !admin.isActive;
-      const res = await fetch(getApiUrl(`/auth/users/${admin.userUuid}/status`), {
+      const res = await apiFetch(getApiUrl(`/auth/users/${admin.userUuid}/status`), {
         method: 'PATCH',
-        headers: authHeaders(),
         body: JSON.stringify({ isActive: newStatus }),
       });
       if (!res.ok) throw new Error('Failed to update admin account status');
@@ -1917,23 +2244,43 @@ const BusinessAdminsPage = ({
 
   return (
     <div className="space-y-5">
+      {showAddAdmin && (
+        <CreateUserModal
+          businesses={businesses}
+          defaultRole="ADMIN"
+          onClose={() => setShowAddAdmin(false)}
+          onSuccess={msg => {
+            showToast(msg);
+            onRefresh();
+          }}
+        />
+      )}
+
       <SectionHeader
         title="Business Admins"
         subtitle="Manage primary administrator accounts provisioned for each business"
         action={
-          <button
-            onClick={() => {
-              csvExport(
-                ['Admin Name', 'Email', 'Phone', 'Business', 'Role', 'Status', 'Last Login', 'Created Date'],
-                filtered.map(a => [a.fullName, a.email, a.phone, a.businessName, a.role, a.status, a.lastLogin, a.createdAt]),
-                'business-admins-export.csv'
-              );
-              showToast('Admins list exported');
-            }}
-            className="flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-semibold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-          >
-            <Download className="h-3.5 w-3.5" /> Export
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowAddAdmin(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-orange-500 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-orange-600 transition"
+            >
+              <UserPlus className="h-3.5 w-3.5" /> Add Admin
+            </button>
+            <button
+              onClick={() => {
+                csvExport(
+                  ['Admin Name', 'Email', 'Phone', 'Business', 'Role', 'Status', 'Last Login', 'Created Date'],
+                  filtered.map(a => [a.fullName, a.email, a.phone, a.businessName, a.role, a.status, a.lastLogin, a.createdAt]),
+                  'business-admins-export.csv'
+                );
+                showToast('Admins list exported');
+              }}
+              className="flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-semibold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+            >
+              <Download className="h-3.5 w-3.5" /> Export
+            </button>
+          </div>
         }
       />
 
@@ -2052,6 +2399,7 @@ const PlatformUsersPage = ({
 }) => {
   const [users, setUsers] = useState<PlatformUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAddUser, setShowAddUser] = useState(false);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [businessFilter, setBusinessFilter] = useState('ALL');
@@ -2061,7 +2409,7 @@ const PlatformUsersPage = ({
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(getApiUrl('/auth/users'), { headers: authHeaders() });
+      const res = await apiFetch(getApiUrl('/auth/users'));
       if (res.ok) {
         const data = await res.json();
         const rawUsers: any[] = data.data?.users ?? [];
@@ -2115,9 +2463,8 @@ const PlatformUsersPage = ({
     setActionLoading(user.userUuid);
     try {
       const newStatus = !user.isActive;
-      const res = await fetch(getApiUrl(`/auth/users/${user.userUuid}/status`), {
+      const res = await apiFetch(getApiUrl(`/auth/users/${user.userUuid}/status`), {
         method: 'PATCH',
-        headers: authHeaders(),
         body: JSON.stringify({ isActive: newStatus }),
       });
       if (!res.ok) throw new Error('Failed to update account status');
@@ -2132,23 +2479,42 @@ const PlatformUsersPage = ({
 
   return (
     <div className="space-y-5">
+      {showAddUser && (
+        <CreateUserModal
+          businesses={businesses}
+          onClose={() => setShowAddUser(false)}
+          onSuccess={msg => {
+            showToast(msg);
+            fetchUsers();
+          }}
+        />
+      )}
+
       <SectionHeader
         title="Platform Users"
         subtitle="Platform-wide user directory across all businesses and roles"
         action={
-          <button
-            onClick={() => {
-              csvExport(
-                ['Name', 'Email', 'Phone', 'Role', 'Business', 'Status', 'Created At'],
-                filtered.map(u => [u.fullName, u.email, u.phone || '', u.role, u.businessName || '', u.isActive ? 'Active' : 'Inactive', u.createdAt]),
-                'platform-users.csv'
-              );
-              showToast('Users exported');
-            }}
-            className="flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-semibold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-          >
-            <Download className="h-3.5 w-3.5" /> Export Users
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowAddUser(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-orange-500 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-orange-600 transition"
+            >
+              <UserPlus className="h-3.5 w-3.5" /> Add Platform User
+            </button>
+            <button
+              onClick={() => {
+                csvExport(
+                  ['Name', 'Email', 'Phone', 'Role', 'Business', 'Status', 'Created At'],
+                  filtered.map(u => [u.fullName, u.email, u.phone || '', u.role, u.businessName || '', u.isActive ? 'Active' : 'Inactive', u.createdAt]),
+                  'platform-users.csv'
+                );
+                showToast('Users exported');
+              }}
+              className="flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-semibold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+            >
+              <Download className="h-3.5 w-3.5" /> Export Users
+            </button>
+          </div>
         }
       />
 
@@ -2288,7 +2654,7 @@ const PlatformAnalyticsPage = ({ showToast }: { showToast: (m: string, t?: 'succ
   const fetchAnalytics = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(getApiUrl(`/reports/analytics?period=${period}&businessUuid=ALL`), { headers: authHeaders() });
+      const res = await apiFetch(getApiUrl(`/reports/analytics?period=${period}&businessUuid=ALL`));
       if (res.ok) {
         const data = await res.json();
         setReport(data.data);
@@ -2437,7 +2803,7 @@ const AuditLogsPage = ({ showToast }: { showToast: (m: string, t?: 'success' | '
   const fetchAuditLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(getApiUrl('/notifications/audit-logs'), { headers: authHeaders() });
+      const res = await apiFetch(getApiUrl('/notifications/audit-logs'));
       if (res.ok) {
         const data = await res.json();
         const raw: any[] = data.data ?? [];
@@ -2753,14 +3119,14 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     setLoading(true);
     try {
       // 1. Platform Stats
-      const statsRes = await fetch(getApiUrl('/tenants/platform/stats'), { headers: authHeaders() });
+      const statsRes = await apiFetch(getApiUrl('/tenants/platform/stats'));
       if (statsRes.ok) {
         const sData = await statsRes.json();
         setStats(sData.data);
       }
 
       // 2. All Businesses
-      const tenantRes = await fetch(getApiUrl('/tenants'), { headers: authHeaders() });
+      const tenantRes = await apiFetch(getApiUrl('/tenants'));
       if (tenantRes.ok) {
         const tenantData = await tenantRes.json();
         const rawTenants: any[] = tenantData.data ?? [];
@@ -2800,7 +3166,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       }
 
       // 3. Business Admins
-      const staffRes = await fetch(getApiUrl('/auth/staff?role=ADMIN'), { headers: authHeaders() });
+      const staffRes = await apiFetch(getApiUrl('/auth/staff?role=ADMIN'));
       if (staffRes.ok) {
         const staffData = await staffRes.json();
         const rawStaff: any[] = staffData.data?.staff ?? staffData.data ?? [];

@@ -66,6 +66,7 @@ authRouter.post('/login', validateRequest(loginSchema), authController.login);
  *         description: Token pair
  */
 authRouter.post('/refresh', validateRequest(refreshTokenSchema), authController.refreshToken);
+authRouter.post('/refresh-token', validateRequest(refreshTokenSchema), authController.refreshToken);
 
 /**
  * @openapi

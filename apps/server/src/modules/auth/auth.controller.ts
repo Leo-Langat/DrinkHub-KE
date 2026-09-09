@@ -68,8 +68,9 @@ export class AuthController {
       if (callerRole === UserRole.SUPER_ADMIN) {
         if (requestedRole === UserRole.SUPER_ADMIN) {
           body.businessUuid = undefined;
+          body.role = UserRole.SUPER_ADMIN;
         } else {
-          body.role = UserRole.ADMIN;
+          body.role = requestedRole;
           body.businessUuid = body.businessUuid || body.clubUuid;
         }
       }

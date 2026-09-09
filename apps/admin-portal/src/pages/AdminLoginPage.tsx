@@ -63,27 +63,10 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
       }
       onLogin();
     } catch (err: any) {
-      // If network fails (e.g. backend offline, mixed content, or server sleeping) but using valid demo admin credentials
-      if (isDemoAdmin) {
-        const demoUser = {
-          userUuid: 'd0000000-0000-0000-0000-000000000001',
-          uuid: 'd0000000-0000-0000-0000-000000000001',
-          email: 'superadmin@drinkhub.co.ke',
-          fullName: 'Platform Super Admin',
-          role: 'SUPER_ADMIN',
-          isActive: true,
-        };
-        localStorage.setItem('drinkhub_token', 'demo-platform-admin-token');
-        localStorage.setItem('drinkhub_user', JSON.stringify(demoUser));
-        localStorage.setItem('drinkhub_login_time', Date.now().toString());
-        onLogin();
-        return;
-      }
-
       if (cleanUser.toLowerCase().includes('waiter') || cleanUser.toLowerCase().includes('kamau') || cleanUser.toLowerCase().includes('alchemist.co.ke') || cleanUser.toLowerCase().includes('bclub.co.ke') || cleanUser.toLowerCase().includes('gplace.co.ke') || cleanUser.toLowerCase().includes('belvin')) {
         setError('Access denied. Managers and Waiters must log into the Staff Portal, not the Super Admin Portal.');
       } else if (err.name === 'TypeError' || err.message?.includes('fetch') || err.message?.includes('Failed')) {
-        setError('Cannot connect to backend server. For instant demo access, use superadmin@drinkhub.co.ke / Password123!');
+        setError('Cannot connect to backend server. Please verify your backend API is online and CORS is enabled.');
       } else {
         setError(err.message || 'Authentication failed. Please check your credentials.');
       }

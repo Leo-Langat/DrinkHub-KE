@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import { Business, SubscriptionStatus, BusinessStatus, BusinessType } from '@prisma/client';
 import { ITenantRepository } from './tenant.interface';
 import { NotFoundError, BadRequestError } from '../../common/errors/app-error';
+import { prisma } from '../../config/prisma';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -88,6 +89,14 @@ export class TenantService {
     const existingSlug = await this.tenantRepository.findBySlug(data.slug);
     if (existingSlug) {
       throw new BadRequestError(`Slug '${data.slug}' is already taken by another business`);
+    }
+
+    const adminEmail = (data.adminEmail || data.managerEmail || '').trim().toLowerCase();
+    if (adminEmail) {
+      const existingUser = await prisma.user.findUnique({ where: { email: adminEmail } });
+      if (existingUser) {
+        throw new BadRequestError(`An account with email '${adminEmail}' already exists`);
+      }
     }
 
     const rawPassword = data.adminPassword || data.managerPassword;

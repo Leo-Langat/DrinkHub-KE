@@ -36,3 +36,7 @@ docker/data/
 uploads/
 apps/server/uploads/
 
+# Test reports
+playwright-report/
+test-results/
+

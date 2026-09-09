@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "type-check": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:ci": "playwright test --reporter=github"
   },
   "dependencies": {
     "@drinkhub/shared": "*",
@@ -23,6 +25,7 @@
     "tailwind-merge": "^2.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.47.0",
     "@types/node": "^20.14.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

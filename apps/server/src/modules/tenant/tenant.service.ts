@@ -86,9 +86,23 @@ export class TenantService {
     adminPassword?: string;
     managerPassword?: string;
   }) {
-    const existingSlug = await this.tenantRepository.findBySlug(data.slug);
-    if (existingSlug) {
-      throw new BadRequestError(`Slug '${data.slug}' is already taken by another business`);
+    // Ensure slug is clean and guaranteed unique across all database records
+    const baseSlug = (data.slug || data.name || 'business')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '') || `biz-${Date.now()}`;
+
+    let finalSlug = baseSlug;
+    let counter = 1;
+
+    while (await prisma.business.findFirst({ where: { slug: { equals: finalSlug, mode: 'insensitive' } } })) {
+      counter++;
+      finalSlug = `${baseSlug}-${counter}`;
+      if (counter > 20) {
+        finalSlug = `${baseSlug}-${Date.now().toString(36)}`;
+        break;
+      }
     }
 
     const adminEmail = (data.adminEmail || data.managerEmail || '').trim().toLowerCase();
@@ -108,7 +122,7 @@ export class TenantService {
 
     return this.tenantRepository.createBusinessWithAdmin({
       name: data.name,
-      slug: data.slug,
+      slug: finalSlug,
       businessType: data.businessType,
       city: data.city,
       county: data.county,

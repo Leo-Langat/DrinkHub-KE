@@ -222,45 +222,57 @@ export class TenantRepository implements ITenantRepository {
   }
 
   async createBusinessWithAdmin(data: CreateBusinessWithAdminInput): Promise<BusinessWithAdmin> {
-    return prisma.$transaction(async (tx) => {
-      const business = await tx.business.create({
-        data: {
-          name: data.name,
-          slug: data.slug,
-          businessType: data.businessType || BusinessType.RESTAURANT,
-          city: data.city || 'Nairobi',
-          county: data.county || 'Nairobi',
-          address: data.address,
-          phone: data.phone,
-          email: data.email,
-          logoUrl: data.logoUrl,
-          bannerUrl: data.bannerUrl,
-          description: data.description,
-          themeColor: data.themeColor || '#e11d48',
-          openingHours: data.openingHours || '08:00',
-          closingHours: data.closingHours || '23:00',
-          gpsCoordinates: data.gpsCoordinates,
-          status: BusinessStatus.ACTIVE,
-          subscriptionStatus: SubscriptionStatus.ACTIVE,
-          isActive: true,
-        },
-      });
+    const doCreate = async (slugToUse: string) => {
+      return prisma.$transaction(async (tx) => {
+        const business = await tx.business.create({
+          data: {
+            name: data.name,
+            slug: slugToUse,
+            businessType: data.businessType || BusinessType.RESTAURANT,
+            city: data.city || 'Nairobi',
+            county: data.county || 'Nairobi',
+            address: data.address,
+            phone: data.phone,
+            email: data.email,
+            logoUrl: data.logoUrl,
+            bannerUrl: data.bannerUrl,
+            description: data.description,
+            themeColor: data.themeColor || '#e11d48',
+            openingHours: data.openingHours || '08:00',
+            closingHours: data.closingHours || '23:00',
+            gpsCoordinates: data.gpsCoordinates,
+            status: BusinessStatus.ACTIVE,
+            subscriptionStatus: SubscriptionStatus.ACTIVE,
+            isActive: true,
+          },
+        });
 
-      const admin = await tx.user.create({
-        data: {
-          businessUuid: business.businessUuid,
-          email: data.adminEmail,
-          passwordHash: data.adminPasswordHash,
-          fullName: data.adminFullName,
-          phone: data.adminPhone,
-          role: UserRole.ADMIN,
-          isActive: true,
-          mustChangePassword: true,
-        },
-      });
+        const admin = await tx.user.create({
+          data: {
+            businessUuid: business.businessUuid,
+            email: data.adminEmail,
+            passwordHash: data.adminPasswordHash,
+            fullName: data.adminFullName,
+            phone: data.adminPhone,
+            role: UserRole.ADMIN,
+            isActive: true,
+            mustChangePassword: true,
+          },
+        });
 
-      return { business, admin };
-    });
+        return { business, admin };
+      });
+    };
+
+    try {
+      return await doCreate(data.slug);
+    } catch (err: any) {
+      if (err.code === 'P2002' && (err.meta?.target?.includes('slug') || err.message?.includes('slug'))) {
+        const uniqueSlug = `${data.slug}-${Date.now().toString(36)}`;
+        return await doCreate(uniqueSlug);
+      }
+      throw err;
+    }
   }
 
   // Alias for backward compatibility

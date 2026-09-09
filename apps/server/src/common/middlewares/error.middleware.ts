@@ -58,6 +58,24 @@ export const errorHandler = (
     return;
   }
 
+  // Handle Prisma Unique Constraint Violations (P2002)
+  if (err.code === 'P2002') {
+    const fields = Array.isArray(err.meta?.target) ? err.meta.target.join(', ') : (err.meta?.target || 'field');
+    res.status(409).json({
+      success: false,
+      data: null,
+      error: {
+        code: 'CONFLICT',
+        message: `A record with this ${fields} already exists. Please choose a different value.`,
+        details: err.message,
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+      },
+    });
+    return;
+  }
+
   // Handle Invalid role validation errors
   if (err.message && err.message.startsWith('Invalid role')) {
     res.status(400).json({

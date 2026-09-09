@@ -121,11 +121,22 @@ export class AuthService {
       session = { sessionUuid: crypto.randomUUID() };
     }
 
+    const effectiveRole = normalizeRole(user.role);
+
+    // Auto-heal legacy database roles (e.g. PLATFORM_ADMIN -> SUPER_ADMIN)
+    if (user.role !== effectiveRole) {
+      try {
+        await this.authRepository.updateUser(user.userUuid, { role: effectiveRole as any });
+      } catch {
+        // non-fatal
+      }
+    }
+
     const payload = {
       userId: user.userUuid,
       businessUuid: user.businessUuid || undefined,
       tenantId: user.businessUuid || undefined,
-      role: user.role,
+      role: effectiveRole,
       email: user.email,
     };
 
@@ -166,7 +177,7 @@ export class AuthService {
         email: user.email,
         fullName: user.fullName,
         phone: user.phone,
-        role: user.role,
+        role: effectiveRole,
         businessUuid: user.businessUuid,
         clubUuid: user.businessUuid,
         business: bizData,

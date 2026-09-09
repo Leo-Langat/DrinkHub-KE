@@ -33,7 +33,10 @@ enum BusinessStatus {
 
 enum UserRole {
   SUPER_ADMIN
+  PLATFORM_ADMIN
   ADMIN
+  CLUB_ADMIN
+  TENANT_ADMIN
   MANAGER
   WAITER
   CUSTOMER

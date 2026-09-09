@@ -200,7 +200,10 @@ export const isValidRole = (role: unknown): role is UserRole => {
   const normalized = role.trim().toUpperCase();
   return (
     normalized === UserRole.SUPER_ADMIN ||
+    normalized === 'PLATFORM_ADMIN' ||
     normalized === UserRole.ADMIN ||
+    normalized === 'CLUB_ADMIN' ||
+    normalized === 'TENANT_ADMIN' ||
     normalized === UserRole.MANAGER ||
     normalized === UserRole.WAITER ||
     normalized === UserRole.CUSTOMER
@@ -212,8 +215,8 @@ export const normalizeRole = (role: string): UserRole => {
     throw new Error(`Invalid role: Expected a valid role string, but received '${role}'`);
   }
   const normalized = role.trim().toUpperCase();
-  if (normalized === UserRole.SUPER_ADMIN) return UserRole.SUPER_ADMIN;
-  if (normalized === UserRole.ADMIN) return UserRole.ADMIN;
+  if (normalized === UserRole.SUPER_ADMIN || normalized === 'PLATFORM_ADMIN') return UserRole.SUPER_ADMIN;
+  if (normalized === UserRole.ADMIN || normalized === 'CLUB_ADMIN' || normalized === 'TENANT_ADMIN') return UserRole.ADMIN;
   if (normalized === UserRole.MANAGER) return UserRole.MANAGER;
   if (normalized === UserRole.WAITER) return UserRole.WAITER;
   if (normalized === UserRole.CUSTOMER) return UserRole.CUSTOMER;

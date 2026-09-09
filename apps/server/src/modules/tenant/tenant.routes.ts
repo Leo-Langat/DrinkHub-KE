@@ -30,7 +30,7 @@ tenantRouter.get(
 tenantRouter.get(
   '/current',
   authenticate,
-  authorize([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER]),
+  authorize([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER, UserRole.WAITER]),
   tenantController.getCurrentBusiness,
 );
 

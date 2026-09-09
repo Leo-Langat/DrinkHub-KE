@@ -80,7 +80,7 @@ const ClubBrandingEngine: React.FC<{ children: React.ReactNode }> = ({ children 
             primaryColor: club.brandColor || club.themeColor || '#DC2626',
             secondaryColor: club.brandColor || '#991B1B',
             accentColor: '#F59E0B',
-            name: club.name || 'DrinkHub Venue',
+            name: club.name || 'OrderUp Venue',
             welcomeMessage: club.tagline || 'Enjoy our premium drinks.',
             logoUrl: club.logoUrl || '',
             bannerUrl: club.bannerUrl || '',

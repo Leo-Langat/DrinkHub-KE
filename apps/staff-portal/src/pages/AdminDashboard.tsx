@@ -67,19 +67,16 @@ import {
   Cell,
   Legend,
 } from 'recharts';
-import { getApiUrl } from '../config/api';
+import { getApiUrl, resolveImageUrl } from '../config/api';
 
 /* ─────────────────────────────────────────────────────────────
    TYPES & INTERFACES
 ───────────────────────────────────────────────────────────── */
 export type AdminNavKey =
   | 'dashboard'
-  | 'overview'
-  | 'managers'
-  | 'waiters'
+  | 'users'
   | 'orders'
   | 'sales'
-  | 'payments'
   | 'staff'
   | 'reports'
   | 'settings'
@@ -500,7 +497,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   const [reportCustomStart, setReportCustomStart] = useState('');
   const [reportCustomEnd, setReportCustomEnd] = useState('');
   const [reportTab, setReportTab] = useState<
-    'overview' | 'revenue' | 'orders' | 'payments' | 'products' | 'categories' | 'waiters'
+    'overview' | 'revenue' | 'orders' | 'payments' | 'products' | 'users'
   >('overview');
   const [reportData, setReportData] = useState<any>(null);
   const [reportLoading, setReportLoading] = useState(false);
@@ -511,6 +508,10 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   const [createManagerOpen, setCreateManagerOpen] = useState(false);
   const [editBusinessOpen, setEditBusinessOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null);
+
+  /* Users Management View State */
+  const [userSubTab, setUserSubTab] = useState<'all' | 'managers' | 'waiters'>('all');
+  const [allUsersSearch, setAllUsersSearch] = useState('');
 
   /* Filters */
   const [managerSearch, setManagerSearch] = useState('');
@@ -594,20 +595,18 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
 
   /* Formatters */
   const formatKsh = (amount: number) => `KSh ${Number(amount || 0).toLocaleString('en-KE')}`;
-  const businessName = businessSummary?.business?.name || user.club?.name || 'My Business';
-  const businessType = businessSummary?.business?.businessType || 'RESTAURANT';
+  const businessName = businessSummary?.business?.name || overview?.business?.name || user.club?.name || user.business?.name || 'My Business';
+  const businessType = businessSummary?.business?.businessType || overview?.business?.type || user.business?.businessType || 'RESTAURANT';
+  const businessLogoUrl = businessSummary?.business?.logoUrl || (overview?.business as any)?.logoUrl || (user.business as any)?.logoUrl || (user.club as any)?.logoUrl || null;
 
   /* ─────────────────────────────────────────────────────────────
-     NAVIGATION MENU CONFIGURATION (10 Exact Sections)
+     NAVIGATION MENU CONFIGURATION
   ───────────────────────────────────────────────────────────── */
   const NAV_ITEMS: { key: AdminNavKey; label: string; icon: React.ReactNode }[] = [
     { key: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
-    { key: 'overview', label: 'Business Overview', icon: <Building2 className="h-4 w-4" /> },
-    { key: 'managers', label: 'Managers', icon: <Users className="h-4 w-4" /> },
-    { key: 'waiters', label: 'Waiters', icon: <UserCheck className="h-4 w-4" /> },
+    { key: 'users', label: 'Users', icon: <Users className="h-4 w-4" /> },
     { key: 'orders', label: 'Orders', icon: <ClipboardList className="h-4 w-4" /> },
     { key: 'sales', label: 'Sales & Revenue', icon: <TrendingUp className="h-4 w-4" /> },
-    { key: 'payments', label: 'Payments', icon: <CreditCard className="h-4 w-4" /> },
     { key: 'staff', label: 'Staff Performance', icon: <Award className="h-4 w-4" /> },
     { key: 'reports', label: 'Reports', icon: <FileText className="h-4 w-4" /> },
     { key: 'settings', label: 'Business Settings', icon: <Settings className="h-4 w-4" /> },
@@ -721,24 +720,94 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       );
     }
 
-    // Extract metrics from dedicated overview response or fallback safely
     const currentBizName = overview?.business?.name || businessName;
     const currentBizType = overview?.business?.type || businessType;
-    const summary = overview?.summary || {
-      todayRevenue: 0,
-      todayOrders: 0,
-      pendingOrders: 0,
-      inProgressOrders: 0,
-      completedOrders: 0,
-      cancelledOrders: 0,
-      totalManagers: (Array.isArray(managers) ? managers : []).length,
-      totalWaiters: (Array.isArray(staffList) ? staffList : []).filter((s: any) => s.role === 'WAITER').length,
+
+    // Live database metrics calculation to ensure actual database data is displayed
+    const dbTotalRevenue =
+      orders
+        .filter((o) => o.paymentStatus === 'PAID')
+        .reduce((sum, o) => sum + Number(o.totalAmount || 0), 0) ||
+      payments
+        .filter((p) => p.paymentStatus === 'PAID' || p.paymentStatus === 'COMPLETED')
+        .reduce((sum, p) => sum + Number(p.amount || 0), 0) ||
+      businessSummary?.totalRevenue ||
+      0;
+
+    const dbPendingOrders = orders.filter((o) => o.status === 'PENDING').length;
+    const dbInProgressOrders = orders.filter((o) => o.status === 'CLAIMED' || o.status === 'PREPARING' || o.status === 'READY').length;
+    const dbCompletedOrders = orders.filter((o) => o.status === 'COMPLETED' || o.status === 'DELIVERED').length || businessSummary?.completedOrders || 0;
+    const dbCancelledOrders = orders.filter((o) => o.status === 'CANCELLED').length;
+    const dbTotalOrders = orders.length || businessSummary?.totalOrders || 0;
+
+    const dbManagersCount =
+      (Array.isArray(managers) ? managers : []).length ||
+      (Array.isArray(staffList) ? staffList.filter((s: any) => s.role === 'MANAGER').length : 0) ||
+      businessSummary?.managersCount ||
+      0;
+
+    const dbWaitersCount =
+      (Array.isArray(staffList) ? staffList.filter((s: any) => s.role === 'WAITER').length : 0) ||
+      businessSummary?.waitersCount ||
+      0;
+
+    const summary = {
+      todayRevenue: overview?.summary?.todayRevenue || dbTotalRevenue,
+      todayOrders: overview?.summary?.todayOrders || dbTotalOrders,
+      pendingOrders: overview?.summary?.pendingOrders ?? dbPendingOrders,
+      inProgressOrders: overview?.summary?.inProgressOrders ?? dbInProgressOrders,
+      completedOrders: overview?.summary?.completedOrders ?? dbCompletedOrders,
+      cancelledOrders: overview?.summary?.cancelledOrders ?? dbCancelledOrders,
+      totalManagers: overview?.summary?.totalManagers || dbManagersCount,
+      totalWaiters: overview?.summary?.totalWaiters || dbWaitersCount,
     };
 
     const revTrend = overview?.revenue;
     const ordTrend = overview?.orders;
-    const recentOrdersList = overview?.recentOrders || [];
-    const topMenuItemsList = overview?.topMenuItems || [];
+
+    // Recent orders from overview or fallback to live database orders
+    const recentOrdersList =
+      overview?.recentOrders && overview.recentOrders.length > 0
+        ? overview.recentOrders
+        : orders.slice(0, 8).map((o) => ({
+            id: o.orderUuid,
+            orderNumber: o.orderNumber,
+            tableNumber: o.table?.tableNumber,
+            sectionName: o.table?.sectionName,
+            totalAmount: o.totalAmount,
+            paymentMethod: o.paymentMethod || 'MPESA_STK',
+            paymentStatus: o.paymentStatus,
+            status: o.status,
+            createdAt: o.createdAt,
+          }));
+
+    // Top menu items from overview or derived from database orders
+    const topMenuItemsList =
+      overview?.topMenuItems && overview.topMenuItems.length > 0
+        ? overview.topMenuItems
+        : (() => {
+            const itemMap: Record<string, { itemId: string; name: string; category: string; quantitySold: number; revenueGenerated: number }> = {};
+            orders.forEach((o) => {
+              (o.orderItems || []).forEach((item) => {
+                const name = item.productName || item.product?.name || 'Item';
+                if (!itemMap[name]) {
+                  itemMap[name] = {
+                    itemId: item.orderItemUuid || name,
+                    name,
+                    category: item.product?.category?.name || 'Menu',
+                    quantitySold: 0,
+                    revenueGenerated: 0,
+                  };
+                }
+                itemMap[name].quantitySold += item.quantity || 1;
+                itemMap[name].revenueGenerated += Number(item.subtotal || (item.unitPrice * (item.quantity || 1)) || 0);
+              });
+            });
+            return Object.values(itemMap)
+              .sort((a, b) => b.quantitySold - a.quantitySold)
+              .slice(0, 5);
+          })();
+
     const chartTrendData = overview?.salesTrend && overview.salesTrend.length > 0
       ? overview.salesTrend.map((d) => ({
           day: d.dayLabel,
@@ -774,6 +843,17 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
+              {businessLogoUrl && (
+                <img
+                  src={resolveImageUrl(businessLogoUrl)}
+                  alt={currentBizName}
+                  className="h-8 w-8 rounded-lg object-cover border flex-shrink-0"
+                  style={{ borderColor: 'var(--border)' }}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLElement).style.display = 'none';
+                  }}
+                />
+              )}
               <h2 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
                 Business Performance Dashboard
               </h2>
@@ -1214,7 +1294,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               style={{ background: biz.brandColor || '#2563EB' }}
             >
               {biz.logoUrl ? (
-                <img src={biz.logoUrl} alt={biz.name} className="h-full w-full object-cover rounded-2xl" />
+                <img src={resolveImageUrl(biz.logoUrl)} alt={biz.name} className="h-full w-full object-cover rounded-2xl" />
               ) : (
                 biz.name.charAt(0).toUpperCase()
               )}
@@ -1449,7 +1529,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
 
   // Load when page/filters/sort change
   useEffect(() => {
-    if (page === 'managers') {
+    if (page === 'users') {
       loadManagers(managerPage, managerStatusFilter, managerSearch, managerSortBy, managerSortOrder);
     }
   }, [page, managerPage, managerStatusFilter, managerSortBy, managerSortOrder]);
@@ -2509,7 +2589,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   );
 
   useEffect(() => {
-    if (page === 'waiters') {
+    if (page === 'users') {
       loadWaiters(waiterPage, waiterStatusFilter, waiterSearch, waiterSortBy, waiterSortOrder);
     }
   }, [page, waiterPage, waiterStatusFilter, waiterSortBy, waiterSortOrder]);
@@ -3507,8 +3587,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
         o.orderNumber.toLowerCase().includes(orderSearch.toLowerCase()) ||
         String(o.table?.tableNumber || '').includes(orderSearch);
       const matchStatus = orderStatusFilter === 'ALL' || o.status === orderStatusFilter;
-      const matchPayment = orderPaymentFilter === 'ALL' || o.paymentStatus === orderPaymentFilter;
-      return matchSearch && matchStatus && matchPayment;
+      return matchSearch && matchStatus;
     });
 
     return (
@@ -3528,7 +3607,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
         </div>
 
         {/* Filter Controls */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-2 px-2">
             <Search className="h-4 w-4 text-slate-400" />
             <input
@@ -3559,22 +3638,6 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               <option value="CANCELLED">CANCELLED</option>
             </select>
           </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold text-slate-400">Payment:</span>
-            <select
-              value={orderPaymentFilter}
-              onChange={(e) => setOrderPaymentFilter(e.target.value)}
-              className="w-full rounded-xl border p-2 text-xs outline-none"
-              style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-            >
-              <option value="ALL">All Payment Statuses</option>
-              <option value="PAID">PAID</option>
-              <option value="PENDING">PENDING</option>
-              <option value="PROCESSING">PROCESSING</option>
-              <option value="FAILED">FAILED</option>
-            </select>
-          </div>
         </div>
 
         {/* Orders Table */}
@@ -3588,7 +3651,6 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                   <th className="pb-3">Items Summary</th>
                   <th className="pb-3">Total Amount</th>
                   <th className="pb-3">Payment Method</th>
-                  <th className="pb-3">Payment Status</th>
                   <th className="pb-3">Order Status</th>
                   <th className="pb-3">Waiter</th>
                   <th className="pb-3">Timestamp</th>
@@ -3597,7 +3659,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>
                 {filteredOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-8 text-center text-slate-400">
+                    <td colSpan={8} className="py-8 text-center text-slate-400">
                       No orders matching your criteria.
                     </td>
                   </tr>
@@ -3616,9 +3678,6 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                       <td className="py-3 font-black text-emerald-600">{formatKsh(o.totalAmount)}</td>
                       <td className="py-3 font-semibold text-slate-600 dark:text-slate-300">
                         {o.paymentMethod || 'MPESA_STK'}
-                      </td>
-                      <td className="py-3">
-                        <StatusBadge status={o.paymentStatus} />
                       </td>
                       <td className="py-3">
                         <StatusBadge status={o.status} />
@@ -3699,6 +3758,13 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       averageOrderValue: 0,
     };
 
+    const pendingSettlementPayments = payments.filter((p) => p.paymentStatus === 'PENDING' || p.paymentStatus === 'PROCESSING');
+    const pendingSettlementOrders = orders.filter((o) => o.paymentStatus === 'PENDING' && o.status !== 'CANCELLED');
+    const pendingSettlementsAmount =
+      pendingSettlementPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0) ||
+      pendingSettlementOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+    const pendingSettlementsCount = pendingSettlementPayments.length || pendingSettlementOrders.length;
+
     const paymentBreakdown = analytics?.paymentBreakdown || {
       mpesa: { count: 0, percentage: 0 },
       card: { count: 0, percentage: 0 },
@@ -3742,11 +3808,17 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
         </div>
 
         {/* Financial KPI Summary */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <div className="p-4 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
             <span className="text-xs font-bold text-slate-500">Total Settled Revenue</span>
             <div className="text-2xl font-black text-emerald-600 mt-1">{formatKsh(kpis.totalRevenue)}</div>
             <span className="text-[10px] text-slate-500">Across {kpis.completedOrders} orders</span>
+          </div>
+
+          <div className="p-4 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+            <span className="text-xs font-bold text-slate-500">Pending Settlements</span>
+            <div className="text-2xl font-black text-amber-600 mt-1">{formatKsh(pendingSettlementsAmount)}</div>
+            <span className="text-[10px] text-amber-600 font-semibold">{pendingSettlementsCount} pending transactions</span>
           </div>
 
           <div className="p-4 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
@@ -4119,8 +4191,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     { key: 'orders', label: 'Orders', icon: <ClipboardList className="h-3.5 w-3.5" /> },
     { key: 'payments', label: 'Payments', icon: <CreditCard className="h-3.5 w-3.5" /> },
     { key: 'products', label: 'Products', icon: <ShoppingBag className="h-3.5 w-3.5" /> },
-    { key: 'categories', label: 'Categories', icon: <Layers className="h-3.5 w-3.5" /> },
-    { key: 'waiters', label: 'Waiters', icon: <Users className="h-3.5 w-3.5" /> },
+    { key: 'users', label: 'Users', icon: <Users className="h-3.5 w-3.5" /> },
   ];
 
   const EXPORT_TYPE_MAP: Record<typeof reportTab, string> = {
@@ -4129,8 +4200,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     orders: 'ORDERS',
     payments: 'PAYMENTS',
     products: 'PRODUCTS',
-    categories: 'CATEGORIES',
-    waiters: 'WAITERS',
+    users: 'WAITERS',
   };
 
   const buildReportQuery = () => {
@@ -4152,8 +4222,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
         orders: `/reports/admin/orders?${qs}`,
         payments: `/reports/admin/payments?${qs}`,
         products: `/reports/admin/products?${qs}`,
-        categories: `/reports/admin/categories?${qs}`,
-        waiters: `/reports/admin/waiters?${qs}`,
+        users: `/reports/admin/waiters?${qs}`,
       };
       const res = await authFetch(endpointMap[reportTab]);
       if (res.success && res.data) {
@@ -4590,66 +4659,15 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               </div>
             )}
 
-            {/* ── CATEGORIES TAB ── */}
-            {reportTab === 'categories' && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  {[
-                    { label: 'Category Revenue', value: formatKsh(reportData.totalRevenue ?? 0) },
-                    { label: 'Total Qty Sold', value: reportData.totalQuantitySold ?? 0 },
-                  ].map((kpi, i) => (
-                    <div key={i} className="p-4 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-                      <div className="text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>{kpi.label}</div>
-                      <div className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>{kpi.value}</div>
-                    </div>
-                  ))}
-                </div>
-                {reportData.categories?.length > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-                      <div className="text-sm font-black mb-3" style={{ color: 'var(--text-primary)' }}>Category Distribution</div>
-                      <ResponsiveContainer width="100%" height={200}>
-                        <PieChart>
-                          <Pie data={reportData.categories} dataKey="revenue" nameKey="categoryName" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
-                            {reportData.categories.map((_: any, i: number) => (
-                              <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip formatter={(v: any) => formatKsh(v)} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="p-4 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-                      <div className="text-sm font-black mb-3" style={{ color: 'var(--text-primary)' }}>Category Breakdown</div>
-                      <div className="space-y-2">
-                        {reportData.categories.map((c: any, i: number) => (
-                          <div key={c.categoryUuid} className="flex items-center gap-3">
-                            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
-                            <div className="text-xs flex-1 font-semibold" style={{ color: 'var(--text-primary)' }}>{c.categoryName}</div>
-                            <div className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{formatKsh(c.revenue)} ({c.percentageOfRevenue}%)</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {(!reportData.categories || reportData.categories.length === 0) && (
-                  <div className="p-8 text-center text-xs rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
-                    No category data for this period.
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── WAITERS TAB ── */}
-            {reportTab === 'waiters' && (
+            {/* ── USERS TAB ── */}
+            {reportTab === 'users' && (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {[
                     { label: 'Total Claimed', value: reportData.totalOrdersClaimed ?? 0 },
                     { label: 'Total Completed', value: reportData.totalOrdersCompleted ?? 0 },
                     { label: 'Overall Completion Rate', value: `${reportData.overallCompletionRate ?? 0}%` },
-                    { label: 'Active Waiters', value: reportData.waiters?.length ?? 0 },
+                    { label: 'Active Users', value: reportData.waiters?.length ?? 0 },
                   ].map((kpi, i) => (
                     <div key={i} className="p-4 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
                       <div className="text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>{kpi.label}</div>
@@ -4659,12 +4677,12 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                 </div>
                 {reportData.waiters?.length > 0 && (
                   <div className="p-4 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-                    <div className="text-sm font-black mb-3" style={{ color: 'var(--text-primary)' }}>Waiter Performance</div>
+                    <div className="text-sm font-black mb-3" style={{ color: 'var(--text-primary)' }}>User / Staff Performance</div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
                         <thead>
                           <tr style={{ color: 'var(--text-muted)' }}>
-                            <th className="text-left py-2 font-semibold">Waiter</th>
+                            <th className="text-left py-2 font-semibold">User</th>
                             <th className="text-right py-2 font-semibold">Claimed</th>
                             <th className="text-right py-2 font-semibold">Completed</th>
                             <th className="text-right py-2 font-semibold">Cancelled</th>
@@ -4703,7 +4721,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                 )}
                 {(!reportData.waiters || reportData.waiters.length === 0) && (
                   <div className="p-8 text-center text-xs rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
-                    No waiter activity for this period.
+                    No user performance data recorded for this period.
                   </div>
                 )}
               </div>
@@ -4918,6 +4936,13 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       return;
     }
 
+    // 1. Instant local preview
+    const reader = new FileReader();
+    reader.onload = ev => {
+      if (ev.target?.result) setBrandLogoUrl(ev.target.result as string);
+    };
+    reader.readAsDataURL(file);
+
     const formData = new FormData();
     formData.append('logo', file);
 
@@ -4928,8 +4953,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
         body: formData,
       });
 
-      if (res.success && res.data?.logoUrl) {
-        setBrandLogoUrl(res.data.logoUrl);
+      const returnedUrl = res.data?.logoUrl || res.data?.imageUrl || res.data?.url;
+      if (res.success && returnedUrl) {
+        setBrandLogoUrl(resolveImageUrl(returnedUrl));
         showToast('Logo uploaded successfully!', 'success');
         loadDashboardData();
       }
@@ -5286,7 +5312,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               <div className="flex flex-col sm:flex-row items-center gap-6">
                 <div className="h-24 w-24 rounded-2xl border-2 border-dashed flex items-center justify-center overflow-hidden bg-slate-500/5 flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
                   {brandLogoUrl ? (
-                    <img src={brandLogoUrl} alt="Logo" className="h-full w-full object-cover" />
+                    <img src={resolveImageUrl(brandLogoUrl)} alt="Logo" className="h-full w-full object-cover" />
                   ) : (
                     <Building2 className="h-8 w-8 text-slate-400" />
                   )}
@@ -5685,24 +5711,360 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   };
 
   /* ─────────────────────────────────────────────────────────────
+     FEATURE: CONSOLIDATED USERS VIEW (Managers + Waiters)
+  ───────────────────────────────────────────────────────────── */
+  const renderUsersView = () => {
+    const managerList = managerListData?.managers || [];
+    const waiterList = waiterListData?.waiters || [];
+    const totalUsersCount =
+      (managerListData?.summary?.totalManagers ?? managerList.length) +
+      (waiterListData?.summary?.totalWaiters ?? waiterList.length);
+    const activeManagersCount =
+      managerListData?.summary?.activeManagers ?? managerList.filter((m) => m.isActive).length;
+    const activeWaitersCount =
+      waiterListData?.summary?.activeWaiters ?? waiterList.filter((w) => w.isActive).length;
+    const totalOrdersCount = waiterList.reduce(
+      (acc, w) => acc + (w.activitySummary?.ordersClaimed || 0),
+      0,
+    );
+
+    const combinedUsers = [
+      ...managerList.map((m) => ({ ...m, userType: 'MANAGER' as const })),
+      ...waiterList.map((w) => ({ ...w, userType: 'WAITER' as const })),
+    ].filter((u) => {
+      if (!allUsersSearch) return true;
+      const q = allUsersSearch.toLowerCase();
+      return (
+        (u.fullName || '').toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q) ||
+        (u.phone || '').toLowerCase().includes(q) ||
+        u.userType.toLowerCase().includes(q)
+      );
+    });
+
+    return (
+      <div className="space-y-6">
+        {/* Top Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
+                Users & Staff Management
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+                Staff Administration
+              </span>
+            </div>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              Manage accounts, roles, access permissions, and performance for managers and waiters in {businessName}.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => {
+                setUserSubTab('managers');
+                generateSecurePassword();
+                setCreateManagerOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition shadow-sm"
+            >
+              <Plus className="h-4 w-4" />
+              Add Manager
+            </button>
+            <button
+              onClick={() => {
+                setUserSubTab('waiters');
+                generateSecureWaiterPassword();
+                setCreateWaiterOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition shadow-sm"
+            >
+              <Plus className="h-4 w-4" />
+              Add Waiter
+            </button>
+          </div>
+        </div>
+
+        {/* Sub-Navigation Tabs */}
+        <div className="flex items-center gap-2 p-1.5 rounded-2xl border w-fit" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          <button
+            onClick={() => setUserSubTab('all')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              userSubTab === 'all'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            <Users className="h-3.5 w-3.5" />
+            All Users ({totalUsersCount})
+          </button>
+          <button
+            onClick={() => setUserSubTab('managers')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              userSubTab === 'managers'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            <Shield className="h-3.5 w-3.5" />
+            Managers ({managerListData?.summary?.totalManagers ?? managerList.length})
+          </button>
+          <button
+            onClick={() => setUserSubTab('waiters')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              userSubTab === 'waiters'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            <UserCheck className="h-3.5 w-3.5" />
+            Waiters ({waiterListData?.summary?.totalWaiters ?? waiterList.length})
+          </button>
+        </div>
+
+        {/* View based on sub-tab */}
+        {userSubTab === 'managers' && renderManagersView()}
+        {userSubTab === 'waiters' && renderWaitersView()}
+        {userSubTab === 'all' && (
+          <div className="space-y-6">
+            {/* KPI Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-4 rounded-2xl border flex items-center gap-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+                <div className="h-12 w-12 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0">
+                  <Users className="h-6 w-6" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-500">Total Users</span>
+                  <div className="text-2xl font-black mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                    {totalUsersCount}
+                  </div>
+                  <span className="text-[10px] text-slate-400">Assigned staff accounts</span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl border flex items-center gap-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+                <div className="h-12 w-12 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0">
+                  <Shield className="h-6 w-6" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-500">Active Managers</span>
+                  <div className="text-2xl font-black text-blue-600 mt-0.5">
+                    {activeManagersCount}
+                  </div>
+                  <span className="text-[10px] text-blue-600 font-semibold">Operational control</span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl border flex items-center gap-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+                <div className="h-12 w-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                  <UserCheck className="h-6 w-6" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-500">Active Waiters</span>
+                  <div className="text-2xl font-black text-emerald-600 mt-0.5">
+                    {activeWaitersCount}
+                  </div>
+                  <span className="text-[10px] text-emerald-600 font-semibold">Floor fulfillment staff</span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl border flex items-center gap-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+                <div className="h-12 w-12 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center flex-shrink-0">
+                  <Award className="h-6 w-6" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-500">Orders Handled</span>
+                  <div className="text-2xl font-black text-purple-600 mt-0.5">
+                    {totalOrdersCount}
+                  </div>
+                  <span className="text-[10px] text-purple-600 font-semibold">Total service activity</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Filter / Search Bar */}
+            <div className="flex items-center gap-3 p-3 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+              <Search className="h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search users by name, email, phone, or role..."
+                value={allUsersSearch}
+                onChange={(e) => setAllUsersSearch(e.target.value)}
+                className="bg-transparent text-xs outline-none flex-1"
+                style={{ color: 'var(--text-primary)' }}
+              />
+              {allUsersSearch && (
+                <button
+                  onClick={() => setAllUsersSearch('')}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Combined Users Table */}
+            <div className="p-5 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b text-slate-400 font-bold" style={{ borderColor: 'var(--border)' }}>
+                      <th className="pb-3">User</th>
+                      <th className="pb-3">Role</th>
+                      <th className="pb-3">Phone</th>
+                      <th className="pb-3">Status</th>
+                      <th className="pb-3">Added</th>
+                      <th className="pb-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>
+                    {combinedUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-slate-400">
+                          <Users className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                          <p className="font-bold">No users found</p>
+                          <p className="text-[11px] mt-1">Use the buttons above to add managers or waiters.</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      combinedUsers.map((u: any) => {
+                        const isMgr = u.userType === 'MANAGER';
+                        const id = isMgr ? u.userUuid : u.waiterUuid;
+                        return (
+                          <tr key={`${u.userType}-${id}`} className="hover:bg-slate-500/5 transition-colors">
+                            <td className="py-3">
+                              <div className="flex items-center gap-2.5">
+                                <div
+                                  className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs ${
+                                    isMgr
+                                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                                      : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                  }`}
+                                >
+                                  {(u.fullName || 'U').charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                  <div className="font-bold" style={{ color: 'var(--text-primary)' }}>
+                                    {u.fullName}
+                                  </div>
+                                  <div className="text-[11px] text-slate-400">{u.email}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3">
+                              <span
+                                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                  isMgr
+                                    ? 'bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800'
+                                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800'
+                                }`}
+                              >
+                                {isMgr ? <Shield className="h-3 w-3" /> : <Award className="h-3 w-3" />}
+                                {u.userType}
+                              </span>
+                            </td>
+                            <td className="py-3 text-slate-500">{u.phone || '—'}</td>
+                            <td className="py-3">
+                              <span
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  u.isActive
+                                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+                                    : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                                }`}
+                              >
+                                <span
+                                  className={`h-1.5 w-1.5 rounded-full ${
+                                    u.isActive ? 'bg-emerald-500' : 'bg-slate-400'
+                                  }`}
+                                />
+                                {u.isActive ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                            <td className="py-3 text-slate-400">
+                              {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}
+                            </td>
+                            <td className="py-3 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    if (isMgr) {
+                                      setResetPwdTarget(u);
+                                      setResetPwdCustom('');
+                                      setResetPwdResult(null);
+                                      setResetPwdOpen(true);
+                                    } else {
+                                      setResetWaiterPwdTarget(u);
+                                      setResetWaiterPwdCustom('');
+                                      setResetWaiterPwdResult(null);
+                                      setResetWaiterPwdOpen(true);
+                                    }
+                                  }}
+                                  title="Reset Password"
+                                  className="p-1.5 rounded-lg border hover:bg-slate-500/10 transition-colors"
+                                  style={{ borderColor: 'var(--border)' }}
+                                >
+                                  <Key className="h-3.5 w-3.5 text-amber-600" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (isMgr) {
+                                      openEditManager(u);
+                                    } else {
+                                      openEditWaiter(u);
+                                    }
+                                  }}
+                                  title="Edit User"
+                                  className="p-1.5 rounded-lg border hover:bg-slate-500/10 transition-colors"
+                                  style={{ borderColor: 'var(--border)' }}
+                                >
+                                  <Edit2 className="h-3.5 w-3.5 text-blue-600" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (isMgr) {
+                                      setDeleteManagerTarget(u);
+                                      setDeleteManagerOpen(true);
+                                    } else {
+                                      setDeleteWaiterTarget(u);
+                                      setDeleteWaiterOpen(true);
+                                    }
+                                  }}
+                                  title="Remove User"
+                                  className="p-1.5 rounded-lg border hover:bg-red-500/10 transition-colors"
+                                  style={{ borderColor: 'var(--border)' }}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /* ─────────────────────────────────────────────────────────────
      RENDER PAGE ROUTER
   ───────────────────────────────────────────────────────────── */
   const renderCurrentPage = () => {
     switch (page) {
       case 'dashboard':
         return renderDashboardView();
-      case 'overview':
-        return renderBusinessOverview();
-      case 'managers':
-        return renderManagersView();
-      case 'waiters':
-        return renderWaitersView();
+      case 'users':
+        return renderUsersView();
       case 'orders':
         return renderOrdersView();
       case 'sales':
         return renderSalesView();
-      case 'payments':
-        return renderPaymentsView();
       case 'staff':
         return renderStaffPerformance();
       case 'reports':
@@ -5732,14 +6094,37 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
         <div className="flex items-center gap-3 p-4 border-b" style={{ borderColor: '#1E293B' }}>
           <button
             onClick={() => setCollapsed((v) => !v)}
-            className="h-8 w-8 rounded-lg bg-blue-600 flex-shrink-0 flex items-center justify-center hover:bg-blue-700 transition-colors"
+            className="h-8 w-8 rounded-lg bg-blue-600 flex-shrink-0 flex items-center justify-center hover:bg-blue-700 transition-colors overflow-hidden"
           >
-            <Building2 className="h-4 w-4 text-white" />
+            {businessLogoUrl ? (
+              <img
+                src={resolveImageUrl(businessLogoUrl)}
+                alt={businessName}
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = 'none';
+                }}
+              />
+            ) : (
+              <Building2 className="h-4 w-4 text-white" />
+            )}
           </button>
           {!collapsed && (
-            <div className="overflow-hidden">
-              <div className="text-sm font-black text-white truncate">{businessName}</div>
-              <div className="text-[10px] text-blue-400 font-bold truncate">Business Admin Portal</div>
+            <div className="overflow-hidden flex items-center gap-2 min-w-0">
+              {businessLogoUrl && (
+                <img
+                  src={resolveImageUrl(businessLogoUrl)}
+                  alt={businessName}
+                  className="h-5 w-5 rounded-md object-cover flex-shrink-0 border border-slate-700"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLElement).style.display = 'none';
+                  }}
+                />
+              )}
+              <div className="overflow-hidden min-w-0">
+                <div className="text-sm font-black text-white truncate">{businessName}</div>
+                <div className="text-[10px] text-blue-400 font-bold truncate">Business Admin Portal</div>
+              </div>
             </div>
           )}
         </div>
@@ -5782,13 +6167,26 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           className="border-b px-6 py-3.5 flex items-center justify-between sticky top-0 z-20"
           style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}
         >
-          <div>
-            <h1 className="text-base font-black" style={{ color: 'var(--text-primary)' }}>
-              {NAV_ITEMS.find((n) => n.key === page)?.label}
-            </h1>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              {businessName} ({businessType}) | {new Date().toLocaleDateString('en-KE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-            </p>
+          <div className="flex items-center gap-3 min-w-0">
+            {businessLogoUrl && (
+              <img
+                src={resolveImageUrl(businessLogoUrl)}
+                alt={businessName}
+                className="h-8 w-8 rounded-xl object-cover border flex-shrink-0 shadow-sm"
+                style={{ borderColor: 'var(--border)' }}
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = 'none';
+                }}
+              />
+            )}
+            <div className="min-w-0">
+              <h1 className="text-base font-black truncate" style={{ color: 'var(--text-primary)' }}>
+                {NAV_ITEMS.find((n) => n.key === page)?.label}
+              </h1>
+              <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+                {businessName} ({businessType}) | {new Date().toLocaleDateString('en-KE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">

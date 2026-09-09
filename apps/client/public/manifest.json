@@ -1,7 +1,7 @@
 {
-  "name": "DrinkHub Kenya - Realtime Venue Ordering",
-  "short_name": "DrinkHub KE",
-  "description": "Production-Ready SaaS QR-Code Table Ordering, Kitchen Dispatch & M-Pesa Payments for Kenya's Clubs, Bars & Lounges.",
+  "name": "OrderUp - Realtime Venue Ordering",
+  "short_name": "OrderUp",
+  "description": "Production-Ready SaaS QR-Code Table Ordering, Kitchen Dispatch & M-Pesa Payments for Kenya's Restaurants, Bars, Hotels & Lounges.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",

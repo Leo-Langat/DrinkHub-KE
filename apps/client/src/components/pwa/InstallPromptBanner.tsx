@@ -26,7 +26,7 @@ export const InstallPromptBanner: React.FC = () => {
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
-      console.info('User installed DrinkHub Kenya PWA');
+      console.info('User installed OrderUp PWA');
     }
     setDeferredPrompt(null);
     setShowBanner(false);
@@ -42,7 +42,7 @@ export const InstallPromptBanner: React.FC = () => {
             🍸
           </div>
           <div>
-            <h4 className="text-xs font-bold text-white">Install DrinkHub App</h4>
+            <h4 className="text-xs font-bold text-white">Install OrderUp App</h4>
             <p className="text-[11px] text-slate-400">Add to home screen for faster ordering</p>
           </div>
         </div>

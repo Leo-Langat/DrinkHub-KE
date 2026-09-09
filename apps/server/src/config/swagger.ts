@@ -4,11 +4,11 @@ const options: swaggerJSDoc.Options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'DrinkHub Kenya SaaS API',
+      title: 'OrderUp SaaS API',
       version: '1.0.0',
-      description: 'API documentation for DrinkHub Kenya multi-tenant PWA platform',
+      description: 'API documentation for OrderUp multi-tenant PWA platform',
       contact: {
-        name: 'DrinkHub Architecture Team',
+        name: 'OrderUp Architecture Team',
         email: 'support@drinkhub.co.ke',
       },
     },

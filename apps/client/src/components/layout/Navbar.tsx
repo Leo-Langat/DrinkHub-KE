@@ -86,7 +86,7 @@ export const Navbar: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center">
-              <span className="text-lg font-bold tracking-tight text-white">DrinkHub</span>
+              <span className="text-lg font-bold tracking-tight text-white">OrderUp</span>
               <span className="ml-1 text-xs font-semibold text-brand-500">KE</span>
             </div>
             {tenant && <p className="text-xs text-slate-400">{tenant.name}</p>}

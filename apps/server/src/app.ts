@@ -1,6 +1,8 @@
 import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import path from 'path';
+import fs from 'fs';
 import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 import { env } from './config/env';
@@ -48,12 +50,20 @@ export const createApp = (): Application => {
     helmet({
       contentSecurityPolicy: env.NODE_ENV === 'production' ? undefined : false,
       crossOriginEmbedderPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
     }),
   );
 
   app.use(express.json({ limit: '20mb' }));
   app.use(express.urlencoded({ extended: true, limit: '20mb' }));
-  app.use('/uploads', express.static('uploads'));
+
+  // Serve uploads with cross-origin access from both server and workspace root directories
+  const serverUploadsDir = path.resolve(__dirname, '../uploads');
+  const rootUploadsDir = path.resolve(process.cwd(), 'uploads');
+  if (!fs.existsSync(serverUploadsDir)) fs.mkdirSync(serverUploadsDir, { recursive: true });
+  if (!fs.existsSync(rootUploadsDir)) fs.mkdirSync(rootUploadsDir, { recursive: true });
+  app.use('/uploads', express.static(serverUploadsDir));
+  app.use('/uploads', express.static(rootUploadsDir));
 
   // ── Global rate limiter (all routes) ─────────────────────────────────────
   // Dashboards (waiter, manager, customer) poll frequently — allow 2000 req/15min

@@ -63,7 +63,7 @@ interface Offer {
 type CartMap = Record<string, number>;
 
 const DEFAULT_BRAND: BrandingConfig = {
-  name: 'DrinkHub Venue',
+  name: 'OrderUp Venue',
   tagline: 'Nairobi, Kenya',
   logoUrl: null,
   bannerUrl: null,
@@ -195,7 +195,7 @@ export const DigitalStorefrontPage: React.FC = () => {
             : null;
 
         setBrand({
-          name: club.name ?? 'DrinkHub Venue',
+          name: club.name ?? 'OrderUp Venue',
           tagline: club.tagline ?? club.county ?? 'Kenya',
           logoUrl: club.logoUrl || fallbackLogo,
           bannerUrl: club.bannerUrl ?? null,
@@ -1065,15 +1065,15 @@ export const DigitalStorefrontPage: React.FC = () => {
         }
         <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(10,10,15,0.2) 0%, rgba(10,10,15,0.85) 70%, rgba(10,10,15,1) 100%)' }} />
 
-        {/* Top bar with DrinkHub Company Logo & Venue Status */}
+        {/* Top bar with OrderUp Company Logo & Venue Status */}
         <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
           <div className="flex items-center gap-2 rounded-full px-3.5 py-1.5 backdrop-blur-md border shadow-lg" style={{ background: 'rgba(10,10,15,0.7)', borderColor: 'rgba(255,255,255,0.15)' }}>
-            {/* DrinkHub Official Company Logo Emblem */}
+            {/* OrderUp Official Company Logo Emblem */}
             <div className="h-6 w-6 rounded-lg bg-gradient-to-tr from-amber-500 via-rose-500 to-blue-600 flex items-center justify-center shadow-md flex-shrink-0">
               <Wine className="w-3.5 h-3.5 text-white" />
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="font-black text-xs tracking-wider text-white">Drink<span className="text-amber-400">Hub</span></span>
+              <span className="font-black text-xs tracking-wider text-white">Order<span className="text-amber-400">Up</span></span>
               <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">KE</span>
             </div>
           </div>
@@ -1609,14 +1609,14 @@ export const DigitalStorefrontPage: React.FC = () => {
         })}
       </div>
 
-      {/* ── DRINKHUB COMPANY BRANDING FOOTER ── */}
+      {/* ── ORDERUP COMPANY BRANDING FOOTER ── */}
       <div className="py-12 px-4 text-center border-t border-white/5 mt-10 space-y-2">
         <div className="inline-flex items-center justify-center gap-2">
           <div className="h-7 w-7 rounded-lg bg-gradient-to-tr from-amber-500 via-rose-500 to-blue-600 flex items-center justify-center shadow-md">
             <Wine className="w-4 h-4 text-white" />
           </div>
           <span className="font-black text-sm text-white tracking-wider">
-            Drink<span className="text-amber-400">Hub</span> <span className="text-xs text-blue-400">Kenya</span>
+            Order<span className="text-amber-400">Up</span>
           </span>
         </div>
         <p className="text-[11px] text-slate-400">

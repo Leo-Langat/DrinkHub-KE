@@ -12,7 +12,7 @@ const APP_SHELL_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.info('[SW] Pre-caching DrinkHub App Shell assets...');
+      console.info('[SW] Pre-caching OrderUp App Shell assets...');
       return cache.addAll(APP_SHELL_ASSETS);
     }).then(() => self.skipWaiting())
   );

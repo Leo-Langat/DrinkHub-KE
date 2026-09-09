@@ -197,7 +197,19 @@ export class TenantController {
 
   assignManager = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const businessUuid = req.params.businessUuid || req.params.clubUuid;
+      const userRole = (req.user?.role || '').toUpperCase();
+      const callerBusinessUuid = req.user?.businessUuid || req.user?.tenantId || (req.user as any)?.clubUuid;
+      const targetBusinessUuid = req.params.businessUuid || req.params.clubUuid;
+
+      if (userRole !== 'SUPER_ADMIN' && callerBusinessUuid !== targetBusinessUuid) {
+        res.status(403).json({
+          success: false,
+          error: { code: 'FORBIDDEN', message: 'Access denied: You can only assign managers for your own business' },
+        });
+        return;
+      }
+
+      const businessUuid = userRole === 'SUPER_ADMIN' ? targetBusinessUuid : callerBusinessUuid;
       const { userUuid } = req.body;
       const manager = await this.tenantService.assignManager(businessUuid, userUuid);
       res.json({
@@ -212,7 +224,19 @@ export class TenantController {
 
   getTables = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const businessUuid = req.params.businessUuid || req.params.clubUuid;
+      const userRole = (req.user?.role || '').toUpperCase();
+      const callerBusinessUuid = req.user?.businessUuid || req.user?.tenantId || (req.user as any)?.clubUuid;
+      const targetBusinessUuid = req.params.businessUuid || req.params.clubUuid;
+
+      if (userRole !== 'SUPER_ADMIN' && callerBusinessUuid && targetBusinessUuid && callerBusinessUuid !== targetBusinessUuid) {
+        res.status(403).json({
+          success: false,
+          error: { code: 'FORBIDDEN', message: 'Access denied: You can only view tables for your own business' },
+        });
+        return;
+      }
+
+      const businessUuid = userRole === 'SUPER_ADMIN' ? (targetBusinessUuid || callerBusinessUuid) : callerBusinessUuid;
       const tables = await this.tenantService.getTables(businessUuid);
       res.json({
         success: true,
@@ -226,7 +250,19 @@ export class TenantController {
 
   generateQrCodes = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const businessUuid = req.params.businessUuid || req.params.clubUuid;
+      const userRole = (req.user?.role || '').toUpperCase();
+      const callerBusinessUuid = req.user?.businessUuid || req.user?.tenantId || (req.user as any)?.clubUuid;
+      const targetBusinessUuid = req.params.businessUuid || req.params.clubUuid;
+
+      if (userRole !== 'SUPER_ADMIN' && callerBusinessUuid && targetBusinessUuid && callerBusinessUuid !== targetBusinessUuid) {
+        res.status(403).json({
+          success: false,
+          error: { code: 'FORBIDDEN', message: 'Access denied: You can only generate QR codes for your own business' },
+        });
+        return;
+      }
+
+      const businessUuid = userRole === 'SUPER_ADMIN' ? (targetBusinessUuid || callerBusinessUuid) : callerBusinessUuid;
       const { tableCount, sectionName, startFrom } = req.body;
       const result = await this.tenantService.generateQrCodes(businessUuid, tableCount, sectionName, startFrom);
       res.json({
@@ -241,7 +277,19 @@ export class TenantController {
 
   deleteTable = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const businessUuid = req.params.businessUuid || req.params.clubUuid;
+      const userRole = (req.user?.role || '').toUpperCase();
+      const callerBusinessUuid = req.user?.businessUuid || req.user?.tenantId || (req.user as any)?.clubUuid;
+      const targetBusinessUuid = req.params.businessUuid || req.params.clubUuid;
+
+      if (userRole !== 'SUPER_ADMIN' && callerBusinessUuid && targetBusinessUuid && callerBusinessUuid !== targetBusinessUuid) {
+        res.status(403).json({
+          success: false,
+          error: { code: 'FORBIDDEN', message: 'Access denied: You can only delete tables for your own business' },
+        });
+        return;
+      }
+
+      const businessUuid = userRole === 'SUPER_ADMIN' ? (targetBusinessUuid || callerBusinessUuid) : callerBusinessUuid;
       const { tableNumber } = req.params;
       await this.tenantService.deleteTable(businessUuid, parseInt(tableNumber, 10));
       res.json({
@@ -261,10 +309,13 @@ export class TenantController {
         res.status(400).json({ success: false, error: { message: 'No image file uploaded' } });
         return;
       }
-      const imageUrl = `/uploads/${file.filename}`;
+      const host = req.get('host') || 'localhost:5000';
+      const protocol = req.protocol || 'http';
+      const imageUrl = `${protocol}://${host}/uploads/${file.filename}`;
+      const relativeUrl = `/uploads/${file.filename}`;
       res.json({
         success: true,
-        data: { imageUrl, url: imageUrl },
+        data: { imageUrl, url: imageUrl, logoUrl: imageUrl, relativeUrl },
         meta: { timestamp: new Date().toISOString(), version: 'v1' },
       });
     } catch (error) {

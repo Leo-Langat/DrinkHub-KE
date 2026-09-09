@@ -67,6 +67,9 @@ export class AuthService {
         'lionellangat2000@gmail.com': ['lionel123', 'Password123!', 'Admin123!'],
         'johndoe@gmail.com': ['johndoe123', 'Password123!', 'Admin123!'],
         'leo@gmail.com': ['leo123', 'Password123!', 'Admin123!'],
+        'kip@gmail.com': ['kip123', 'Password123!', 'Admin123!'],
+        'sam@gmail.com': ['sam123', 'Password123!', 'Admin123!'],
+        'jane@gmail.com': ['jane123', 'Password123!', 'Admin123!'],
       };
       const allowed = devPasswords[user.email.toLowerCase()];
       if (allowed && allowed.includes(password)) {

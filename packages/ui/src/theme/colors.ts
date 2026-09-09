@@ -1,5 +1,5 @@
 // ─── Color Tokens ─────────────────────────────────────────────────────────────
-// Single source of truth for all DrinkHub color values.
+// Single source of truth for all OrderUp color values.
 // Do NOT import these directly into components — use CSS variables instead.
 
 export const LIGHT = {

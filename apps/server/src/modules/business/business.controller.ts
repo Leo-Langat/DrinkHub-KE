@@ -87,14 +87,16 @@ export class BusinessController {
         throw new BadRequestError('No image file uploaded');
       }
 
-      const logoUrl = `/uploads/${file.filename}`;
+      const host = req.get('host') || 'localhost:5000';
+      const protocol = req.protocol || 'http';
+      const logoUrl = `${protocol}://${host}/uploads/${file.filename}`;
       const ipAddress = req.ip || req.socket.remoteAddress;
 
       const result = await this.businessService.uploadLogo(adminUserId, logoUrl, ipAddress);
 
       res.json({
         success: true,
-        data: result,
+        data: { ...result, logoUrl, imageUrl: logoUrl, url: logoUrl },
         meta: { timestamp: new Date().toISOString(), version: 'v1' },
       });
     } catch (error) {

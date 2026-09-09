@@ -20,7 +20,7 @@ export const PlatformAdminDashboardPage: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-white">Super Admin Analytics</h1>
-          <p className="text-xs text-slate-400">DrinkHub Kenya SaaS Operations & Global Business Metrics</p>
+          <p className="text-xs text-slate-400">OrderUp SaaS Operations & Global Business Metrics</p>
         </div>
         <div className="flex items-center space-x-2 rounded-full bg-brand-500/10 px-4 py-1.5 text-xs font-extrabold text-brand-400 border border-brand-500/30">
           <span className="h-2 w-2 rounded-full bg-brand-500 animate-ping" />

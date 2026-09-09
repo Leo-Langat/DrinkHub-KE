@@ -14,7 +14,7 @@ initSocket(server);
 const PORT = parseInt(env.PORT, 10) || 5000;
 
 server.listen(PORT, () => {
-  logger.info(`🚀 DrinkHub Backend Server running on port ${PORT} [${env.NODE_ENV}]`);
+  logger.info(`🚀 OrderUp Backend Server running on port ${PORT} [${env.NODE_ENV}]`);
   logger.info(`📄 Swagger API Docs available at http://localhost:${PORT}/api-docs`);
 });
 

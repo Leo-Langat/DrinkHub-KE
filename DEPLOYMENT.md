@@ -1,6 +1,6 @@
-# DrinkHub Kenya - Production Deployment & Operations Guide
+# OrderUp - Production Deployment & Operations Guide
 
-This guide details the step-by-step production deployment process for **DrinkHub Kenya**.
+This guide details the step-by-step production deployment process for **OrderUp**.
 
 ---
 

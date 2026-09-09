@@ -47,7 +47,7 @@ const PageLoadingSkeleton: React.FC = () => (
     <div className="h-16 w-16 rounded-2xl bg-dark-900 border border-slate-800 flex items-center justify-center">
       <Wine className="h-8 w-8 text-brand-500 animate-spin" />
     </div>
-    <p className="text-xs text-slate-400 font-semibold">Loading DrinkHub PWA...</p>
+    <p className="text-xs text-slate-400 font-semibold">Loading OrderUp PWA...</p>
   </div>
 );
 
@@ -56,10 +56,10 @@ const LandingPage: React.FC = () => {
     <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center p-6 text-center bg-gradient-to-b from-dark-950 via-dark-900 to-dark-950">
       <div className="glass-panel max-w-2xl p-8 space-y-6 border border-slate-800">
         <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl text-white">
-          Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-amber-400">DrinkHub Kenya</span>
+          Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-amber-400">OrderUp</span>
         </h1>
         <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-          Production-Ready Progressive Web Application (PWA) for Kenya's clubs, bars, lounges & entertainment venues. Real-time QR table ordering, waiter dispatch, M-Pesa STK Push, and multi-tenant analytics dashboards.
+          Production-Ready Progressive Web Application (PWA) for Kenya's restaurants, bars, hotels, lounges & entertainment venues. Real-time QR table ordering, waiter dispatch, M-Pesa STK Push, and multi-tenant analytics dashboards.
         </p>
 
         <div className="grid gap-3 sm:grid-cols-2 pt-2">

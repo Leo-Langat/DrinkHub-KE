@@ -74,6 +74,23 @@ export const errorHandler = (
     return;
   }
 
+  // Handle unreachable database (e.g., PostgreSQL not running locally)
+  if (err.message && (err.message.includes("Can't reach database server") || err.code === 'P1001')) {
+    logger.warn(`DatabaseConnectionError: Cannot reach database server at ${err.message}`);
+    res.status(503).json({
+      success: false,
+      data: null,
+      error: {
+        code: 'DATABASE_UNAVAILABLE',
+        message: 'Cannot reach database server at localhost:5432. Please ensure PostgreSQL is running or click "Switch to Cloud" in the portal.',
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+      },
+    });
+    return;
+  }
+
   logger.error(`Unhandled Exception: ${err.message}`, { stack: err.stack });
 
   res.status(500).json({

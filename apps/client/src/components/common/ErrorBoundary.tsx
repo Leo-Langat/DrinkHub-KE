@@ -21,7 +21,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Uncaught DrinkHub UI Error:', error, errorInfo);
+    console.error('Uncaught OrderUp UI Error:', error, errorInfo);
   }
 
   public render() {

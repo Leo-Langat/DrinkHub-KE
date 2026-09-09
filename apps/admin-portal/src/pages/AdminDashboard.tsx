@@ -145,6 +145,18 @@ const getApiUrl = (path: string): string => {
   return `${base}${path.startsWith('/') ? path : `/${path}`}`;
 };
 
+const resolveImageUrl = (url?: string | null): string => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
+    return url;
+  }
+  const cleanPath = url.startsWith('/') ? url : `/${url}`;
+  const envUrl = (import.meta as any).env?.VITE_API_URL;
+  let base = envUrl ? envUrl.trim() : 'http://localhost:5000';
+  base = base.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '');
+  return `${base}${cleanPath}`;
+};
+
 const authHeaders = (): Record<string, string> => {
   const token = localStorage.getItem('drinkhub_token') || localStorage.getItem('drinkhub_admin_token');
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
@@ -184,8 +196,9 @@ const readFile = (e: React.ChangeEvent<HTMLInputElement>, cb: (url: string) => v
   })
     .then(res => res.json())
     .then(data => {
-      if (data.success && (data.data?.imageUrl || data.data?.url)) {
-        cb(data.data.imageUrl || data.data.url);
+      const returnedUrl = data.data?.imageUrl || data.data?.url || data.data?.logoUrl;
+      if (data.success && returnedUrl) {
+        cb(resolveImageUrl(returnedUrl));
       }
     })
     .catch(() => {
@@ -458,26 +471,29 @@ const SectionHeader = ({ title, subtitle, action }: { title: string; subtitle?: 
   </div>
 );
 
-const UploadBox = ({ label, preview, onUpload }: { label: string; preview: string; onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void }) => (
-  <label className="block cursor-pointer">
-    <div className={`relative rounded-xl border-2 border-dashed transition-all hover:border-blue-400 overflow-hidden ${preview ? 'border-blue-300' : 'border-slate-200 dark:border-slate-700'}`} style={{ height: preview ? 110 : 75 }}>
-      {preview ? (
-        <img src={preview} alt="preview" className="w-full h-full object-cover" />
-      ) : (
-        <div className="flex flex-col items-center justify-center h-full gap-1 text-slate-400">
-          <Upload className="h-4 w-4" />
-          <span className="text-xs font-medium">{label}</span>
-        </div>
-      )}
-      {preview && (
-        <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity">
-          <span className="text-white text-xs font-bold">Change</span>
-        </div>
-      )}
-    </div>
-    <input type="file" accept="image/*" className="hidden" onChange={onUpload} />
-  </label>
-);
+const UploadBox = ({ label, preview, onUpload }: { label: string; preview: string; onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void }) => {
+  const displaySrc = resolveImageUrl(preview);
+  return (
+    <label className="block cursor-pointer">
+      <div className={`relative rounded-xl border-2 border-dashed transition-all hover:border-blue-400 overflow-hidden ${displaySrc ? 'border-blue-300' : 'border-slate-200 dark:border-slate-700'}`} style={{ height: displaySrc ? 110 : 75 }}>
+        {displaySrc ? (
+          <img src={displaySrc} alt="preview" className="w-full h-full object-cover" />
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full gap-1 text-slate-400">
+            <Upload className="h-4 w-4" />
+            <span className="text-xs font-medium">{label}</span>
+          </div>
+        )}
+        {displaySrc && (
+          <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity">
+            <span className="text-white text-xs font-bold">Change</span>
+          </div>
+        )}
+      </div>
+      <input type="file" accept="image/*" className="hidden" onChange={onUpload} />
+    </label>
+  );
+};
 
 const ThemePreview = ({ color, businessName, businessType }: { color: string; businessName: string; businessType?: string }) => (
   <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 text-white text-center shadow-sm" style={{ background: color || '#1D4ED8' }}>
@@ -1209,12 +1225,12 @@ const BusinessDetailsView = ({
 
       {/* Banner */}
       <div className="relative rounded-2xl overflow-hidden h-36" style={{ background: business.themeColor || '#2563EB' }}>
-        {business.bannerUrl && <img src={business.bannerUrl} alt="banner" className="w-full h-full object-cover" />}
+        {business.bannerUrl && <img src={resolveImageUrl(business.bannerUrl)} alt="banner" className="w-full h-full object-cover" />}
         <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent flex items-end p-5">
           <div className="flex items-center gap-4">
             <div className="h-14 w-14 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30 overflow-hidden">
               {business.logoUrl ? (
-                <img src={business.logoUrl} alt="logo" className="h-full w-full object-cover" />
+                <img src={resolveImageUrl(business.logoUrl)} alt="logo" className="h-full w-full object-cover" />
               ) : (
                 <Store className="h-7 w-7 text-white" />
               )}
@@ -1722,7 +1738,7 @@ const BusinessesPage = ({
                             style={{ background: business.logoUrl ? undefined : (business.themeColor || '#2563EB') }}
                           >
                             {business.logoUrl ? (
-                              <img src={business.logoUrl} alt={business.name} className="h-full w-full object-cover" />
+                              <img src={resolveImageUrl(business.logoUrl)} alt={business.name} className="h-full w-full object-cover" />
                             ) : (
                               <Store className="h-4 w-4 text-white" />
                             )}
@@ -2847,7 +2863,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           </button>
           {!collapsed && (
             <div className="overflow-hidden">
-              <div className="text-sm font-black text-white truncate">DrinkHub</div>
+              <div className="text-sm font-black text-white truncate">OrderUp</div>
               <div className="text-[10px] text-blue-400 font-semibold tracking-wide uppercase">Super Admin</div>
             </div>
           )}

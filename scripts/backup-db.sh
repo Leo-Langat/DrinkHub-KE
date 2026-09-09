@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# DrinkHub Kenya Automated PostgreSQL Backup Script
+# OrderUp Automated PostgreSQL Backup Script
 # Usage: ./scripts/backup-db.sh
 
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")

@@ -160,7 +160,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             <div className="h-9 w-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
               <Wine className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-black text-white tracking-tight">DrinkHub</span>
+            <span className="text-xl font-black text-white tracking-tight">OrderUp</span>
           </div>
         </div>
 
@@ -170,7 +170,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               Staff Portal
             </h2>
             <p className="text-blue-200 text-lg max-w-sm leading-relaxed">
-              The operations hub for waiters and managers across all DrinkHub venues in Kenya.
+              The operations hub for waiters and managers across all OrderUp venues in Kenya.
             </p>
           </div>
 
@@ -203,7 +203,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             <div className="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center">
               <Wine className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>DrinkHub</span>
+            <span className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>OrderUp</span>
           </div>
 
           {/* Heading */}
@@ -278,7 +278,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 type="button"
                 onClick={() => {
                   if (apiTarget === 'cloud') {
-                    setUsername('tonny@gmail.com');
+                    if (role === 'admin') {
+                      setUsername('admin@alchemist.co.ke');
+                    } else if (role === 'manager') {
+                      setUsername('tonny@gmail.com');
+                    } else {
+                      setUsername('waiter.kamau@alchemist.co.ke');
+                    }
                     setPassword('Password123!');
                   } else {
                     if (role === 'admin') {
@@ -298,7 +304,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             </div>
             <p className="text-[11px] text-blue-700">
               {apiTarget === 'cloud'
-                ? 'tonny@gmail.com / Password123! (Manager - Roco Mamas)'
+                ? role === 'admin'
+                  ? 'admin@alchemist.co.ke / Password123! (Alchemist Admin)'
+                  : role === 'manager'
+                  ? 'tonny@gmail.com / Password123! (Roco Mamas Manager)'
+                  : 'waiter.kamau@alchemist.co.ke / Password123! (Alchemist Waiter)'
                 : role === 'admin'
                 ? 'lionellangat2000@gmail.com / Password123! (Roco Mamas Admin)'
                 : role === 'manager'

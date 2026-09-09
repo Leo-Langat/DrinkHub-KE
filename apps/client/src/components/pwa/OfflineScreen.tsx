@@ -49,7 +49,7 @@ export const OfflineScreen: React.FC<{ children: React.ReactNode }> = ({ childre
           <div className="space-y-2">
             <h2 className="text-2xl font-black text-white">No Internet Connection</h2>
             <p className="text-xs text-slate-300 leading-relaxed">
-              DrinkHub Kenya requires an active internet connection for real-time QR table ordering, kitchen dispatch, and M-Pesa payments.
+              OrderUp requires an active internet connection for real-time QR table ordering, kitchen dispatch, and M-Pesa payments.
             </p>
           </div>
 

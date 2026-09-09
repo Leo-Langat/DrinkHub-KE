@@ -2749,9 +2749,15 @@ const ManagerSettingsPage = ({ showToast, user, onSettingsSaved }: { showToast: 
 
 /* --- QR Codes Page --- */
 const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, type?: 'success' | 'error') => void }) => {
-  const clubSlug = user.club?.slug || user.clubSlug || user.tenantSlug || (user.club?.name ? user.club.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'g-place');
-  const clubName = user.club?.name || 'Your Venue';
-  const clubUuid = user.club?.clubUuid || user.clubUuid || user.tenantId || '';
+  const clubSlug =
+    user.club?.slug ||
+    user.business?.slug ||
+    user.clubSlug ||
+    user.tenantSlug ||
+    (user.club?.name ? user.club.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : '') ||
+    (user.business?.name ? user.business.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : '');
+  const clubName = user.club?.name || user.business?.name || 'Your Venue';
+  const clubUuid = user.club?.clubUuid || user.club?.uuid || user.business?.uuid || user.businessUuid || user.clubUuid || user.tenantId || '';
   const pwaBase = (import.meta as any).env?.VITE_CUSTOMER_PWA_URL || 'https://drink-hub-ke-customer-pwa.vercel.app';
   const cleanPwaBase = pwaBase.endsWith('/') ? pwaBase.slice(0, -1) : pwaBase;
   const fullBaseUrl = `${cleanPwaBase}/v/${clubSlug}`;
@@ -3238,12 +3244,34 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
     catch { return {}; }
   }, []);
 
-  const clubName = user.club?.name || 'Venue Portal';
-  const clubCity = user.club?.city || 'Nairobi';
-  const clubCounty = user.club?.county || 'Kenya';
-  const clubLocation = user.club ? `${clubCity}, ${clubCounty}` : 'Kenya';
-  const [openingHours, setOpeningHours] = React.useState<string>(user.club?.openingHours || '18:00');
-  const [closingHours, setClosingHours] = React.useState<string>(user.club?.closingHours || '04:00');
+  const [currentClub, setCurrentClub] = React.useState<any>(() => user.club || user.business || null);
+  const [openingHours, setOpeningHours] = React.useState<string>(user.club?.openingHours || user.business?.openingHours || '18:00');
+  const [closingHours, setClosingHours] = React.useState<string>(user.club?.closingHours || user.business?.closingHours || '04:00');
+
+  React.useEffect(() => {
+    let isMounted = true;
+    const fetchCurrentBusiness = async () => {
+      try {
+        const res = await fetch(getApiUrl('/tenants/current'), { headers: authHeaders() });
+        if (res.ok) {
+          const json = await res.json();
+          const biz = json.data?.business || json.data?.club || json.data;
+          if (isMounted && biz) {
+            setCurrentClub(biz);
+            if (biz.openingHours) setOpeningHours(biz.openingHours);
+            if (biz.closingHours) setClosingHours(biz.closingHours);
+          }
+        }
+      } catch {}
+    };
+    fetchCurrentBusiness();
+    return () => { isMounted = false; };
+  }, []);
+
+  const clubName = currentClub?.name || user.club?.name || user.business?.name || 'Venue Portal';
+  const clubCity = currentClub?.city || user.club?.city || user.business?.city || 'Nairobi';
+  const clubCounty = currentClub?.county || user.club?.county || user.business?.county || 'Kenya';
+  const clubLocation = `${clubCity}, ${clubCounty}`;
 
   // Compute open/closed status from current time vs stored hours
   const isOpenNow = React.useMemo(() => {

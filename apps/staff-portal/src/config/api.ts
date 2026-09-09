@@ -39,3 +39,13 @@ export const getApiUrl = (endpoint: string = ''): string => {
   return `${baseUrl}${cleanEndpoint}`;
 };
 
+export const resolveImageUrl = (url?: string | null): string => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
+    return url;
+  }
+  const cleanPath = url.startsWith('/') ? url : `/${url}`;
+  const base = getApiBaseUrl().replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '');
+  return `${base}${cleanPath}`;
+};
+

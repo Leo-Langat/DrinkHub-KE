@@ -102,7 +102,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
             <div className="h-9 w-9 rounded-xl bg-blue-600 flex items-center justify-center">
               <Wine className="h-5 w-5 text-white" />
             </div>
-            <span className="text-lg font-black text-white tracking-tight">DrinkHub Platform</span>
+            <span className="text-lg font-black text-white tracking-tight">OrderUp Platform</span>
           </div>
         </div>
 
@@ -154,7 +154,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLogin }) => {
             <div className="h-9 w-9 rounded-xl bg-blue-600 flex items-center justify-center">
               <Wine className="h-5 w-5 text-white" />
             </div>
-            <span className="text-lg font-black" style={{ color: 'var(--text-primary)' }}>DrinkHub Platform</span>
+            <span className="text-lg font-black" style={{ color: 'var(--text-primary)' }}>OrderUp Platform</span>
           </div>
 
           {/* Heading */}

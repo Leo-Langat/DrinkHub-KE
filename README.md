@@ -1,6 +1,6 @@
-# DrinkHub Kenya 🍹🇰🇪
+# OrderUp 🍽️📱
 
-DrinkHub Kenya is an enterprise multi-tenant Progressive Web Application (PWA) designed for clubs, bars, lounges, and entertainment venues across Kenya. It offers QR-code table ordering, realtime kitchen dispatching (KDS), and M-Pesa STK Push payments.
+OrderUp is an enterprise multi-tenant Progressive Web Application (PWA) designed for restaurants, hotels, bars, lounges, and hospitality venues across Kenya. It offers QR-code table ordering, realtime kitchen dispatching (KDS), and M-Pesa STK Push payments.
 
 ---
 
@@ -34,7 +34,7 @@ DrinkHub Kenya is an enterprise multi-tenant Progressive Web Application (PWA) d
 ## 📁 Repository Folder Structure
 
 ```
-DrinkHub/
+OrderUp/
 ├── .github/workflows/ci.yml       # GitHub Actions CI
 ├── apps/
 │   ├── server/                  # Node.js Express Backend

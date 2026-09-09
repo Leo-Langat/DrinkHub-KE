@@ -165,10 +165,13 @@ export class MenuController {
         res.status(400).json({ success: false, error: { message: 'No image file uploaded' } });
         return;
       }
-      const imageUrl = `/uploads/${file.filename}`;
+      const host = req.get('host') || 'localhost:5000';
+      const protocol = req.protocol || 'http';
+      const imageUrl = `${protocol}://${host}/uploads/${file.filename}`;
+      const relativeUrl = `/uploads/${file.filename}`;
       res.json({
         success: true,
-        data: { imageUrl },
+        data: { imageUrl, url: imageUrl, relativeUrl },
         meta: { timestamp: new Date().toISOString(), version: 'v1' },
       });
     } catch (error) {

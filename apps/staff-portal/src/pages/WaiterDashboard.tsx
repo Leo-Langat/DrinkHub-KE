@@ -131,7 +131,29 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
     catch { return {}; }
   }, []);
 
-  const clubName = user.club?.name || user.clubName || 'Your Venue';
+  const [currentVenueName, setCurrentVenueName] = useState<string>(() => {
+    return user.club?.name || user.business?.name || user.businessName || user.clubName || 'Your Venue';
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCurrentBusiness = async () => {
+      try {
+        const res = await fetch(getApiUrl('/tenants/current'), { headers: authHeaders() });
+        if (res.ok) {
+          const json = await res.json();
+          const biz = json.data?.business || json.data?.club || json.data;
+          if (isMounted && biz?.name) {
+            setCurrentVenueName(biz.name);
+          }
+        }
+      } catch {}
+    };
+    fetchCurrentBusiness();
+    return () => { isMounted = false; };
+  }, []);
+
+  const clubName = currentVenueName;
   const fullName = user.fullName || 'Waiter';
   const nameParts = fullName.trim().split(' ');
   const firstName = nameParts[0] || 'Waiter';

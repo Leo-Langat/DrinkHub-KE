@@ -4,7 +4,9 @@ import fs from 'fs';
 import { Request } from 'express';
 import { BadRequestError } from '../errors/app-error';
 
-const uploadDir = path.join(process.cwd(), 'uploads');
+const serverUploadsDir = path.resolve(__dirname, '../../../uploads');
+const rootUploadsDir = path.resolve(process.cwd(), 'uploads');
+const uploadDir = fs.existsSync(serverUploadsDir) ? serverUploadsDir : rootUploadsDir;
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }

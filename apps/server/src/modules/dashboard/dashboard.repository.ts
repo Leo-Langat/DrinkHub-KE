@@ -71,11 +71,26 @@ export async function getDayRevenue(businessUuid: string, range: DashboardDateRa
     where: {
       businessUuid,
       paymentStatus: 'PAID',
-      paidAt: { gte: range.start, lte: range.end },
+      OR: [
+        { paidAt: { gte: range.start, lte: range.end } },
+        { paidAt: null, createdAt: { gte: range.start, lte: range.end } },
+      ],
     },
     _sum: { amount: true },
   });
-  return Number(result._sum?.amount || 0);
+  const paidRevenue = Number(result._sum?.amount || 0);
+  if (paidRevenue > 0) return paidRevenue;
+
+  // Fallback: Check completed/delivered orders totalAmount for this date range
+  const ordersSum = await prisma.order.aggregate({
+    where: {
+      businessUuid,
+      status: { in: ['COMPLETED', 'DELIVERED'] },
+      createdAt: { gte: range.start, lte: range.end },
+    },
+    _sum: { totalAmount: true },
+  });
+  return Number(ordersSum._sum?.totalAmount || 0);
 }
 
 // ─── Order Count Queries ──────────────────────────────────────────────────────
@@ -283,14 +298,14 @@ export async function getSalesTrend(businessUuid: string): Promise<DashboardSale
   const [revenueRows, orderRows] = await Promise.all([
     prisma.$queryRaw<Array<{ day_date: string; total_revenue: number }>>`
       SELECT 
-        TO_CHAR(paid_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day_date,
+        TO_CHAR(COALESCE(paid_at, created_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day_date,
         COALESCE(SUM(amount), 0)::FLOAT AS total_revenue
       FROM payments
       WHERE club_uuid = ${businessUuid}::uuid
         AND payment_status = 'PAID'
-        AND paid_at >= ${start7DaysAgo}
-        AND paid_at <= ${endToday}
-      GROUP BY TO_CHAR(paid_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+        AND COALESCE(paid_at, created_at) >= ${start7DaysAgo}
+        AND COALESCE(paid_at, created_at) <= ${endToday}
+      GROUP BY TO_CHAR(COALESCE(paid_at, created_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD')
     `,
     prisma.$queryRaw<Array<{ day_date: string; total_orders: number }>>`
       SELECT 
@@ -306,6 +321,21 @@ export async function getSalesTrend(businessUuid: string): Promise<DashboardSale
 
   const revenueMap = new Map(revenueRows.map((r) => [r.day_date, Number(r.total_revenue || 0)]));
   const orderMap = new Map(orderRows.map((r) => [r.day_date, Number(r.total_orders || 0)]));
+
+  if (revenueMap.size === 0) {
+    const completedOrderRevenueRows = await prisma.$queryRaw<Array<{ day_date: string; total_revenue: number }>>`
+      SELECT 
+        TO_CHAR(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day_date,
+        COALESCE(SUM(total_amount), 0)::FLOAT AS total_revenue
+      FROM orders
+      WHERE club_uuid = ${businessUuid}::uuid
+        AND status IN ('COMPLETED', 'DELIVERED')
+        AND created_at >= ${start7DaysAgo}
+        AND created_at <= ${endToday}
+      GROUP BY TO_CHAR(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+    `;
+    completedOrderRevenueRows.forEach((r) => revenueMap.set(r.day_date, Number(r.total_revenue || 0)));
+  }
 
   const result: DashboardSalesTrendDay[] = [];
   for (let i = 0; i < 7; i++) {

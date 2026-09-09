@@ -1365,7 +1365,7 @@ const DashboardOverviewPage = ({
   const weeklyData = analytics?.dailyRevenue?.map((d: any) => ({
     day: d.day,
     revenue: Number(d.revenue || 0),
-    orders: d.revenue > 0 ? Math.max(1, Math.round(d.revenue / 2500)) : 0,
+    orders: Number(d.orders ?? d.orderCount ?? d.count ?? 0),
   })) || [];
 
   const typeData = useMemo(() => {
@@ -2294,13 +2294,13 @@ const PlatformAnalyticsPage = ({ showToast }: { showToast: (m: string, t?: 'succ
   const weeklyData = report?.dailyRevenue?.map((d: any) => ({
     day: d.day,
     revenue: Number(d.revenue || 0),
-    orders: d.revenue > 0 ? Math.max(1, Math.round(d.revenue / 2500)) : 0,
+    orders: Number(d.orders ?? d.orderCount ?? d.count ?? 0),
   })) || [];
 
   const payBreakdown = [
-    { name: 'M-Pesa STK', value: report?.paymentBreakdown?.mpesa?.percentage ?? 85, color: '#10B981' },
-    { name: 'Card POS', value: report?.paymentBreakdown?.card?.percentage ?? 10, color: '#2563EB' },
-    { name: 'Cash', value: report?.paymentBreakdown?.cash?.percentage ?? 5, color: '#F59E0B' },
+    { name: 'M-Pesa STK', value: report?.paymentBreakdown?.mpesa?.percentage ?? 0, color: '#10B981' },
+    { name: 'Card POS', value: report?.paymentBreakdown?.card?.percentage ?? 0, color: '#2563EB' },
+    { name: 'Cash', value: report?.paymentBreakdown?.cash?.percentage ?? 0, color: '#F59E0B' },
   ];
 
   return (

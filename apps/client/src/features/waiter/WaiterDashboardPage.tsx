@@ -47,71 +47,79 @@ interface Order {
   payment: PaymentInfo;
 }
 
-const INITIAL_ORDERS: Order[] = [
-  {
-    id: 'ord-101',
-    orderNumber: 'ORD-1001',
-    tableNumber: 2,
-    section: 'Main Courtyard',
-    status: 'PENDING',
-    elapsedMinutes: 3,
-    totalAmount: 1450,
-    notes: 'Extra kachumbari with the Nyama Choma',
-    items: [
-      { name: 'Tusker Lager (500ml)', quantity: 2, unitPrice: 350 },
-      { name: 'Nairobi Dawa Cocktail', quantity: 1, unitPrice: 750 },
-    ],
-    payment: {
-      method: 'CASH',
-      status: 'PENDING',
-      exactCash: false,
-      customerCashAmount: 2000,
-      changeDue: 550,
-      notes: 'Customer paying KSh 2,000. Bring KSh 550 change.',
-    },
-  },
-  {
-    id: 'ord-102',
-    orderNumber: 'ORD-1002',
-    tableNumber: 10,
-    section: 'VIP Lounge',
-    status: 'PENDING',
-    elapsedMinutes: 1,
-    totalAmount: 3800,
-    items: [{ name: 'Captain Morgan Spiced (750ml)', quantity: 1, unitPrice: 3800 }],
-    payment: {
-      method: 'CARD',
-      status: 'PENDING',
-      notes: 'Bring POS Machine to Table #10',
-    },
-  },
-  {
-    id: 'ord-103',
-    orderNumber: 'ORD-1003',
-    tableNumber: 5,
-    section: 'Terrace',
-    status: 'CLAIMED',
-    waiterId: 'waiter-me',
-    waiterName: 'Kamau Njoroge (Me)',
-    elapsedMinutes: 8,
-    totalAmount: 760,
-    items: [{ name: 'White Cap Crisp (500ml)', quantity: 2, unitPrice: 380 }],
-    payment: {
-      method: 'MPESA_STK',
-      status: 'PAID',
-      notes: 'Receipt: RGA7882910',
-    },
-  },
-];
+import { apiClient } from '../../config/api';
 
 export const WaiterDashboardPage: React.FC = () => {
   const { socket } = useSocket();
   const [activeTab, setActiveTab] = useState<'AVAILABLE' | 'MY_ORDERS' | 'HISTORY'>('AVAILABLE');
-  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [toastAlert, setToastAlert] = useState<string | null>(null);
 
-  const currentWaiterId = 'waiter-me';
-  const currentWaiterName = 'Kamau Njoroge';
+  const loggedInUser = React.useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('drinkhub_user') || localStorage.getItem('user') || '{}');
+    } catch {
+      return {};
+    }
+  }, []);
+
+  const currentWaiterId = loggedInUser.userUuid || loggedInUser.id || 'waiter-me';
+  const currentWaiterName = loggedInUser.fullName || loggedInUser.name || 'Waiter';
+
+  const mapApiOrder = React.useCallback((o: any): Order => {
+    const elapsedMinutes = o.createdAt
+      ? Math.max(1, Math.round((Date.now() - new Date(o.createdAt).getTime()) / 60000))
+      : 1;
+
+    const items = (o.orderItems || o.items || []).map((i: any) => ({
+      name: i.product?.name || i.productName || i.name || 'Drink Item',
+      quantity: Number(i.quantity || 1),
+      unitPrice: Number(i.unitPrice || (i.subtotal ? i.subtotal / (i.quantity || 1) : 0)),
+      notes: i.specialInstructions || i.notes,
+    }));
+
+    const firstPayment = (o.payments && o.payments[0]) || o.payment || {};
+
+    return {
+      id: o.orderUuid || o.id,
+      orderNumber: o.orderNumber || `ORD-${(o.orderUuid || '').slice(0, 4)}`,
+      tableNumber: o.table?.tableNumber || o.tableNumber || 1,
+      section: o.table?.sectionName || o.section || 'Dining Area',
+      status: o.status,
+      waiterId: o.waiterUuid || o.waiterId || o.waiter?.userUuid,
+      waiterName: o.waiter?.fullName || o.waiterName,
+      elapsedMinutes,
+      totalAmount: Number(o.totalAmount || 0),
+      notes: o.notes,
+      items: items.length > 0 ? items : [{ name: 'Order Item', quantity: 1, unitPrice: Number(o.totalAmount || 0) }],
+      payment: {
+        method: firstPayment.paymentMethod || o.paymentMethod || 'MPESA_STK',
+        status: firstPayment.paymentStatus || o.paymentStatus || 'PENDING',
+        exactCash: firstPayment.exactCash,
+        customerCashAmount: firstPayment.customerCashAmount,
+        changeDue: firstPayment.changeDue,
+        notes: firstPayment.paymentNotes,
+      },
+    };
+  }, []);
+
+  const fetchOrders = React.useCallback(async () => {
+    try {
+      const res = await apiClient.get('/orders');
+      const raw = res.data?.data?.orders || (Array.isArray(res.data?.data) ? res.data?.data : []);
+      if (Array.isArray(raw)) {
+        setOrders(raw.map(mapApiOrder));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [mapApiOrder]);
+
+  useEffect(() => {
+    fetchOrders();
+    const interval = setInterval(fetchOrders, 4000);
+    return () => clearInterval(interval);
+  }, [fetchOrders]);
 
   // Check if waiter already has an active claimed order
   const myActiveOrder = orders.find(
@@ -128,18 +136,12 @@ export const WaiterDashboardPage: React.FC = () => {
     if (!socket) return;
 
     socket.on('new_order', (newOrder: any) => {
+      fetchOrders();
       triggerToast(`🔔 New Order #${newOrder.orderNumber} placed for Table #${newOrder.table?.tableNumber || 'N/A'}`);
     });
 
     socket.on('order_claimed', (data: { orderUuid: string; waiterUuid: string; waiterName: string }) => {
-      // Order disappears for other waiters in real-time!
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.id === data.orderUuid
-            ? { ...o, status: 'CLAIMED', waiterId: data.waiterUuid, waiterName: data.waiterName }
-            : o,
-        ),
-      );
+      fetchOrders();
       if (data.waiterUuid !== currentWaiterId) {
         triggerToast(`Order claimed by ${data.waiterName}`);
       }
@@ -154,28 +156,40 @@ export const WaiterDashboardPage: React.FC = () => {
       socket.off('order_claimed');
       socket.off('waiter_notification');
     };
-  }, [socket]);
+  }, [socket, currentWaiterId, fetchOrders]);
 
   // Actions
-  const claimOrder = (id: string) => {
+  const claimOrder = async (id: string) => {
     if (myActiveOrder) {
       alert(`⚠️ You can claim only ONE active order at a time! Complete or deliver Order #${myActiveOrder.orderNumber} first.`);
       return;
     }
 
-    setOrders((prev) =>
-      prev.map((o) =>
-        o.id === id
-          ? { ...o, status: 'CLAIMED', waiterId: currentWaiterId, waiterName: `${currentWaiterName} (Me)` }
-          : o,
-      ),
-    );
-    triggerToast(`Order claimed successfully! It is now locked to your dashboard.`);
+    try {
+      await apiClient.patch(`/orders/${id}/claim`);
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === id
+            ? { ...o, status: 'CLAIMED', waiterId: currentWaiterId, waiterName: `${currentWaiterName} (Me)` }
+            : o,
+        ),
+      );
+      triggerToast(`Order claimed successfully! It is now locked to your dashboard.`);
+      fetchOrders();
+    } catch (err: any) {
+      triggerToast(err?.response?.data?.error?.message || 'Failed to claim order.');
+    }
   };
 
-  const updateOrderStatus = (id: string, newStatus: Order['status']) => {
-    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o)));
-    triggerToast(`Order status updated to ${newStatus}`);
+  const updateOrderStatus = async (id: string, newStatus: Order['status']) => {
+    try {
+      await apiClient.patch(`/orders/${id}/status`, { status: newStatus });
+      setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o)));
+      triggerToast(`Order status updated to ${newStatus}`);
+      fetchOrders();
+    } catch (err: any) {
+      triggerToast(err?.response?.data?.error?.message || 'Failed to update order status.');
+    }
   };
 
   const availableOrders = orders.filter((o) => o.status === 'PENDING');

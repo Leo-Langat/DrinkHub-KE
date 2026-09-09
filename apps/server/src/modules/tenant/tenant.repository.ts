@@ -47,6 +47,7 @@ export class TenantRepository implements ITenantRepository {
       totalWaiters,
       totalOrders,
       revenueResult,
+      completedOrdersRevenueResult,
       businessesByTypeRaw,
       recentBusinessesRaw,
     ] = await Promise.all([
@@ -61,6 +62,10 @@ export class TenantRepository implements ITenantRepository {
       prisma.payment.aggregate({
         where: { paymentStatus: 'PAID' },
         _sum: { amount: true },
+      }),
+      prisma.order.aggregate({
+        where: { status: { in: ['COMPLETED', 'DELIVERED'] } },
+        _sum: { totalAmount: true },
       }),
       prisma.business.groupBy({
         by: ['businessType'],
@@ -115,7 +120,7 @@ export class TenantRepository implements ITenantRepository {
       totalManagers,
       totalWaiters,
       totalOrders,
-      totalRevenue: Number(revenueResult._sum?.amount || 0),
+      totalRevenue: Number(revenueResult._sum?.amount || completedOrdersRevenueResult._sum?.totalAmount || 0),
       businessesByType,
       recentBusinesses,
     };
@@ -161,6 +166,7 @@ export class TenantRepository implements ITenantRepository {
       completedOrders,
       pendingOrders,
       revenueResult,
+      orderRevenueResult,
     ] = await Promise.all([
       prisma.user.count({ where: { businessUuid, role: UserRole.MANAGER, isActive: true, deletedAt: null } }),
       prisma.user.count({ where: { businessUuid, role: UserRole.WAITER, isActive: true, deletedAt: null } }),
@@ -172,6 +178,10 @@ export class TenantRepository implements ITenantRepository {
         _sum: { amount: true },
         where: { businessUuid, paymentStatus: 'PAID' },
       }),
+      prisma.order.aggregate({
+        _sum: { totalAmount: true },
+        where: { businessUuid, status: { in: ['COMPLETED', 'DELIVERED'] } },
+      }),
     ]);
 
     return {
@@ -182,7 +192,7 @@ export class TenantRepository implements ITenantRepository {
       totalOrders,
       completedOrders,
       pendingOrders,
-      totalRevenue: Number(revenueResult._sum?.amount || 0),
+      totalRevenue: Number(revenueResult._sum?.amount || orderRevenueResult._sum?.totalAmount || 0),
     };
   }
 

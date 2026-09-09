@@ -2184,16 +2184,16 @@ const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
         const raw: any[] = od.data?.orders ?? od.data ?? [];
 
         // 1. Calculate Real KPIs
-        const completedOrders = raw.filter(o => o.status === 'COMPLETED' || o.status === 'DELIVERED');
-        const totalRev = completedOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
-        const completedCount = completedOrders.length;
-        const avgVal = completedCount > 0 ? Math.round(totalRev / completedCount) : 0;
+        const paidOrCompletedOrders = raw.filter(o => o.status === 'COMPLETED' || o.status === 'DELIVERED' || o.paymentStatus === 'PAID');
+        const totalRev = paidOrCompletedOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0) || Number(reportData?.kpis?.totalRevenue || 0);
+        const completedCount = paidOrCompletedOrders.length;
+        const avgVal = completedCount > 0 ? Math.round(totalRev / completedCount) : (reportData?.kpis?.averageOrderValue || 0);
         const activeWaitersSet = new Set(raw.map(o => o.waiterUuid || o.waiterId || o.waiter?.userUuid).filter(Boolean));
 
         setKpis({
           revenue: `KES ${totalRev.toLocaleString()}`,
-          orders: String(raw.length),
-          waiters: String(activeWaitersSet.size > 0 ? activeWaitersSet.size : (reportData?.kpis?.activeWaitersCount || 1)),
+          orders: String(raw.length || reportData?.kpis?.totalOrders || 0),
+          waiters: String(activeWaitersSet.size > 0 ? activeWaitersSet.size : (reportData?.kpis?.activeWaitersCount ?? 0)),
           avgOrder: `KES ${avgVal.toLocaleString()}`,
           completedCount,
         });
@@ -2203,7 +2203,7 @@ const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
         const daysOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
         const dayRevMap: Record<string, number> = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
 
-        completedOrders.forEach((o: any) => {
+        paidOrCompletedOrders.forEach((o: any) => {
           if (o.createdAt) {
             const day = dayNames[new Date(o.createdAt).getDay()];
             if (dayRevMap[day] !== undefined) {

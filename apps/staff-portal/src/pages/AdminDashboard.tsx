@@ -808,22 +808,37 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               .slice(0, 5);
           })();
 
-    const chartTrendData = overview?.salesTrend && overview.salesTrend.length > 0
+    const chartTrendData = overview?.salesTrend && overview.salesTrend.some((d) => d.revenue > 0 || d.orders > 0)
       ? overview.salesTrend.map((d) => ({
           day: d.dayLabel,
           date: d.date,
           revenue: d.revenue,
           orders: d.orders,
         }))
-      : [
-          { day: 'Mon', date: '', revenue: 0, orders: 0 },
-          { day: 'Tue', date: '', revenue: 0, orders: 0 },
-          { day: 'Wed', date: '', revenue: 0, orders: 0 },
-          { day: 'Thu', date: '', revenue: 0, orders: 0 },
-          { day: 'Fri', date: '', revenue: 0, orders: 0 },
-          { day: 'Sat', date: '', revenue: 0, orders: 0 },
-          { day: 'Sun', date: '', revenue: 0, orders: 0 },
-        ];
+      : (() => {
+          const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          const dayMap: Record<string, { day: string; date: string; revenue: number; orders: number }> = {
+            Mon: { day: 'Mon', date: '', revenue: 0, orders: 0 },
+            Tue: { day: 'Tue', date: '', revenue: 0, orders: 0 },
+            Wed: { day: 'Wed', date: '', revenue: 0, orders: 0 },
+            Thu: { day: 'Thu', date: '', revenue: 0, orders: 0 },
+            Fri: { day: 'Fri', date: '', revenue: 0, orders: 0 },
+            Sat: { day: 'Sat', date: '', revenue: 0, orders: 0 },
+            Sun: { day: 'Sun', date: '', revenue: 0, orders: 0 },
+          };
+          orders.forEach((o) => {
+            if (o.createdAt) {
+              const d = days[new Date(o.createdAt).getDay()];
+              if (dayMap[d]) {
+                dayMap[d].orders += 1;
+                if (o.paymentStatus === 'PAID' || o.status === 'COMPLETED' || o.status === 'DELIVERED') {
+                  dayMap[d].revenue += Number(o.totalAmount || 0);
+                }
+              }
+            }
+          });
+          return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((k) => dayMap[k]);
+        })();
 
     // Status distribution percentages
     const totalStatusOrders =
@@ -4054,7 +4069,24 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
      FEATURE 7: STAFF PERFORMANCE VIEW
   ───────────────────────────────────────────────────────────── */
   const renderStaffPerformance = () => {
-    const waiterStats = Array.isArray(analytics?.waiterPerformance) ? analytics.waiterPerformance : [];
+    const waiterStats = (Array.isArray(analytics?.waiterPerformance) && analytics.waiterPerformance.length > 0)
+      ? analytics.waiterPerformance
+      : (() => {
+          const wMap: Record<string, { name: string; ordersServed: number; revenueGenerated: number; avgFulfillmentMins: number }> = {};
+          orders.forEach((o) => {
+            const wName = o.waiter?.fullName || (o as any).waiterName;
+            if (wName) {
+              if (!wMap[wName]) {
+                wMap[wName] = { name: wName, ordersServed: 0, revenueGenerated: 0, avgFulfillmentMins: 5 };
+              }
+              wMap[wName].ordersServed += 1;
+              if (o.paymentStatus === 'PAID' || o.status === 'COMPLETED' || o.status === 'DELIVERED') {
+                wMap[wName].revenueGenerated += Number(o.totalAmount || 0);
+              }
+            }
+          });
+          return Object.values(wMap);
+        })();
     const waiters = (Array.isArray(staffList) ? staffList : []).filter((s) => s.role === 'WAITER');
     const managerList = Array.isArray(managers) ? managers : [];
 

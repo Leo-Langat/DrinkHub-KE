@@ -987,18 +987,31 @@ export class ReportingService {
       this.reportingRepository.getWaiterPerformanceData(businessUuid, range.start, range.end),
     ]);
 
-    // 1. Daily Revenue
+    // 1. Daily Revenue & Orders
     const dailyMap: Record<string, number> = {};
+    const dailyOrdersMap: Record<string, number> = {};
     for (const p of paidPayments) {
-      if (!p.paidAt) continue;
-      const dateKey = p.paidAt.toISOString().split('T')[0];
+      const pDate = p.paidAt || (p as any).createdAt;
+      if (!pDate) continue;
+      const dateKey = new Date(pDate).toISOString().split('T')[0];
       dailyMap[dateKey] = (dailyMap[dateKey] || 0) + Number(p.amount || 0);
     }
+
+    for (const o of orders) {
+      const dateKey = new Date(o.createdAt).toISOString().split('T')[0];
+      dailyOrdersMap[dateKey] = (dailyOrdersMap[dateKey] || 0) + 1;
+      if (paidPayments.length === 0 && (o.status === 'COMPLETED' || o.status === 'DELIVERED')) {
+        dailyMap[dateKey] = (dailyMap[dateKey] || 0) + Number(o.totalAmount || 0);
+      }
+    }
+
     const allDates = this.getDateList(range.start, range.end);
     const dailyRevenue = allDates.map((date) => ({
       date,
       day: date,
       revenue: Math.round((dailyMap[date] || 0) * 100) / 100,
+      orders: dailyOrdersMap[date] || 0,
+      orderCount: dailyOrdersMap[date] || 0,
     }));
 
     // 2. Hourly Orders

@@ -4,6 +4,7 @@ import { env } from './config/env';
 import { logger } from './config/logger';
 import { initSocket } from './config/socket';
 import { prisma } from './config/prisma';
+import { autoMigrateDatabase } from './config/migrate';
 
 const app = createApp();
 const server = http.createServer(app);
@@ -13,9 +14,18 @@ initSocket(server);
 
 const PORT = parseInt(env.PORT, 10) || 5000;
 
-server.listen(PORT, () => {
-  logger.info(`🚀 OrderUp Backend Server running on port ${PORT} [${env.NODE_ENV}]`);
-  logger.info(`📄 Swagger API Docs available at http://localhost:${PORT}/api-docs`);
+async function bootstrap() {
+  await autoMigrateDatabase();
+
+  server.listen(PORT, () => {
+    logger.info(`🚀 OrderUp Backend Server running on port ${PORT} [${env.NODE_ENV}]`);
+    logger.info(`📄 Swagger API Docs available at http://localhost:${PORT}/api-docs`);
+  });
+}
+
+bootstrap().catch((err) => {
+  logger.error(`Fatal server bootstrap failure: ${err.message}`, { stack: err.stack });
+  process.exit(1);
 });
 
 // Graceful Shutdown

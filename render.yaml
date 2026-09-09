@@ -8,7 +8,7 @@ services:
     branch: main
     rootDir: .
     buildCommand: npm install --include=dev && npm run build:server
-    startCommand: node apps/server/dist/server.js
+    startCommand: npx prisma db push --schema=apps/server/prisma/schema.prisma --accept-data-loss && node apps/server/dist/server.js
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV

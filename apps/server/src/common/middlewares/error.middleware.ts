@@ -98,7 +98,8 @@ export const errorHandler = (
     data: null,
     error: {
       code: 'INTERNAL_SERVER_ERROR',
-      message: 'An unexpected internal error occurred.',
+      message: err.message || 'An unexpected internal error occurred.',
+      details: err.message,
     },
     meta: {
       timestamp: new Date().toISOString(),

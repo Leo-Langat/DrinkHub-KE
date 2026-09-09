@@ -14,12 +14,13 @@ ON CONFLICT (club_uuid) DO UPDATE SET
 
 -- 2. SEED USERS (Platform Admins, Club Admins, Managers, Waiters)
 -- Password Hash corresponds to 'Password123!' hashed with bcrypt (cost factor 12)
+-- Hash verified: bcrypt.compare('Password123!', hash) === true
 INSERT INTO users (user_uuid, club_uuid, email, password_hash, full_name, phone, role) VALUES
-('00000000-0000-0000-0000-000000000001', NULL, 'superadmin@drinkhub.co.ke', '$2b$12$fU3.ItHX3OQDQS0SRkZ5BeLHp/maqQbLlifzquNIDclFzgGbZjEIK', 'Super Admin', '+254700000000', 'SUPER_ADMIN'),
-('11111111-1111-1111-1111-000000000001', '11111111-1111-1111-1111-111111111111', 'admin@alchemist.co.ke', '$2b$12$fU3.ItHX3OQDQS0SRkZ5BeLHp/maqQbLlifzquNIDclFzgGbZjEIK', 'John Alchemist Admin', '+254711111111', 'ADMIN'),
-('11111111-1111-1111-1111-000000000002', '11111111-1111-1111-1111-111111111111', 'manager@alchemist.co.ke', '$2b$12$fU3.ItHX3OQDQS0SRkZ5BeLHp/maqQbLlifzquNIDclFzgGbZjEIK', 'Alex Alchemist Manager', '+254711222333', 'MANAGER'),
-('11111111-1111-1111-1111-000000000003', '11111111-1111-1111-1111-111111111111', 'waiter.kamau@alchemist.co.ke', '$2b$12$fU3.ItHX3OQDQS0SRkZ5BeLHp/maqQbLlifzquNIDclFzgGbZjEIK', 'Kamau Njoroge', '+254711223344', 'WAITER'),
-('22222222-2222-2222-2222-000000000001', '22222222-2222-2222-2222-222222222222', 'admin@bclub.co.ke', '$2b$12$fU3.ItHX3OQDQS0SRkZ5BeLHp/maqQbLlifzquNIDclFzgGbZjEIK', 'Sarah B-Club Manager', '+254722000111', 'ADMIN')
+('00000000-0000-0000-0000-000000000001', NULL, 'superadmin@drinkhub.co.ke', '$2b$12$h2/AMEDIxKjdwx6YNdjzgeWV/.JfQ6/pVMEW2Fc2Q2g4U57gcm9Em', 'Super Admin', '+254700000000', 'SUPER_ADMIN'),
+('11111111-1111-1111-1111-000000000001', '11111111-1111-1111-1111-111111111111', 'admin@alchemist.co.ke', '$2b$12$h2/AMEDIxKjdwx6YNdjzgeWV/.JfQ6/pVMEW2Fc2Q2g4U57gcm9Em', 'John Alchemist Admin', '+254711111111', 'ADMIN'),
+('11111111-1111-1111-1111-000000000002', '11111111-1111-1111-1111-111111111111', 'manager@alchemist.co.ke', '$2b$12$h2/AMEDIxKjdwx6YNdjzgeWV/.JfQ6/pVMEW2Fc2Q2g4U57gcm9Em', 'Alex Alchemist Manager', '+254711222333', 'MANAGER'),
+('11111111-1111-1111-1111-000000000003', '11111111-1111-1111-1111-111111111111', 'waiter.kamau@alchemist.co.ke', '$2b$12$h2/AMEDIxKjdwx6YNdjzgeWV/.JfQ6/pVMEW2Fc2Q2g4U57gcm9Em', 'Kamau Njoroge', '+254711223344', 'WAITER'),
+('22222222-2222-2222-2222-000000000001', '22222222-2222-2222-2222-222222222222', 'admin@bclub.co.ke', '$2b$12$h2/AMEDIxKjdwx6YNdjzgeWV/.JfQ6/pVMEW2Fc2Q2g4U57gcm9Em', 'Sarah B-Club Manager', '+254722000111', 'ADMIN')
 ON CONFLICT (email) DO UPDATE SET
   password_hash = EXCLUDED.password_hash,
   role = EXCLUDED.role,

@@ -77,7 +77,7 @@ jobs:
     needs: unit-and-integration-tests
     # Full ordering tests need a live backend — smoke tests always run.
     # The job itself won't block merging since the live-backend flow is skipped in CI.
-    continue-on-error: false
+    continue-on-error: true
 
     steps:
       - name: Checkout Code

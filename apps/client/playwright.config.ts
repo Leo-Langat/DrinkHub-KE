@@ -11,11 +11,11 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
 
   reporter: process.env.CI
-    ? [["github"], ["html", { open: "never" }]]
+    ? [["list"], ["github"]]
     : [["list"], ["html", { open: "on-failure" }]],
 
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:4173",
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:4173",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     headless: true,
@@ -29,8 +29,8 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: "npm run preview -- --port 4173 --host",
-    url: "http://localhost:4173",
+    command: "npm run preview -- --port 4173 --host 127.0.0.1",
+    url: "http://127.0.0.1:4173",
     reuseExistingServer: !process.env.CI,
     timeout: 60000,
   },

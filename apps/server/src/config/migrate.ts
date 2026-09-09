@@ -1,4 +1,4 @@
-﻿import { prisma } from "./prisma";
+import { prisma } from "./prisma";
 import { logger } from "./logger";
 
 export async function autoMigrateDatabase(): Promise<void> {
@@ -126,7 +126,83 @@ export async function autoMigrateDatabase(): Promise<void> {
       logger.warn(`refresh_tokens table creation warning: ${err.message}`);
     }
 
-    // 6. Migrate legacy roles to current standard
+    // 6. Ensure payments table columns and indexes
+    const paymentColumns = [
+      `ALTER TABLE payments ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;`,
+      `ALTER TABLE payments ADD COLUMN IF NOT EXISTS exact_cash BOOLEAN;`,
+      `ALTER TABLE payments ADD COLUMN IF NOT EXISTS customer_cash_amount NUMERIC(10, 2);`,
+      `ALTER TABLE payments ADD COLUMN IF NOT EXISTS change_due NUMERIC(10, 2);`,
+      `ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_notes TEXT;`,
+      `UPDATE payments SET paid_at = COALESCE(updated_at, created_at) WHERE payment_status = 'PAID' AND paid_at IS NULL;`,
+      `CREATE INDEX IF NOT EXISTS idx_payments_biz_status_paid_at ON payments(club_uuid, payment_status, paid_at);`,
+    ];
+
+    for (const pQuery of paymentColumns) {
+      try {
+        await prisma.$executeRawUnsafe(pQuery);
+      } catch (err: any) {
+        logger.warn(`Payment schema ensure query warning: ${err.message}`);
+      }
+    }
+
+    // 7. Ensure orders table columns and indexes
+    const orderQueries = [
+      `ALTER TABLE orders ADD COLUMN IF NOT EXISTS age_verified BOOLEAN DEFAULT false;`,
+      `ALTER TABLE orders ADD COLUMN IF NOT EXISTS notes TEXT;`,
+      `CREATE INDEX IF NOT EXISTS idx_orders_biz_created_at ON orders(club_uuid, created_at);`,
+      `CREATE INDEX IF NOT EXISTS idx_orders_biz_status ON orders(club_uuid, status);`,
+      `CREATE INDEX IF NOT EXISTS idx_orders_biz_waiter ON orders(club_uuid, waiter_uuid);`,
+    ];
+
+    for (const oQuery of orderQueries) {
+      try {
+        await prisma.$executeRawUnsafe(oQuery);
+      } catch (err: any) {
+        logger.warn(`Order schema ensure query warning: ${err.message}`);
+      }
+    }
+
+    // 8. Ensure order_items indexes
+    const itemQueries = [
+      `CREATE INDEX IF NOT EXISTS idx_order_items_product ON order_items(product_uuid);`,
+      `CREATE INDEX IF NOT EXISTS idx_order_items_biz_product ON order_items(club_uuid, product_uuid);`,
+    ];
+
+    for (const iQuery of itemQueries) {
+      try {
+        await prisma.$executeRawUnsafe(iQuery);
+      } catch (err: any) {
+        logger.warn(`OrderItem index query warning: ${err.message}`);
+      }
+    }
+
+    // 9. Ensure users table columns and indexes
+    const userQueries = [
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT false;`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT false;`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_token TEXT;`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_token TEXT;`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_expires TIMESTAMPTZ(6);`,
+      `CREATE INDEX IF NOT EXISTS idx_users_biz_role_active_del ON users(club_uuid, role, is_active, deleted_at);`,
+      `CREATE INDEX IF NOT EXISTS idx_users_biz_role_del ON users(club_uuid, role, deleted_at);`,
+    ];
+
+    for (const uQuery of userQueries) {
+      try {
+        await prisma.$executeRawUnsafe(uQuery);
+      } catch (err: any) {
+        logger.warn(`User schema ensure query warning: ${err.message}`);
+      }
+    }
+
+    // 10. Ensure offers table columns
+    try {
+      await prisma.$executeRawUnsafe(`ALTER TABLE offers ADD COLUMN IF NOT EXISTS promo_code VARCHAR(100);`);
+    } catch (err: any) {
+      logger.warn(`Offers promo_code query warning: ${err.message}`);
+    }
+
+    // 11. Migrate legacy roles to current standard
     try {
       await prisma.$executeRawUnsafe(`
         UPDATE users SET role = 'SUPER_ADMIN' WHERE role::text = 'PLATFORM_ADMIN';

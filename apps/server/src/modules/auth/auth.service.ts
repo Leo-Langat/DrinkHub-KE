@@ -36,6 +36,7 @@ export interface AuthTokens {
       uuid: string;
       name: string;
       slug: string;
+      logoUrl?: string;
       city?: string;
       county?: string;
       openingHours?: string;
@@ -159,6 +160,8 @@ export class AuthService {
           name: rawBiz.name,
           slug: rawBiz.slug,
           businessType: rawBiz.businessType,
+          logoUrl: rawBiz.logoUrl,
+          bannerUrl: rawBiz.bannerUrl,
           city: rawBiz.city,
           county: rawBiz.county,
           openingHours: rawBiz.openingHours,
@@ -186,6 +189,7 @@ export class AuthService {
               uuid: bizData.uuid,
               name: bizData.name,
               slug: bizData.slug,
+              logoUrl: bizData.logoUrl,
               city: bizData.city,
               county: bizData.county,
               openingHours: bizData.openingHours,

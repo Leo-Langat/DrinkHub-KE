@@ -87,8 +87,9 @@ export class BusinessController {
         throw new BadRequestError('No image file uploaded');
       }
 
+      const isHttps = req.secure || req.get('x-forwarded-proto') === 'https' || req.protocol === 'https';
+      const protocol = isHttps ? 'https' : 'http';
       const host = req.get('host') || 'localhost:5000';
-      const protocol = req.protocol || 'http';
       const logoUrl = `${protocol}://${host}/uploads/${file.filename}`;
       const ipAddress = req.ip || req.socket.remoteAddress;
 

@@ -42,6 +42,9 @@ export const getApiUrl = (endpoint: string = ''): string => {
 export const resolveImageUrl = (url?: string | null): string => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
+    if (url.startsWith('http://') && (url.includes('onrender.com') || (typeof window !== 'undefined' && window.location.protocol === 'https:'))) {
+      return url.replace('http://', 'https://');
+    }
     return url;
   }
   const cleanPath = url.startsWith('/') ? url : `/${url}`;

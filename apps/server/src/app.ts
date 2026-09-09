@@ -25,6 +25,9 @@ import { businessRouter } from './modules/business/business.routes';
 export const createApp = (): Application => {
   const app = express();
 
+  // Trust proxy for Render/Cloud load balancers (ensures req.protocol === 'https')
+  app.set('trust proxy', 1);
+
   // ── CORS: allow all registered frontend origins ──────────────────────────
   const allowedOrigins = env.ALLOWED_ORIGINS.split(',').map((o) => o.trim());
 

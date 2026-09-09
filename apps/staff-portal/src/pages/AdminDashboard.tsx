@@ -13,6 +13,8 @@ import {
   User,
   LogOut,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Search,
   Plus,
   Download,
@@ -96,6 +98,7 @@ export interface BusinessDetails {
   openingHours?: string;
   closingHours?: string;
   brandColor?: string;
+  themeColor?: string;
   logoUrl?: string;
   bannerUrl?: string;
   status: string;
@@ -509,6 +512,90 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   const [editBusinessOpen, setEditBusinessOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null);
 
+  /* ── State for business profile, branding & settings ── */
+  const [businessProfile, setBusinessProfile] = useState<any | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+
+  // Form states: Profile
+  const [profName, setProfName] = useState('');
+  const [profDescription, setProfDescription] = useState('');
+  const [profEmail, setProfEmail] = useState('');
+  const [profPhone, setProfPhone] = useState('');
+  const [profAddress, setProfAddress] = useState('');
+  const [profCity, setProfCity] = useState('Nairobi');
+  const [profCounty, setProfCounty] = useState('Nairobi');
+  const [profCountry, setProfCountry] = useState('Kenya');
+  const [profileSaving, setProfileSaving] = useState(false);
+
+  // Form states: Branding
+  const [brandThemeColor, setBrandThemeColor] = useState('#2563EB');
+  const [brandLogoUrl, setBrandLogoUrl] = useState<string | null>(null);
+  const [brandingSaving, setBrandingSaving] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoError, setLogoError] = useState(false);
+
+  // Form states: Regional
+  const [settingTimezone, setSettingTimezone] = useState('Africa/Nairobi');
+  const [settingCurrency, setSettingCurrency] = useState('KES');
+  const [settingOpening, setSettingOpening] = useState('08:00');
+  const [settingClosing, setSettingClosing] = useState('23:00');
+  const [settingsSaving, setSettingsSaving] = useState(false);
+
+  // Form states: 7-Day Operating Schedule
+  const defaultSchedule = {
+    monday: { isOpen: true, openingTime: '08:00', closingTime: '23:00', crossesMidnight: false },
+    tuesday: { isOpen: true, openingTime: '08:00', closingTime: '23:00', crossesMidnight: false },
+    wednesday: { isOpen: true, openingTime: '08:00', closingTime: '23:00', crossesMidnight: false },
+    thursday: { isOpen: true, openingTime: '08:00', closingTime: '23:00', crossesMidnight: false },
+    friday: { isOpen: true, openingTime: '08:00', closingTime: '02:00', crossesMidnight: true },
+    saturday: { isOpen: true, openingTime: '08:00', closingTime: '02:00', crossesMidnight: true },
+    sunday: { isOpen: true, openingTime: '08:00', closingTime: '23:00', crossesMidnight: false },
+  };
+  const [operatingSchedule, setOperatingSchedule] = useState<any>(defaultSchedule);
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+
+  // Active settings sub-tab
+  const [settingsTab, setSettingsTab] = useState<'profile' | 'branding' | 'hours' | 'regional'>('profile');
+
+  /**
+   * Load business profile from GET /api/v1/business/profile
+   */
+  const loadBusinessProfile = useCallback(async () => {
+    setProfileLoading(true);
+    setProfileError(null);
+    try {
+      const res = await authFetch('/business/profile');
+      if (res.success && res.data?.profile) {
+        const p = res.data.profile;
+        setBusinessProfile(p);
+        setProfName(p.name || '');
+        setProfDescription(p.description || '');
+        setProfEmail(p.email || '');
+        setProfPhone(p.phone || '');
+        setProfAddress(p.address || '');
+        setProfCity(p.city || 'Nairobi');
+        setProfCounty(p.county || 'Nairobi');
+        setProfCountry(p.country || 'Kenya');
+        if (p.themeColor) setBrandThemeColor(p.themeColor);
+        if (p.logoUrl) setBrandLogoUrl(p.logoUrl);
+        setSettingTimezone(p.timezone || 'Africa/Nairobi');
+        setSettingCurrency(p.currency || 'KES');
+        setSettingOpening(p.openingHours || '08:00');
+        setSettingClosing(p.closingHours || '23:00');
+        if (p.operatingSchedule) {
+          setOperatingSchedule(p.operatingSchedule);
+        }
+      } else {
+        setProfileError(res.error?.message || 'Failed to load business profile');
+      }
+    } catch (err: any) {
+      setProfileError(err.message || 'Failed to load business profile. Please try again.');
+    } finally {
+      setProfileLoading(false);
+    }
+  }, []);
+
   /* Users Management View State */
   const [userSubTab, setUserSubTab] = useState<'all' | 'managers' | 'waiters'>('all');
   const [allUsersSearch, setAllUsersSearch] = useState('');
@@ -586,6 +673,10 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   }, [analyticsPeriod, showToast]);
 
   useEffect(() => {
+    loadBusinessProfile();
+  }, [loadBusinessProfile]);
+
+  useEffect(() => {
     loadDashboardData();
   }, [loadDashboardData]);
 
@@ -593,11 +684,22 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     loadOverviewData();
   }, [loadOverviewData]);
 
-  /* Formatters */
+  /* Formatters & Brand Identity */
   const formatKsh = (amount: number) => `KSh ${Number(amount || 0).toLocaleString('en-KE')}`;
-  const businessName = businessSummary?.business?.name || overview?.business?.name || user.club?.name || user.business?.name || 'My Business';
-  const businessType = businessSummary?.business?.businessType || overview?.business?.type || user.business?.businessType || 'RESTAURANT';
-  const businessLogoUrl = businessSummary?.business?.logoUrl || (overview?.business as any)?.logoUrl || (user.business as any)?.logoUrl || (user.club as any)?.logoUrl || null;
+  const businessName = profName || businessProfile?.name || businessSummary?.business?.name || overview?.business?.name || user.club?.name || user.business?.name || 'My Business';
+  const businessType = businessProfile?.businessType || businessSummary?.business?.businessType || overview?.business?.type || user.business?.businessType || 'RESTAURANT';
+  const currentLogoUrl = brandLogoUrl || businessProfile?.logoUrl || businessSummary?.business?.logoUrl || (overview?.business as any)?.logoUrl || (user.business as any)?.logoUrl || (user.club as any)?.logoUrl || null;
+  const currentThemeColor = brandThemeColor || businessProfile?.themeColor || businessSummary?.business?.themeColor || (user.business as any)?.themeColor || '#2563EB';
+
+  useEffect(() => {
+    setLogoError(false);
+  }, [currentLogoUrl]);
+
+  useEffect(() => {
+    if (currentThemeColor) {
+      document.documentElement.style.setProperty('--brand-primary', currentThemeColor);
+    }
+  }, [currentThemeColor]);
 
   /* ─────────────────────────────────────────────────────────────
      NAVIGATION MENU CONFIGURATION
@@ -4781,89 +4883,6 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
      - No businessUuid is sent from the frontend
   ───────────────────────────────────────────────────────────── */
 
-  // State for business profile & settings
-  const [businessProfile, setBusinessProfile] = useState<any | null>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
-  const [profileError, setProfileError] = useState<string | null>(null);
-
-  // Form states: Profile
-  const [profName, setProfName] = useState('');
-  const [profDescription, setProfDescription] = useState('');
-  const [profEmail, setProfEmail] = useState('');
-  const [profPhone, setProfPhone] = useState('');
-  const [profAddress, setProfAddress] = useState('');
-  const [profCity, setProfCity] = useState('Nairobi');
-  const [profCounty, setProfCounty] = useState('Nairobi');
-  const [profCountry, setProfCountry] = useState('Kenya');
-  const [profileSaving, setProfileSaving] = useState(false);
-
-  // Form states: Branding
-  const [brandThemeColor, setBrandThemeColor] = useState('#2563EB');
-  const [brandLogoUrl, setBrandLogoUrl] = useState<string | null>(null);
-  const [brandingSaving, setBrandingSaving] = useState(false);
-  const [logoUploading, setLogoUploading] = useState(false);
-
-  // Form states: Regional
-  const [settingTimezone, setSettingTimezone] = useState('Africa/Nairobi');
-  const [settingCurrency, setSettingCurrency] = useState('KES');
-  const [settingOpening, setSettingOpening] = useState('08:00');
-  const [settingClosing, setSettingClosing] = useState('23:00');
-  const [settingsSaving, setSettingsSaving] = useState(false);
-
-  // Form states: 7-Day Operating Schedule
-  const defaultSchedule = {
-    monday: { isOpen: true, openingTime: '08:00', closingTime: '23:00', crossesMidnight: false },
-    tuesday: { isOpen: true, openingTime: '08:00', closingTime: '23:00', crossesMidnight: false },
-    wednesday: { isOpen: true, openingTime: '08:00', closingTime: '23:00', crossesMidnight: false },
-    thursday: { isOpen: true, openingTime: '08:00', closingTime: '23:00', crossesMidnight: false },
-    friday: { isOpen: true, openingTime: '08:00', closingTime: '02:00', crossesMidnight: true },
-    saturday: { isOpen: true, openingTime: '08:00', closingTime: '02:00', crossesMidnight: true },
-    sunday: { isOpen: true, openingTime: '08:00', closingTime: '23:00', crossesMidnight: false },
-  };
-  const [operatingSchedule, setOperatingSchedule] = useState<any>(defaultSchedule);
-  const [scheduleSaving, setScheduleSaving] = useState(false);
-
-  // Active settings sub-tab
-  const [settingsTab, setSettingsTab] = useState<'profile' | 'branding' | 'hours' | 'regional'>('profile');
-
-  /**
-   * Load business profile from GET /api/v1/business/profile
-   */
-  const loadBusinessProfile = useCallback(async () => {
-    setProfileLoading(true);
-    setProfileError(null);
-    try {
-      const res = await authFetch('/business/profile');
-      if (res.success && res.data?.profile) {
-        const p = res.data.profile;
-        setBusinessProfile(p);
-        setProfName(p.name || '');
-        setProfDescription(p.description || '');
-        setProfEmail(p.email || '');
-        setProfPhone(p.phone || '');
-        setProfAddress(p.address || '');
-        setProfCity(p.city || 'Nairobi');
-        setProfCounty(p.county || 'Nairobi');
-        setProfCountry(p.country || 'Kenya');
-        setBrandThemeColor(p.themeColor || '#2563EB');
-        setBrandLogoUrl(p.logoUrl || null);
-        setSettingTimezone(p.timezone || 'Africa/Nairobi');
-        setSettingCurrency(p.currency || 'KES');
-        setSettingOpening(p.openingHours || '08:00');
-        setSettingClosing(p.closingHours || '23:00');
-        if (p.operatingSchedule) {
-          setOperatingSchedule(p.operatingSchedule);
-        }
-      } else {
-        setProfileError(res.error?.message || 'Failed to load business profile');
-      }
-    } catch (err: any) {
-      setProfileError(err.message || 'Failed to load business profile. Please try again.');
-    } finally {
-      setProfileLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     if (page === 'settings') {
       loadBusinessProfile();
@@ -6112,30 +6131,69 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           borderRight: '1px solid #1E293B',
         }}
       >
-        <div className="flex items-center gap-3 p-4 border-b" style={{ borderColor: '#1E293B' }}>
+        <div className="flex items-center gap-2.5 p-3.5 border-b" style={{ borderColor: '#1E293B' }}>
           <button
-            onClick={() => setCollapsed((v) => !v)}
-            title="Toggle sidebar"
-            className="h-9 w-9 rounded-xl bg-blue-600 flex-shrink-0 flex items-center justify-center hover:bg-blue-700 transition-colors overflow-hidden border border-slate-700/60"
+            onClick={() => {
+              setSettingsTab('branding');
+              setPage('settings');
+            }}
+            title="Click to edit Business Logo & Brand Theme"
+            className="h-10 w-10 rounded-xl flex-shrink-0 flex items-center justify-center transition-all overflow-hidden shadow-sm relative group cursor-pointer border border-slate-700/60"
+            style={{ backgroundColor: currentThemeColor }}
           >
-            {businessLogoUrl ? (
+            {currentLogoUrl && !logoError ? (
               <img
-                src={resolveImageUrl(businessLogoUrl)}
+                src={resolveImageUrl(currentLogoUrl)}
                 alt={businessName}
-                className="h-full w-full object-cover"
-                onError={(e) => {
-                  (e.currentTarget as HTMLElement).style.display = 'none';
-                }}
+                className="h-full w-full object-cover rounded-xl"
+                onError={() => setLogoError(true)}
               />
             ) : (
-              <Building2 className="h-4 w-4 text-white" />
+              <span className="text-white font-black text-base uppercase tracking-wider">
+                {businessName ? businessName.charAt(0) : <Building2 className="h-5 w-5 text-white" />}
+              </span>
             )}
-          </button>
-          {!collapsed && (
-            <div className="overflow-hidden min-w-0">
-              <div className="text-sm font-black text-white truncate">{businessName}</div>
-              <div className="text-[10px] text-blue-400 font-bold truncate">Business Admin Portal</div>
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-xl">
+              <Sparkles className="h-4 w-4 text-white" />
             </div>
+          </button>
+          {!collapsed ? (
+            <>
+              <div className="overflow-hidden min-w-0 flex-1">
+                <div className="text-sm font-black text-white truncate" title={businessName}>
+                  {businessName}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSettingsTab('branding');
+                    setPage('settings');
+                  }}
+                  className="text-[10px] text-blue-400 hover:text-blue-300 font-bold truncate flex items-center gap-0.5 transition-colors text-left"
+                  title="Edit Logo & Theme"
+                >
+                  <span>Edit Logo & Theme</span>
+                  <Sparkles className="h-2.5 w-2.5 ml-0.5 inline" />
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCollapsed(true)}
+                title="Collapse sidebar"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors flex-shrink-0"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setCollapsed(false)}
+              title="Expand sidebar"
+              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
           )}
         </div>
 

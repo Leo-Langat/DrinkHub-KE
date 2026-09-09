@@ -61,7 +61,7 @@ export class AuthService {
     let isMatch = await bcrypt.compare(password, user ? user.passwordHash : dummyHash);
 
     // Development convenience fallback for local testing
-    if (!isMatch && user && process.env.NODE_ENV !== 'production') {
+    if (!isMatch && user && user.email && process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
       const devPasswords: Record<string, string[]> = {
         'tonny@gmail.com': ['tonny123', 'Password123!', 'Admin123!'],
         'lionellangat2000@gmail.com': ['lionel123', 'Password123!', 'Admin123!'],

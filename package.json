@@ -21,6 +21,7 @@
     "lint:fix": "eslint \"**/*.{ts,tsx,js,jsx}\" --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,css}\"",
     "type-check": "npm run build --workspace=packages/shared && npm run type-check --workspaces --if-present",
+    "test": "npm run test --workspace=apps/server",
     "start": "node apps/server/dist/server.js",
     "prepare": "husky || true",
     "docker:dev": "docker-compose up --build",

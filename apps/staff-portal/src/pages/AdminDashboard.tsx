@@ -858,17 +858,6 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
-              {businessLogoUrl && (
-                <img
-                  src={resolveImageUrl(businessLogoUrl)}
-                  alt={currentBizName}
-                  className="h-8 w-8 rounded-lg object-cover border flex-shrink-0"
-                  style={{ borderColor: 'var(--border)' }}
-                  onError={(e) => {
-                    (e.currentTarget as HTMLElement).style.display = 'none';
-                  }}
-                />
-              )}
               <h2 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
                 Business Performance Dashboard
               </h2>
@@ -6126,7 +6115,8 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
         <div className="flex items-center gap-3 p-4 border-b" style={{ borderColor: '#1E293B' }}>
           <button
             onClick={() => setCollapsed((v) => !v)}
-            className="h-8 w-8 rounded-lg bg-blue-600 flex-shrink-0 flex items-center justify-center hover:bg-blue-700 transition-colors overflow-hidden"
+            title="Toggle sidebar"
+            className="h-9 w-9 rounded-xl bg-blue-600 flex-shrink-0 flex items-center justify-center hover:bg-blue-700 transition-colors overflow-hidden border border-slate-700/60"
           >
             {businessLogoUrl ? (
               <img
@@ -6142,21 +6132,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
             )}
           </button>
           {!collapsed && (
-            <div className="overflow-hidden flex items-center gap-2 min-w-0">
-              {businessLogoUrl && (
-                <img
-                  src={resolveImageUrl(businessLogoUrl)}
-                  alt={businessName}
-                  className="h-5 w-5 rounded-md object-cover flex-shrink-0 border border-slate-700"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLElement).style.display = 'none';
-                  }}
-                />
-              )}
-              <div className="overflow-hidden min-w-0">
-                <div className="text-sm font-black text-white truncate">{businessName}</div>
-                <div className="text-[10px] text-blue-400 font-bold truncate">Business Admin Portal</div>
-              </div>
+            <div className="overflow-hidden min-w-0">
+              <div className="text-sm font-black text-white truncate">{businessName}</div>
+              <div className="text-[10px] text-blue-400 font-bold truncate">Business Admin Portal</div>
             </div>
           )}
         </div>
@@ -6199,26 +6177,13 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           className="border-b px-6 py-3.5 flex items-center justify-between sticky top-0 z-20"
           style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}
         >
-          <div className="flex items-center gap-3 min-w-0">
-            {businessLogoUrl && (
-              <img
-                src={resolveImageUrl(businessLogoUrl)}
-                alt={businessName}
-                className="h-8 w-8 rounded-xl object-cover border flex-shrink-0 shadow-sm"
-                style={{ borderColor: 'var(--border)' }}
-                onError={(e) => {
-                  (e.currentTarget as HTMLElement).style.display = 'none';
-                }}
-              />
-            )}
-            <div className="min-w-0">
-              <h1 className="text-base font-black truncate" style={{ color: 'var(--text-primary)' }}>
-                {NAV_ITEMS.find((n) => n.key === page)?.label}
-              </h1>
-              <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
-                {businessName} ({businessType}) | {new Date().toLocaleDateString('en-KE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-              </p>
-            </div>
+          <div className="min-w-0">
+            <h1 className="text-base font-black truncate" style={{ color: 'var(--text-primary)' }}>
+              {NAV_ITEMS.find((n) => n.key === page)?.label}
+            </h1>
+            <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+              {businessName} ({businessType}) | {new Date().toLocaleDateString('en-KE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+            </p>
           </div>
 
           <div className="flex items-center gap-3">

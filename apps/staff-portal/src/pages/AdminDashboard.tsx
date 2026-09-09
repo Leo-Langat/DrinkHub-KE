@@ -6163,18 +6163,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                 <div className="text-sm font-black text-white truncate" title={businessName}>
                   {businessName}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSettingsTab('branding');
-                    setPage('settings');
-                  }}
-                  className="text-[10px] text-blue-400 hover:text-blue-300 font-bold truncate flex items-center gap-0.5 transition-colors text-left"
-                  title="Edit Logo & Theme"
-                >
-                  <span>Edit Logo & Theme</span>
-                  <Sparkles className="h-2.5 w-2.5 ml-0.5 inline" />
-                </button>
+                <div className="text-[10px] text-blue-400 font-bold truncate">Business Admin Portal</div>
               </div>
               <button
                 type="button"

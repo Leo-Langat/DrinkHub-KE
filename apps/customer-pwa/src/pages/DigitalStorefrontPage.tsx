@@ -24,6 +24,20 @@ const getApiUrl = (path: string): string => {
   return `${base}${path.startsWith('/') ? path : `/${path}`}`;
 };
 
+const resolveImageUrl = (url?: string | null): string => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
+    if (url.startsWith('http://') && (url.includes('onrender.com') || (typeof window !== 'undefined' && window.location.protocol === 'https:'))) {
+      return url.replace('http://', 'https://');
+    }
+    return url;
+  }
+  const cleanPath = url.startsWith('/') ? url : `/${url}`;
+  const envUrl = (import.meta as any).env?.VITE_API_URL || '';
+  const base = envUrl.includes('onrender.com') ? 'https://drinkhub-ke.onrender.com' : 'http://localhost:5000';
+  return `${base}${cleanPath}`;
+};
+
 /* ─────────────────────────────────────────────
    TYPES
 ───────────────────────────────────────────── */
@@ -647,10 +661,11 @@ export const DigitalStorefrontPage: React.FC = () => {
             >
               <ArrowLeft className="w-3.5 h-3.5" /> Back to Menu
             </button>
-            <div className="text-right">
-              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                Live Updates Active
-              </span>
+            <div className="flex items-center gap-2">
+              {brand.logoUrl && (
+                <img src={resolveImageUrl(brand.logoUrl)} alt={brand.name} className="h-6 w-6 rounded-lg object-cover border border-white/10" />
+              )}
+              <span className="text-xs font-bold" style={{ color: 'var(--text)' }}>{brand.name}</span>
             </div>
           </div>
 

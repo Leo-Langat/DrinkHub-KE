@@ -6,6 +6,7 @@ import {
   Banknote, CreditCard, Smartphone, ArrowRight, LayoutDashboard, History,
   Loader2, RefreshCcw, WifiOff, Lock, Key, Eye, EyeOff, X, Check,
 } from 'lucide-react';
+import { resolveImageUrl } from '../config/api';
 
 /* ─── API config ─── */
 const getApiUrl = (path: string): string => {
@@ -131,6 +132,8 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
     catch { return {}; }
   }, []);
 
+  const [currentVenue, setCurrentVenue] = useState<any>(() => user.club || user.business || null);
+  const [logoError, setLogoError] = useState(false);
   const [currentVenueName, setCurrentVenueName] = useState<string>(() => {
     return user.club?.name || user.business?.name || user.businessName || user.clubName || 'Your Venue';
   });
@@ -143,8 +146,9 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
         if (res.ok) {
           const json = await res.json();
           const biz = json.data?.business || json.data?.club || json.data;
-          if (isMounted && biz?.name) {
-            setCurrentVenueName(biz.name);
+          if (isMounted && biz) {
+            setCurrentVenue(biz);
+            if (biz.name) setCurrentVenueName(biz.name);
           }
         }
       } catch {}
@@ -154,6 +158,12 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
   }, []);
 
   const clubName = currentVenueName;
+  const clubLogoUrl = currentVenue?.logoUrl || user.club?.logoUrl || user.business?.logoUrl || null;
+  const clubThemeColor = currentVenue?.themeColor || user.club?.themeColor || user.business?.themeColor || '#2563EB';
+
+  useEffect(() => {
+    setLogoError(false);
+  }, [clubLogoUrl]);
   const fullName = user.fullName || 'Waiter';
   const nameParts = fullName.trim().split(' ');
   const firstName = nameParts[0] || 'Waiter';
@@ -406,13 +416,27 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
       <nav className="border-b flex items-center justify-between px-4 sm:px-6 py-3 sticky top-0 z-30"
         style={{ background: '#2563EB', borderColor: '#1D4ED8' }}>
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-white/20 flex items-center justify-center">
-            <Wine className="h-4 w-4 text-white" />
+          <div
+            title={clubName}
+            className="h-10 w-10 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden shadow-sm border border-white/20"
+            style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
+          >
+            {clubLogoUrl && !logoError ? (
+              <img
+                src={resolveImageUrl(clubLogoUrl)}
+                alt={clubName}
+                className="h-full w-full object-cover rounded-xl"
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <span className="text-white font-black text-base uppercase tracking-wider">
+                {clubName ? clubName.charAt(0) : <Wine className="h-5 w-5 text-white" />}
+              </span>
+            )}
           </div>
           <div>
-            <span className="font-bold text-white text-sm">{clubName}</span>
-            <span className="mx-2 text-blue-300 text-xs">|</span>
-            <span className="text-blue-200 text-xs">{displayName} (Waiter Portal)</span>
+            <div className="font-black text-white text-sm leading-tight">{clubName}</div>
+            <div className="text-blue-100 text-xs font-semibold">{displayName} <span className="opacity-75 font-normal">(Waiter Portal)</span></div>
           </div>
         </div>
 

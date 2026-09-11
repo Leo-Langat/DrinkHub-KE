@@ -3,12 +3,13 @@ import { io, Socket } from 'socket.io-client';
 import { ThemeToggle } from '@drinkhub/ui';
 import {
   Wine, LayoutDashboard, ClipboardList, BookOpen, Users, TrendingUp,
-  Settings, Bell, LogOut, ChevronDown, Search, Plus, Download,
+  Settings, Bell, LogOut, ChevronDown, ChevronLeft, ChevronRight, Search, Plus, Download,
   Eye, EyeOff, Trash2, Edit2, CheckCircle2, X, RefreshCcw, Filter,
   AlertCircle, ArrowUpRight, RotateCcw, Key, UserX, UserCheck,
   Phone, Mail, Hash, Lock, Clock, Briefcase, Shield, QrCode, Copy, ExternalLink,
   Tag, Layers, FolderPlus, Camera, Image, Upload, Printer, Sparkles, Flame, Gift, Percent, Zap,
 } from 'lucide-react';
+import { resolveImageUrl } from '../config/api';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
@@ -3265,6 +3266,7 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
   const [currentClub, setCurrentClub] = React.useState<any>(() => user.club || user.business || null);
   const [openingHours, setOpeningHours] = React.useState<string>(user.club?.openingHours || user.business?.openingHours || '18:00');
   const [closingHours, setClosingHours] = React.useState<string>(user.club?.closingHours || user.business?.closingHours || '04:00');
+  const [logoError, setLogoError] = React.useState(false);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -3290,6 +3292,12 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
   const clubCity = currentClub?.city || user.club?.city || user.business?.city || 'Nairobi';
   const clubCounty = currentClub?.county || user.club?.county || user.business?.county || 'Kenya';
   const clubLocation = `${clubCity}, ${clubCounty}`;
+  const clubLogoUrl = currentClub?.logoUrl || user.club?.logoUrl || user.business?.logoUrl || null;
+  const clubThemeColor = currentClub?.themeColor || user.club?.themeColor || user.business?.themeColor || '#2563EB';
+
+  React.useEffect(() => {
+    setLogoError(false);
+  }, [clubLogoUrl]);
 
   // Compute open/closed status from current time vs stored hours
   const isOpenNow = React.useMemo(() => {
@@ -3362,9 +3370,52 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
     <div className="min-h-screen flex" style={{ background: 'var(--bg-body)' }}>
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
       <aside className="flex-shrink-0 flex flex-col sticky top-0 h-screen transition-all duration-200" style={{ width: collapsed ? '64px' : '210px', background: 'var(--bg-sidebar)', borderRight: '1px solid #1E293B' }}>
-        <div className="flex items-center gap-3 p-4 border-b" style={{ borderColor: '#1E293B' }}>
-          <button onClick={() => setCollapsed(v => !v)} className="h-8 w-8 rounded-lg bg-blue-600 flex-shrink-0 flex items-center justify-center hover:bg-blue-700 transition-colors"><Wine className="h-4 w-4 text-white" /></button>
-          {!collapsed && <div className="overflow-hidden"><div className="text-sm font-black text-white truncate">{clubName}</div><div className="text-[10px] text-slate-500 truncate">Manager Portal</div></div>}
+        <div className="flex items-center gap-2.5 p-3.5 border-b" style={{ borderColor: '#1E293B' }}>
+          <div
+            title={clubName}
+            className="h-10 w-10 rounded-xl flex-shrink-0 flex items-center justify-center transition-all overflow-hidden shadow-sm border border-slate-700/60"
+            style={{ backgroundColor: clubThemeColor }}
+          >
+            {clubLogoUrl && !logoError ? (
+              <img
+                src={resolveImageUrl(clubLogoUrl)}
+                alt={clubName}
+                className="h-full w-full object-cover rounded-xl"
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <span className="text-white font-black text-base uppercase tracking-wider">
+                {clubName ? clubName.charAt(0) : <Wine className="h-5 w-5 text-white" />}
+              </span>
+            )}
+          </div>
+          {!collapsed ? (
+            <>
+              <div className="overflow-hidden min-w-0 flex-1">
+                <div className="text-sm font-black text-white truncate" title={clubName}>
+                  {clubName}
+                </div>
+                <div className="text-[10px] text-blue-400 font-bold truncate">Manager Portal</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCollapsed(true)}
+                title="Collapse sidebar"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors flex-shrink-0"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setCollapsed(false)}
+              title="Expand sidebar"
+              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
           {NAV_ITEMS.map(item => (

@@ -1,20 +1,33 @@
 import { Request, Response, NextFunction } from 'express';
 import { MenuService } from './menu.service';
+import { verifyAccessToken } from '../../common/utils/jwt';
+
+const extractBusinessUuid = (req: Request): string | undefined => {
+  let uuid: string | undefined =
+    req.businessUuid ||
+    req.user?.businessUuid ||
+    req.user?.tenantId ||
+    (req.headers['x-business-uuid'] as string | undefined) ||
+    (req.headers['x-tenant-id'] as string | undefined) ||
+    (req.query.businessUuid as string | undefined) ||
+    (req.query.clubUuid as string | undefined);
+
+  if (!uuid && req.headers.authorization?.startsWith('Bearer ')) {
+    try {
+      const token = req.headers.authorization.split(' ')[1];
+      const payload = verifyAccessToken(token);
+      uuid = payload.businessUuid || payload.tenantId;
+    } catch {}
+  }
+  return uuid || undefined;
+};
 
 export class MenuController {
   constructor(private menuService: MenuService) {}
 
   getMenu = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const businessUuid =
-        req.businessUuid ||
-        req.user?.businessUuid ||
-        req.user?.tenantId ||
-        (req.headers['x-business-uuid'] as string) ||
-        (req.headers['x-tenant-id'] as string) ||
-        (req.query.businessUuid as string) ||
-        (req.query.clubUuid as string);
-
+      const businessUuid = extractBusinessUuid(req);
       const result = await this.menuService.getMenuForBusiness(businessUuid);
       res.json({
         success: true,
@@ -28,13 +41,7 @@ export class MenuController {
 
   createCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const businessUuid =
-        req.businessUuid ||
-        req.user?.businessUuid ||
-        req.user?.tenantId ||
-        (req.headers['x-business-uuid'] as string) ||
-        (req.headers['x-tenant-id'] as string);
-
+      const businessUuid = extractBusinessUuid(req);
       const category = await this.menuService.createCategory(businessUuid!, req.body);
       res.status(201).json({
         success: true,
@@ -76,12 +83,7 @@ export class MenuController {
 
   updateCategoryOrders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const businessUuid =
-        req.businessUuid ||
-        req.user?.businessUuid ||
-        req.user?.tenantId ||
-        (req.headers['x-business-uuid'] as string) ||
-        (req.headers['x-tenant-id'] as string);
+      const businessUuid = extractBusinessUuid(req);
 
       const { orders } = req.body;
       await this.menuService.updateCategoryOrders(businessUuid!, orders);
@@ -97,12 +99,7 @@ export class MenuController {
 
   createProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const businessUuid =
-        req.businessUuid ||
-        req.user?.businessUuid ||
-        req.user?.tenantId ||
-        (req.headers['x-business-uuid'] as string) ||
-        (req.headers['x-tenant-id'] as string);
+      const businessUuid = extractBusinessUuid(req);
 
       const product = await this.menuService.createProduct(businessUuid!, req.body);
       res.status(201).json({
@@ -181,12 +178,7 @@ export class MenuController {
 
   createOffer = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const businessUuid =
-        req.businessUuid ||
-        req.user?.businessUuid ||
-        req.user?.tenantId ||
-        (req.headers['x-business-uuid'] as string) ||
-        (req.headers['x-tenant-id'] as string);
+      const businessUuid = extractBusinessUuid(req);
 
       const offer = await this.menuService.createOffer(businessUuid!, req.body);
       res.status(201).json({

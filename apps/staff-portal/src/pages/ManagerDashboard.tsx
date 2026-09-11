@@ -28,12 +28,12 @@ const Toast = ({ msg, type = 'success', onDone }: { msg: string; type?: 'success
 };
 
 /*           Modal           */
-const Modal = ({ open, onClose, title, size = 'md', children }: { open: boolean; onClose: () => void; title: string; size?: 'sm' | 'md' | 'lg'; children: React.ReactNode }) => {
+const Modal = ({ open, onClose, title, size = 'md', zIndex = 'z-50', children }: { open: boolean; onClose: () => void; title: string; size?: 'sm' | 'md' | 'lg'; zIndex?: string; children: React.ReactNode }) => {
   React.useEffect(() => { document.body.style.overflow = open ? 'hidden' : ''; return () => { document.body.style.overflow = ''; }; }, [open]);
   if (!open) return null;
   const w = size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-2xl' : 'max-w-md';
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+    <div className={`fixed inset-0 ${zIndex} flex items-center justify-center bg-black/50 backdrop-blur-sm`} onClick={onClose}>
       <div className={`w-full ${w} rounded-2xl bg-white p-6 shadow-2xl mx-4 max-h-[90vh] overflow-y-auto`} onClick={ev => ev.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-base font-black text-slate-900">{title}</h3>
@@ -256,7 +256,15 @@ const getClubUuid = (): string | null => {
     const userStr = localStorage.getItem('drinkhub_user');
     if (!userStr) return null;
     const u = JSON.parse(userStr);
-    return u.clubUuid || u.tenantId || u.club?.clubUuid || null;
+    return (
+      u.businessUuid ||
+      u.clubUuid ||
+      u.tenantId ||
+      u.business?.uuid ||
+      u.club?.uuid ||
+      u.club?.clubUuid ||
+      null
+    );
   } catch {
     return null;
   }
@@ -264,18 +272,11 @@ const getClubUuid = (): string | null => {
 
 const authHeaders = (): Record<string, string> => {
   const token = localStorage.getItem('drinkhub_token');
-  const userStr = localStorage.getItem('drinkhub_user');
-  let clubUuid = '';
-  if (userStr) {
-    try {
-      const u = JSON.parse(userStr);
-      clubUuid = u.clubUuid || u.tenantId || u.club?.clubUuid || '';
-    } catch {}
-  }
+  const clubUuid = getClubUuid();
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(clubUuid ? { 'X-Tenant-Id': clubUuid } : {}),
+    ...(clubUuid ? { 'X-Tenant-Id': clubUuid, 'X-Business-Uuid': clubUuid } : {}),
   };
 };
 
@@ -1242,15 +1243,19 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
   };
 
   const handleAddItem = async () => {
-    if (!addForm.name || !addForm.price) return;
-    const categoryToUse = addForm.category || (categories[0]?.name ?? 'General');
+    if (!addForm.name.trim() || !addForm.price) return;
+    const categoryToUse = addForm.category.trim() || categories[0]?.name;
+    if (!categoryToUse) {
+      showToast('Please create or select a category for this business first');
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(getApiUrl('/menu/products'), {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({
-          name: addForm.name,
+          name: addForm.name.trim(),
           categoryName: categoryToUse,
           price: Number(addForm.price),
           imageUrl: addForm.imageUrl || undefined,
@@ -1270,23 +1275,25 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
     }
   };
 
-  const handleCreateCategory = async () => {
-    if (!newCatForm.name.trim()) return;
+  const handleCreateCategory = async (nameOverride?: string) => {
+    const catName = (nameOverride || newCatForm.name).trim();
+    if (!catName) return;
     setLoading(true);
     try {
       const res = await fetch(getApiUrl('/menu/categories'), {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({
-          name: newCatForm.name.trim(),
-          description: newCatForm.description.trim() || undefined,
+          name: catName,
+          description: nameOverride ? undefined : (newCatForm.description.trim() || undefined),
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message || 'Failed to create category');
-      showToast(`Category "${newCatForm.name}" created successfully`);
+      showToast(`Category "${catName}" created successfully`);
       setNewCatForm({ name: '', description: '' });
       setShowAddCatModal(false);
+      setAddForm(p => ({ ...p, category: catName }));
       fetchMenu();
     } catch (err: any) {
       showToast(err.message || 'Error creating category');
@@ -1365,9 +1372,12 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
 
   const categoryOptions = React.useMemo(() => {
     if (categories.length > 0) {
-      return categories.map(c => ({ v: c.name, l: c.name }));
+      return [
+        { v: '', l: 'Select a category...' },
+        ...categories.map(c => ({ v: c.name, l: c.name }))
+      ];
     }
-    return ['Beer', 'Spirits', 'Wine', 'Cocktails', 'Mocktails', 'Cognac', 'Mixers', 'Snacks', 'Food & Grills'].map(c => ({ v: c, l: c }));
+    return [{ v: '', l: 'No categories yet — click + New Category' }];
   }, [categories]);
 
   const filteredItems = React.useMemo(() => {
@@ -1444,7 +1454,7 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
           <button onClick={() => setShowCategoriesModal(true)} className="flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-bold transition-colors hover:bg-slate-50" style={{ borderColor: 'var(--border)', color: 'var(--text-primary)', background: 'var(--bg-card)' }}>
             <Layers className="h-3.5 w-3.5 text-blue-600" /> Manage Categories ({categories.length})
           </button>
-          <button onClick={() => { setAddForm({ name: '', category: categories[0]?.name || 'Beer', price: '', imageUrl: '', description: '' }); setShowAdd(true); }} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold text-white hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>
+          <button onClick={() => { setAddForm({ name: '', category: categories[0]?.name || '', price: '', imageUrl: '', description: '' }); setShowAdd(true); }} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold text-white hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>
             <Plus className="h-3.5 w-3.5" /> Add Item
           </button>
         </div>
@@ -1645,7 +1655,11 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
 
           <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
             {categories.length === 0 ? (
-              <p className="text-center py-6 text-xs text-slate-400">No categories created yet. Click "+ New Category" to create one.</p>
+              <div className="text-center py-8 space-y-2">
+                <Layers className="h-8 w-8 text-slate-300 mx-auto" />
+                <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">No categories created yet for this business.</p>
+                <p className="text-[11px] text-slate-400">Every business creates its own unique menu categories. Click "+ New Category" to add one.</p>
+              </div>
             ) : (
               categories.map(cat => (
                 <div key={cat.id} className="flex items-center justify-between p-3 rounded-xl border bg-slate-50/50 hover:bg-slate-100/50 transition-colors" style={{ borderColor: 'var(--border)' }}>
@@ -1686,13 +1700,13 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
       </Modal>
 
       {/* ── Modal: Add Category ── */}
-      <Modal open={showAddCatModal} onClose={() => setShowAddCatModal(false)} title="Create New Category" size="sm">
+      <Modal open={showAddCatModal} onClose={() => setShowAddCatModal(false)} title="Create New Category" size="sm" zIndex="z-[60]">
         <div className="space-y-4">
-          <div><FL required>Category Name</FL><SI value={newCatForm.name} onChange={e => setNewCatForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Cocktails, Food & Grills, Wines" /></div>
-          <div><FL>Description (Optional)</FL><SI value={newCatForm.description} onChange={e => setNewCatForm(p => ({ ...p, description: e.target.value }))} placeholder="e.g. Signature house mixes and craft specials" /></div>
+          <div><FL required>Category Name</FL><SI value={newCatForm.name} onChange={e => setNewCatForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Starters, Main Dishes, Hot Beverages, Desserts" /></div>
+          <div><FL>Description (Optional)</FL><SI value={newCatForm.description} onChange={e => setNewCatForm(p => ({ ...p, description: e.target.value }))} placeholder="e.g. Fresh house specialties and signature dishes" /></div>
           <div className="flex gap-3 pt-1">
             <button onClick={() => setShowAddCatModal(false)} className="flex-1 rounded-xl border py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors" style={{ borderColor: '#E2E8F0' }}>Cancel</button>
-            <button disabled={loading || !newCatForm.name.trim()} onClick={handleCreateCategory} className="flex-1 rounded-xl py-2.5 text-xs font-bold text-white hover:opacity-90 transition-opacity disabled:opacity-50" style={{ background: '#2563EB' }}>
+            <button disabled={loading || !newCatForm.name.trim()} onClick={() => handleCreateCategory()} className="flex-1 rounded-xl py-2.5 text-xs font-bold text-white hover:opacity-90 transition-opacity disabled:opacity-50" style={{ background: '#2563EB' }}>
               {loading ? 'Creating...' : 'Create Category'}
             </button>
           </div>
@@ -1700,9 +1714,9 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
       </Modal>
 
       {/* ── Modal: Edit Category ── */}
-      <Modal open={showEditCatModal} onClose={() => setShowEditCatModal(false)} title="Edit Category" size="sm">
+      <Modal open={showEditCatModal} onClose={() => setShowEditCatModal(false)} title="Edit Category" size="sm" zIndex="z-[60]">
         <div className="space-y-4">
-          <div><FL required>Category Name</FL><SI value={editCatForm.name} onChange={e => setEditCatForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Cocktails" /></div>
+          <div><FL required>Category Name</FL><SI value={editCatForm.name} onChange={e => setEditCatForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Starters, Main Course, Beverages" /></div>
           <div><FL>Description (Optional)</FL><SI value={editCatForm.description} onChange={e => setEditCatForm(p => ({ ...p, description: e.target.value }))} placeholder="Short category description" /></div>
           <div className="flex gap-3 pt-1">
             <button onClick={() => setShowEditCatModal(false)} className="flex-1 rounded-xl border py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors" style={{ borderColor: '#E2E8F0' }}>Cancel</button>
@@ -1764,7 +1778,28 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
                 <Plus className="h-3 w-3" /> New Category
               </button>
             </div>
-            <SS value={addForm.category} onChange={e => setAddForm(p => ({ ...p, category: e.target.value }))} options={categoryOptions} />
+            {categories.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50/70 dark:bg-amber-950/30 dark:border-amber-700/60 p-3 space-y-2">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-bold text-amber-900 dark:text-amber-200">No categories created yet</p>
+                    <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">
+                      Categories are unique to every business. Create your first category before adding items.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setNewCatForm({ name: '', description: '' }); setShowAddCatModal(true); }}
+                  className="w-full py-2 px-3 rounded-lg text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Create Category
+                </button>
+              </div>
+            ) : (
+              <SS value={addForm.category} onChange={e => setAddForm(p => ({ ...p, category: e.target.value }))} options={categoryOptions} />
+            )}
           </div>
 
           <div><FL required>Price (KES)</FL><SI type="number" value={addForm.price} onChange={e => setAddForm(p => ({ ...p, price: e.target.value }))} placeholder="0" min="0" /></div>

@@ -8,6 +8,9 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import {
   isJwtExpired,
   isSessionExpired,
+  isIdleExpired,
+  getLastActivityTime,
+  setSessionExpiredNotice,
   MAX_SESSION_MS,
   AUTH_STORAGE_KEYS,
   clearAllAuthData,
@@ -27,9 +30,26 @@ export const App: React.FC = () => {
       const userStr = localStorage.getItem(AUTH_STORAGE_KEYS.USER);
       const loginTimeStr = localStorage.getItem(AUTH_STORAGE_KEYS.LOGIN_TIME);
       const loginTimeMs = loginTimeStr ? parseInt(loginTimeStr, 10) : null;
+      const lastActivityMs = getLastActivityTime(false);
 
       if (token && userStr) {
-        // Only invalidate if max shift expired or expired JWT without refresh token
+        // 1. Inactivity Timeout Check (20-minute idle limit)
+        if (isIdleExpired(lastActivityMs)) {
+          try {
+            const user = JSON.parse(userStr);
+            const r = (user.role || '').toUpperCase();
+            const rName = r === 'ADMIN' ? 'Admin (Owner)' : r === 'WAITER' ? 'Waiter' : 'Manager';
+            setSessionExpiredNotice(
+              `Your ${rName} session has expired due to 20 minutes of inactivity. Please log in again.`
+            );
+          } catch {
+            setSessionExpiredNotice();
+          }
+          clearAllAuthData();
+          return null;
+        }
+
+        // 2. Token / Shift Expiry Check
         const refreshToken = localStorage.getItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN);
         if ((isJwtExpired(token) && !refreshToken) || isSessionExpired(loginTimeMs, MAX_SESSION_MS)) {
           clearAllAuthData();
@@ -87,7 +107,7 @@ export const App: React.FC = () => {
   }, []);
 
   const currentRoleName =
-    session?.role === 'admin' ? 'Admin' : session?.role === 'waiter' ? 'Waiter' : 'Manager';
+    session?.role === 'admin' ? 'Admin (Owner)' : session?.role === 'waiter' ? 'Waiter' : 'Manager';
 
   const {
     idleWarning,

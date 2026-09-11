@@ -76,6 +76,14 @@ export function isSessionExpired(loginTimeMs: number | null | undefined, maxSess
 }
 
 /**
+ * Checks if idle inactivity exceeds the idle threshold (defaults to 20 minutes).
+ */
+export function isIdleExpired(lastActivityMs: number | null | undefined, idleTimeoutMs = IDLE_TIMEOUT_MS): boolean {
+  if (!lastActivityMs || lastActivityMs <= 0) return false;
+  return Date.now() - lastActivityMs >= idleTimeoutMs;
+}
+
+/**
  * Records user activity timestamp in localStorage to synchronize activity across tabs.
  */
 export function recordUserActivity(customTimestamp?: number): void {
@@ -91,8 +99,8 @@ export function recordUserActivity(customTimestamp?: number): void {
 /**
  * Retrieves the last recorded user activity timestamp from localStorage.
  */
-export function getLastActivityTime(): number {
-  if (typeof window === 'undefined' || !window.localStorage) return Date.now();
+export function getLastActivityTime(defaultToNow = true): number {
+  if (typeof window === 'undefined' || !window.localStorage) return defaultToNow ? Date.now() : 0;
   try {
     const stored = window.localStorage.getItem(AUTH_STORAGE_KEYS.LAST_ACTIVITY);
     if (stored) {
@@ -102,7 +110,7 @@ export function getLastActivityTime(): number {
   } catch {
     /* ignore */
   }
-  return Date.now();
+  return defaultToNow ? Date.now() : 0;
 }
 
 /**

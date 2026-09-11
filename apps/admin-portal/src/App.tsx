@@ -5,6 +5,9 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import {
   isJwtExpired,
   isSessionExpired,
+  isIdleExpired,
+  getLastActivityTime,
+  setSessionExpiredNotice,
   MAX_SESSION_MS,
   AUTH_STORAGE_KEYS,
   clearAllAuthData,
@@ -21,8 +24,18 @@ export const App: React.FC = () => {
       const userStr = localStorage.getItem(AUTH_STORAGE_KEYS.USER);
       const loginTimeStr = localStorage.getItem(AUTH_STORAGE_KEYS.LOGIN_TIME);
       const loginTimeMs = loginTimeStr ? parseInt(loginTimeStr, 10) : null;
+      const lastActivityMs = getLastActivityTime(false);
 
       if (token && userStr) {
+        // 1. Inactivity Timeout Check (20-minute idle limit)
+        if (isIdleExpired(lastActivityMs)) {
+          setSessionExpiredNotice(
+            'Your Super Admin session has expired due to 20 minutes of inactivity. Please log in again.'
+          );
+          clearAllAuthData();
+          return false;
+        }
+
         const refreshToken = localStorage.getItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN);
         if ((isJwtExpired(token) && !refreshToken) || isSessionExpired(loginTimeMs, MAX_SESSION_MS)) {
           clearAllAuthData();

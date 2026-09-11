@@ -64,15 +64,6 @@ export function useSessionTimeout({
   const lastBroadcastRef = useRef<number>(0);
   const isRefreshingRef = useRef<boolean>(false);
 
-  // Synchronize initial last activity from storage on mount
-  useEffect(() => {
-    if (isAuthenticated) {
-      const storedLast = getLastActivityTime();
-      lastActivityRef.current = Math.max(storedLast, Date.now());
-      recordUserActivity(lastActivityRef.current);
-    }
-  }, [isAuthenticated]);
-
   const triggerLogout = useCallback(
     (reason: 'timeout' | 'manual' | 'max_session' | 'cross_tab' = 'timeout') => {
       if (reason === 'timeout' || reason === 'max_session') {
@@ -101,6 +92,20 @@ export function useSessionTimeout({
     [onLogout, expiredMessage]
   );
 
+  // Synchronize initial last activity from storage on mount
+  useEffect(() => {
+    if (isAuthenticated) {
+      const storedLast = getLastActivityTime(false);
+      const now = Date.now();
+      if (storedLast > 0 && now - storedLast >= idleTimeoutMs) {
+        triggerLogout('timeout');
+        return;
+      }
+      lastActivityRef.current = storedLast > 0 ? storedLast : now;
+      recordUserActivity(lastActivityRef.current);
+    }
+  }, [isAuthenticated, idleTimeoutMs, triggerLogout]);
+
   const stayActive = useCallback(() => {
     const now = Date.now();
     lastActivityRef.current = now;
@@ -123,6 +128,13 @@ export function useSessionTimeout({
 
     const handleUserActivity = () => {
       const now = Date.now();
+      // If idle time already reached 20 minutes before this event, user activity
+      // must NOT resurrect the expired session — trigger logout immediately!
+      if (now - lastActivityRef.current >= idleTimeoutMs) {
+        triggerLogout('timeout');
+        return;
+      }
+
       lastActivityRef.current = now;
 
       // Throttle cross-tab localStorage broadcast to once per second
@@ -157,7 +169,15 @@ export function useSessionTimeout({
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        const storedLast = getLastActivityTime();
+        const now = Date.now();
+        const storedLast = getLastActivityTime(false);
+        if (
+          now - lastActivityRef.current >= idleTimeoutMs ||
+          (storedLast > 0 && now - storedLast >= idleTimeoutMs)
+        ) {
+          triggerLogout('timeout');
+          return;
+        }
         if (storedLast > lastActivityRef.current) {
           lastActivityRef.current = storedLast;
         }

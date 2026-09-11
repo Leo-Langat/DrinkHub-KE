@@ -119,13 +119,11 @@ export const updateBusinessProfileSchema = z.object({
         .optional(),
       logoUrl: z
         .string()
-        .max(500, 'Logo URL cannot exceed 500 characters')
         .trim()
         .nullable()
         .optional(),
       bannerUrl: z
         .string()
-        .max(500, 'Banner URL cannot exceed 500 characters')
         .trim()
         .nullable()
         .optional(),

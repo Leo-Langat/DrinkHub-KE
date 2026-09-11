@@ -5,6 +5,7 @@
  * Derives admin identity strictly from req.user.userId.
  */
 
+import fs from 'fs';
 import { Request, Response, NextFunction } from 'express';
 import { BusinessService } from './business.service';
 import { UnauthorizedError, BadRequestError } from '../../common/errors/app-error';
@@ -83,14 +84,25 @@ export class BusinessController {
       if (!adminUserId) throw new UnauthorizedError('Authentication required');
 
       const file = (req as Request & { file?: Express.Multer.File }).file;
-      if (!file) {
-        throw new BadRequestError('No image file uploaded');
+      let logoUrl = req.body?.logoUrl || req.body?.logo;
+
+      if (file) {
+        try {
+          const fileData = fs.readFileSync(file.path);
+          const mimeType = file.mimetype || 'image/png';
+          logoUrl = `data:${mimeType};base64,${fileData.toString('base64')}`;
+        } catch {
+          const isHttps = req.secure || req.get('x-forwarded-proto') === 'https' || req.protocol === 'https';
+          const protocol = isHttps ? 'https' : 'http';
+          const host = req.get('host') || 'localhost:5000';
+          logoUrl = `${protocol}://${host}/uploads/${file.filename}`;
+        }
       }
 
-      const isHttps = req.secure || req.get('x-forwarded-proto') === 'https' || req.protocol === 'https';
-      const protocol = isHttps ? 'https' : 'http';
-      const host = req.get('host') || 'localhost:5000';
-      const logoUrl = `${protocol}://${host}/uploads/${file.filename}`;
+      if (!logoUrl) {
+        throw new BadRequestError('No image file or logo URL uploaded');
+      }
+
       const ipAddress = req.ip || req.socket.remoteAddress;
 
       const result = await this.businessService.uploadLogo(adminUserId, logoUrl, ipAddress);

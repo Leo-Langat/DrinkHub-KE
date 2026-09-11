@@ -1,3 +1,4 @@
+import fs from 'fs';
 import { Request, Response, NextFunction } from 'express';
 import { TenantService } from './tenant.service';
 
@@ -309,9 +310,16 @@ export class TenantController {
         res.status(400).json({ success: false, error: { message: 'No image file uploaded' } });
         return;
       }
-      const host = req.get('host') || 'localhost:5000';
-      const protocol = req.protocol || 'http';
-      const imageUrl = `${protocol}://${host}/uploads/${file.filename}`;
+      let imageUrl: string;
+      try {
+        const fileData = fs.readFileSync(file.path);
+        const mimeType = file.mimetype || 'image/png';
+        imageUrl = `data:${mimeType};base64,${fileData.toString('base64')}`;
+      } catch {
+        const host = req.get('host') || 'localhost:5000';
+        const protocol = req.protocol || 'http';
+        imageUrl = `${protocol}://${host}/uploads/${file.filename}`;
+      }
       const relativeUrl = `/uploads/${file.filename}`;
       res.json({
         success: true,

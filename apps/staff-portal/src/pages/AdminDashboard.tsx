@@ -534,6 +534,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   const [brandingSaving, setBrandingSaving] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const [logoPreviewError, setLogoPreviewError] = useState(false);
 
   // Form states: Regional
   const [settingTimezone, setSettingTimezone] = useState('Africa/Nairobi');
@@ -578,7 +579,11 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
         setProfCounty(p.county || 'Nairobi');
         setProfCountry(p.country || 'Kenya');
         if (p.themeColor) setBrandThemeColor(p.themeColor);
-        if (p.logoUrl) setBrandLogoUrl(p.logoUrl);
+        if (p.logoUrl) {
+          setBrandLogoUrl(p.logoUrl);
+          setLogoPreviewError(false);
+          setLogoError(false);
+        }
         setSettingTimezone(p.timezone || 'Africa/Nairobi');
         setSettingCurrency(p.currency || 'KES');
         setSettingOpening(p.openingHours || '08:00');
@@ -694,6 +699,10 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   useEffect(() => {
     setLogoError(false);
   }, [currentLogoUrl]);
+
+  useEffect(() => {
+    setLogoPreviewError(false);
+  }, [brandLogoUrl]);
 
   useEffect(() => {
     if (currentThemeColor) {
@@ -4960,6 +4969,46 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   };
 
   /**
+   * Resize image file to data URL (max 512px) to ensure crisp, lightweight display
+   */
+  const resizeImageToDataUrl = (file: File, maxDim = 512): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const rawUrl = e.target?.result as string;
+        if (!rawUrl) return resolve('');
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/png', 0.92));
+          } else {
+            resolve(rawUrl);
+          }
+        };
+        img.onerror = () => resolve(rawUrl);
+        img.src = rawUrl;
+      };
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(file);
+    });
+  };
+
+  /**
    * Handle Logo File Upload via POST /api/v1/business/logo
    */
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -4976,27 +5025,34 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       return;
     }
 
-    // 1. Instant local preview
-    const reader = new FileReader();
-    reader.onload = ev => {
-      if (ev.target?.result) setBrandLogoUrl(ev.target.result as string);
-    };
-    reader.readAsDataURL(file);
-
-    const formData = new FormData();
-    formData.append('logo', file);
-
     try {
       setLogoUploading(true);
+      // 1. Instant client-side resize and preview
+      const dataUrl = await resizeImageToDataUrl(file, 512);
+      if (dataUrl) {
+        setBrandLogoUrl(dataUrl);
+        setLogoPreviewError(false);
+        setLogoError(false);
+      }
+
+      const formData = new FormData();
+      formData.append('logo', file);
+      if (dataUrl) {
+        formData.append('logoUrl', dataUrl);
+      }
+
       const res = await authFetch('/business/logo', {
         method: 'POST',
         body: formData,
       });
 
-      const returnedUrl = res.data?.logoUrl || res.data?.imageUrl || res.data?.url;
+      const returnedUrl = res.data?.logoUrl || res.data?.imageUrl || res.data?.url || dataUrl;
       if (res.success && returnedUrl) {
-        setBrandLogoUrl(resolveImageUrl(returnedUrl));
-        showToast('Logo uploaded successfully!', 'success');
+        setBrandLogoUrl(returnedUrl);
+        setLogoPreviewError(false);
+        setLogoError(false);
+        setBusinessProfile((prev: any) => (prev ? { ...prev, logoUrl: returnedUrl } : prev));
+        showToast('Logo uploaded and saved successfully!', 'success');
         loadDashboardData();
       }
     } catch (err: any) {
@@ -5351,8 +5407,13 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
 
               <div className="flex flex-col sm:flex-row items-center gap-6">
                 <div className="h-24 w-24 rounded-2xl border-2 border-dashed flex items-center justify-center overflow-hidden bg-slate-500/5 flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
-                  {brandLogoUrl ? (
-                    <img src={resolveImageUrl(brandLogoUrl)} alt="Logo" className="h-full w-full object-cover" />
+                  {brandLogoUrl && !logoPreviewError ? (
+                    <img
+                      src={resolveImageUrl(brandLogoUrl)}
+                      alt="Logo"
+                      className="h-full w-full object-cover"
+                      onError={() => setLogoPreviewError(true)}
+                    />
                   ) : (
                     <Building2 className="h-8 w-8 text-slate-400" />
                   )}

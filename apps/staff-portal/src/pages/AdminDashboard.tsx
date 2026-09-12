@@ -3793,60 +3793,66 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     });
 
     return (
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
-              Business Orders Oversight
-            </h2>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Complete audit and history of all customer orders in {businessName}
-            </p>
-          </div>
-          <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
-            {filteredOrders.length} Total Orders Found
-          </span>
-        </div>
-
-        {/* Filter Controls */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          <div className="flex items-center gap-2 px-2">
-            <Search className="h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search by Order # or Table..."
-              value={orderSearch}
-              onChange={(e) => setOrderSearch(e.target.value)}
-              className="bg-transparent text-xs outline-none flex-1"
-              style={{ color: 'var(--text-primary)' }}
-            />
+      <div className="space-y-4">
+        {/* Sticky Top Header Section (Title + Filters) */}
+        <div
+          className="sticky -top-6 z-20 space-y-4 pt-1 pb-2"
+          style={{ background: 'var(--bg-body)' }}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
+                Business Orders Oversight
+              </h2>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Complete audit and history of all customer orders in {businessName}
+              </p>
+            </div>
+            <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
+              {filteredOrders.length} Total Orders Found
+            </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold text-slate-400">Status:</span>
-            <select
-              value={orderStatusFilter}
-              onChange={(e) => setOrderStatusFilter(e.target.value)}
-              className="w-full rounded-xl border p-2 text-xs outline-none"
-              style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-            >
-              <option value="ALL">All Order Statuses</option>
-              <option value="PENDING">PENDING</option>
-              <option value="CLAIMED">CLAIMED</option>
-              <option value="PREPARING">PREPARING</option>
-              <option value="READY">READY</option>
-              <option value="DELIVERED">DELIVERED</option>
-              <option value="COMPLETED">COMPLETED</option>
-              <option value="CANCELLED">CANCELLED</option>
-            </select>
+          {/* Filter Controls */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-2xl border shadow-sm" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+            <div className="flex items-center gap-2 px-2">
+              <Search className="h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search by Order # or Table..."
+                value={orderSearch}
+                onChange={(e) => setOrderSearch(e.target.value)}
+                className="bg-transparent text-xs outline-none flex-1"
+                style={{ color: 'var(--text-primary)' }}
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold text-slate-400">Status:</span>
+              <select
+                value={orderStatusFilter}
+                onChange={(e) => setOrderStatusFilter(e.target.value)}
+                className="w-full rounded-xl border p-2 text-xs outline-none"
+                style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+              >
+                <option value="ALL">All Order Statuses</option>
+                <option value="PENDING">PENDING</option>
+                <option value="CLAIMED">CLAIMED</option>
+                <option value="PREPARING">PREPARING</option>
+                <option value="READY">READY</option>
+                <option value="DELIVERED">DELIVERED</option>
+                <option value="COMPLETED">COMPLETED</option>
+                <option value="CANCELLED">CANCELLED</option>
+              </select>
+            </div>
           </div>
         </div>
 
         {/* Orders Table */}
-        <div className="p-5 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          <div className="overflow-x-auto overflow-y-auto w-full" style={{ maxHeight: '480px' }}>
+        <div className="p-5 rounded-2xl border shadow-sm" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          <div className="overflow-x-auto overflow-y-auto w-full" style={{ maxHeight: 'calc(100vh - 280px)', minHeight: '320px' }}>
             <table className="w-full min-w-[880px] text-left text-xs">
-              <thead className="sticky top-0 z-10" style={{ background: 'var(--bg-card)' }}>
+              <thead className="sticky top-0 z-10 shadow-sm" style={{ background: 'var(--bg-card)' }}>
                 <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>
                   <th className="pb-3 whitespace-nowrap">Order #</th>
                   <th className="pb-3 whitespace-nowrap">Table Seating</th>
@@ -5964,81 +5970,87 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
 
     return (
       <div className="space-y-6">
-        {/* Top Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
-                Users & Staff Management
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
-                Staff Administration
-              </span>
+        {/* Sticky Top Header Section (Title + Add Buttons + Tabs) */}
+        <div
+          className="sticky -top-6 z-20 space-y-4 pt-1 pb-2"
+          style={{ background: 'var(--bg-body)' }}
+        >
+          {/* Top Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
+                  Users & Staff Management
+                </h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+                  Staff Administration
+                </span>
+              </div>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Manage accounts, roles, access permissions, and performance for managers and waiters in {businessName}.
+              </p>
             </div>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Manage accounts, roles, access permissions, and performance for managers and waiters in {businessName}.
-            </p>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => {
+                  generateSecurePassword();
+                  setCreateManagerOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition shadow-sm"
+              >
+                <Plus className="h-4 w-4" />
+                Add Manager
+              </button>
+              <button
+                onClick={() => {
+                  generateSecureWaiterPassword();
+                  setCreateWaiterOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition shadow-sm"
+              >
+                <Plus className="h-4 w-4" />
+                Add Waiter
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Sub-Navigation Tabs */}
+          <div className="flex items-center gap-2 p-1.5 rounded-2xl border w-fit shadow-sm" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
             <button
-              onClick={() => {
-                generateSecurePassword();
-                setCreateManagerOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition shadow-sm"
+              onClick={() => setUserSubTab('all')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                userSubTab === 'all'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
             >
-              <Plus className="h-4 w-4" />
-              Add Manager
+              <Users className="h-3.5 w-3.5" />
+              All Users ({totalUsersCount})
             </button>
             <button
-              onClick={() => {
-                generateSecureWaiterPassword();
-                setCreateWaiterOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition shadow-sm"
+              onClick={() => setUserSubTab('managers')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                userSubTab === 'managers'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
             >
-              <Plus className="h-4 w-4" />
-              Add Waiter
+              <Shield className="h-3.5 w-3.5" />
+              Managers ({managerListData?.summary?.totalManagers ?? managerList.length})
+            </button>
+            <button
+              onClick={() => setUserSubTab('waiters')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                userSubTab === 'waiters'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+            >
+              <UserCheck className="h-3.5 w-3.5" />
+              Waiters ({waiterListData?.summary?.totalWaiters ?? waiterList.length})
             </button>
           </div>
-        </div>
-
-        {/* Sub-Navigation Tabs */}
-        <div className="flex items-center gap-2 p-1.5 rounded-2xl border w-fit" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          <button
-            onClick={() => setUserSubTab('all')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              userSubTab === 'all'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-            }`}
-          >
-            <Users className="h-3.5 w-3.5" />
-            All Users ({totalUsersCount})
-          </button>
-          <button
-            onClick={() => setUserSubTab('managers')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              userSubTab === 'managers'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-            }`}
-          >
-            <Shield className="h-3.5 w-3.5" />
-            Managers ({managerListData?.summary?.totalManagers ?? managerList.length})
-          </button>
-          <button
-            onClick={() => setUserSubTab('waiters')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              userSubTab === 'waiters'
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-            }`}
-          >
-            <UserCheck className="h-3.5 w-3.5" />
-            Waiters ({waiterListData?.summary?.totalWaiters ?? waiterList.length})
-          </button>
         </div>
 
         {/* View based on sub-tab */}
@@ -6124,7 +6136,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
 
             {/* Combined Users Table */}
             <div className="p-5 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              <div className="overflow-x-auto overflow-y-auto w-full" style={{ maxHeight: '480px' }}>
+              <div className="overflow-x-auto overflow-y-auto w-full" style={{ maxHeight: 'calc(100vh - 380px)', minHeight: '320px' }}>
                 <table className="w-full min-w-[760px] text-left text-xs">
                   <thead className="sticky top-0 z-10" style={{ background: 'var(--bg-card)' }}>
                     <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>

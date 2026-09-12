@@ -411,9 +411,9 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
   ] as const;
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg-body)' }}>
+    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--bg-body)' }}>
       {/* Top Nav */}
-      <nav className="border-b flex items-center justify-between px-4 sm:px-6 py-3 sticky top-0 z-30"
+      <nav className="border-b flex items-center justify-between px-4 sm:px-6 py-3 flex-shrink-0 z-30 shadow-sm"
         style={{ background: '#2563EB', borderColor: '#1D4ED8' }}>
         <div className="flex items-center gap-3">
           <div
@@ -473,167 +473,170 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
       </nav>
 
       {/* Main Content */}
-      <div className="flex-1 max-w-4xl mx-auto w-full p-4 sm:p-6 space-y-6">
-        {/* KPI Row */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          {[
-            { label: 'Completed Shift', value: String(completedCount), icon: <CheckCircle2 className="h-5 w-5 text-emerald-500" /> },
-            { label: 'Currently Active', value: myOrder ? `Table #${myOrder.tableNumber}` : 'None', icon: <Circle className="h-5 w-5 text-blue-500" /> },
-            { label: 'Available Orders', value: String(availableOrders.length), icon: <Clock className="h-5 w-5 text-amber-500" /> },
-          ].map((kpi) => (
-            <div key={kpi.label} className="rounded-xl border p-3.5 sm:p-4 flex items-center gap-3 sm:gap-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              <div className="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--bg-body)' }}>
-                {kpi.icon}
-              </div>
-              <div className="min-w-0">
-                <div className="text-base sm:text-lg font-black truncate" style={{ color: 'var(--text-primary)' }}>{kpi.value}</div>
-                <div className="text-[11px] sm:text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{kpi.label}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* ── PINNED ACTIVE PROCESSING ORDER CARD (Always visible when waiter has an active order) ── */}
-        {myOrder && (
-          <div className="rounded-2xl border-2 border-blue-500 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 dark:from-blue-950/40 dark:to-indigo-950/40 p-5 shadow-lg shadow-blue-500/10 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-blue-200 dark:border-blue-800/60 pb-3">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-blue-600 text-white flex items-center justify-center flex-shrink-0 shadow-md">
-                  <ClipboardList className="h-5 w-5" />
+      <div className="flex-1 max-w-4xl mx-auto w-full p-4 sm:p-6 flex flex-col min-h-0 overflow-hidden space-y-4">
+        {/* Top Sticky Header Section: KPI metrics & active orders */}
+        <div className="flex-shrink-0 space-y-3 sm:space-y-4">
+          {/* KPI Row */}
+          <div className="grid grid-cols-3 gap-3 sm:gap-4">
+            {[
+              { label: 'Completed Shift', value: String(completedCount), icon: <CheckCircle2 className="h-5 w-5 text-emerald-500" /> },
+              { label: 'Currently Active', value: myOrder ? `Table #${myOrder.tableNumber}` : 'None', icon: <Circle className="h-5 w-5 text-blue-500" /> },
+              { label: 'Available Orders', value: String(availableOrders.length), icon: <Clock className="h-5 w-5 text-amber-500" /> },
+            ].map((kpi) => (
+              <div key={kpi.label} className="rounded-xl border p-3 sm:p-4 flex items-center gap-3 sm:gap-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+                <div className="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--bg-body)' }}>
+                  {kpi.icon}
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                      Currently Processing
-                    </span>
-                    <span className="flex h-2 w-2 relative">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-                    </span>
+                <div className="min-w-0">
+                  <div className="text-base sm:text-lg font-black truncate" style={{ color: 'var(--text-primary)' }}>{kpi.value}</div>
+                  <div className="text-[11px] sm:text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{kpi.label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── PINNED ACTIVE PROCESSING ORDER CARD (Always visible when waiter has an active order) ── */}
+          {myOrder && (
+            <div className="rounded-2xl border-2 border-blue-500 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 dark:from-blue-950/40 dark:to-indigo-950/40 p-4 sm:p-5 shadow-lg shadow-blue-500/10 space-y-3 sm:space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-blue-200 dark:border-blue-800/60 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-blue-600 text-white flex items-center justify-center flex-shrink-0 shadow-md">
+                    <ClipboardList className="h-5 w-5" />
                   </div>
-                  <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">
-                    {String(myOrder.tableNumber).startsWith('ORD') || String(myOrder.tableNumber).startsWith('#') ? myOrder.tableNumber : `Table #${myOrder.tableNumber}`}
-                    {myOrder.sectionName ? ` • ${myOrder.sectionName}` : ''}
-                  </h2>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                        Currently Processing
+                      </span>
+                      <span className="flex h-2 w-2 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                      </span>
+                    </div>
+                    <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">
+                      {String(myOrder.tableNumber).startsWith('ORD') || String(myOrder.tableNumber).startsWith('#') ? myOrder.tableNumber : `Table #${myOrder.tableNumber}`}
+                      {myOrder.sectionName ? ` • ${myOrder.sectionName}` : ''}
+                    </h2>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className={`rounded-full border px-3 py-1 text-xs font-bold ${statusColors[myOrder.status] ?? ''}`}>
+                    ● {myOrder.status}
+                  </span>
+                  <span className="text-xs font-semibold text-slate-500">
+                    #{myOrder.orderNumber || (myOrder.id ? myOrder.id.slice(0, 8).toUpperCase() : '')}
+                  </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className={`rounded-full border px-3 py-1 text-xs font-bold ${statusColors[myOrder.status] ?? ''}`}>
-                  ● {myOrder.status}
-                </span>
-                <span className="text-xs font-semibold text-slate-500">
-                  #{myOrder.orderNumber || (myOrder.id ? myOrder.id.slice(0, 8).toUpperCase() : '')}
-                </span>
-              </div>
-            </div>
+              {/* Itemized checklist showing exact order items to collect */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider px-1">
+                  <span>Items in this Order (Tick as prepared)</span>
+                  <span>Qty & Price</span>
+                </div>
+                <div className="bg-white dark:bg-slate-900 rounded-xl border border-blue-100 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden max-h-36 overflow-y-auto">
+                  {myOrder.items.map((item, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => toggleItemChecked(idx)}
+                      className={`p-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
+                        checkedItems[idx] ? 'bg-emerald-50/60 dark:bg-emerald-950/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={!!checkedItems[idx]}
+                          onChange={() => toggleItemChecked(idx)}
+                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <div>
+                          <span className={`text-sm font-semibold ${checkedItems[idx] ? 'line-through text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}>
+                            {item.name}
+                          </span>
+                          {item.notes && (
+                            <div className="text-xs text-amber-600 font-medium">
+                              Note: "{item.notes}"
+                            </div>
+                          )}
+                        </div>
+                      </div>
 
-            {/* Itemized checklist showing exact order items to collect */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider px-1">
-                <span>Items in this Order (Tick as prepared)</span>
-                <span>Qty & Price</span>
-              </div>
-              <div className="bg-white dark:bg-slate-900 rounded-xl border border-blue-100 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
-                {myOrder.items.map((item, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => toggleItemChecked(idx)}
-                    className={`p-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
-                      checkedItems[idx] ? 'bg-emerald-50/60 dark:bg-emerald-950/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={!!checkedItems[idx]}
-                        onChange={() => toggleItemChecked(idx)}
-                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                      <div>
-                        <span className={`text-sm font-semibold ${checkedItems[idx] ? 'line-through text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}>
-                          {item.name}
+                      <div className="text-right flex-shrink-0">
+                        <span className="inline-block px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 font-black text-xs">
+                          × {item.quantity}
                         </span>
-                        {item.notes && (
-                          <div className="text-xs text-amber-600 font-medium">
-                            Note: "{item.notes}"
+                        {item.subtotal ? (
+                          <div className="text-xs text-slate-500 font-mono mt-0.5">
+                            KES {item.subtotal.toLocaleString()}
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     </div>
+                  ))}
+                </div>
+              </div>
 
-                    <div className="text-right flex-shrink-0">
-                      <span className="inline-block px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 font-black text-xs">
-                        × {item.quantity}
-                      </span>
-                      {item.subtotal ? (
-                        <div className="text-xs text-slate-500 font-mono mt-0.5">
-                          KES {item.subtotal.toLocaleString()}
-                        </div>
-                      ) : null}
-                    </div>
+              {/* Customer Special Note */}
+              {myOrder.customerNote && (
+                <div className="flex items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 p-2.5">
+                  <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs text-amber-900 dark:text-amber-200">
+                    <span className="font-bold">Customer Instruction:</span> "{myOrder.customerNote}"
                   </div>
-                ))}
+                </div>
+              )}
+
+              {/* Total and Advance Action Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-blue-200 dark:border-blue-800/60">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 font-medium">
+                    {paymentIcons[myOrder.paymentMethod]}
+                    <span>Paid via {myOrder.paymentMethod}</span>
+                  </div>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-base font-black text-emerald-600">
+                    Total: KES {myOrder.totalAmount.toLocaleString()}
+                  </span>
+                </div>
+
+                <button
+                  onClick={advanceOrderStatus}
+                  disabled={actionLoading || myOrder.status === 'DELIVERED'}
+                  className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white transition-all shadow-md shadow-blue-500/20 disabled:opacity-50 hover:brightness-110 active:scale-[0.98]"
+                  style={{ background: myOrder.status === 'READY' ? '#059669' : '#2563EB' }}
+                >
+                  {actionLoading ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Updating Status…</>
+                  ) : myOrder.status === 'CLAIMED' ? (
+                    <>Mark as Preparing in Bar/Kitchen →</>
+                  ) : myOrder.status === 'PREPARING' ? (
+                    <>Mark as Ready for Delivery →</>
+                  ) : myOrder.status === 'READY' ? (
+                    <>✓ Confirm Delivered to Table</>
+                  ) : (
+                    'Delivered'
+                  )}
+                </button>
               </div>
             </div>
+          )}
 
-            {/* Customer Special Note */}
-            {myOrder.customerNote && (
-              <div className="flex items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 p-3">
-                <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                <div className="text-xs text-amber-900 dark:text-amber-200">
-                  <span className="font-bold">Customer Instruction:</span> "{myOrder.customerNote}"
-                </div>
-              </div>
-            )}
-
-            {/* Total and Advance Action Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-blue-200 dark:border-blue-800/60">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 font-medium">
-                  {paymentIcons[myOrder.paymentMethod]}
-                  <span>Paid via {myOrder.paymentMethod}</span>
-                </div>
-                <span className="text-slate-300">•</span>
-                <span className="text-base font-black text-emerald-600">
-                  Total: KES {myOrder.totalAmount.toLocaleString()}
-                </span>
-              </div>
-
-              <button
-                onClick={advanceOrderStatus}
-                disabled={actionLoading || myOrder.status === 'DELIVERED'}
-                className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white transition-all shadow-md shadow-blue-500/20 disabled:opacity-50 hover:brightness-110 active:scale-[0.98]"
-                style={{ background: myOrder.status === 'READY' ? '#059669' : '#2563EB' }}
-              >
-                {actionLoading ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Updating Status…</>
-                ) : myOrder.status === 'CLAIMED' ? (
-                  <>Mark as Preparing in Bar/Kitchen →</>
-                ) : myOrder.status === 'PREPARING' ? (
-                  <>Mark as Ready for Delivery →</>
-                ) : myOrder.status === 'READY' ? (
-                  <>✓ Confirm Delivered to Table</>
-                ) : (
-                  'Delivered'
-                )}
-              </button>
+          {/* Action error banner */}
+          {actionError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-center gap-3">
+              <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+              <p className="text-sm text-red-700">{actionError}</p>
             </div>
-          </div>
-        )}
-
-        {/* Action error banner */}
-        {actionError && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-center gap-3">
-            <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
-            <p className="text-sm text-red-700">{actionError}</p>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Tabs & Table */}
-        <div className="rounded-xl border overflow-hidden shadow-sm" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+        <div className="flex-1 min-h-[300px] rounded-xl border overflow-hidden shadow-sm flex flex-col" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
           {/* Header with live auto-refresh radar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b px-4 py-3 gap-2" style={{ borderColor: 'var(--border)', background: 'var(--bg-body)' }}>
+          <div className="flex-shrink-0 flex flex-col sm:flex-row sm:items-center justify-between border-b px-4 py-2.5 sm:py-3 gap-2" style={{ borderColor: 'var(--border)', background: 'var(--bg-body)' }}>
             <div className="flex border-b sm:border-b-0 -mb-px" style={{ borderColor: 'var(--border)' }}>
               {tabs.map((tab) => (
                 <button
@@ -672,7 +675,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
             </div>
           </div>
 
-          <div className="p-4 sm:p-5">
+          <div className="p-4 sm:p-5 flex-1 min-h-0 overflow-y-auto">
             {/* ── INCOMING / AVAILABLE ORDERS TAB ── */}
             {activeTab === 'available' && (
               <div className="space-y-3">

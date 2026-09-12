@@ -1926,7 +1926,7 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
                   onClick={() => setShowAddOfferModal(true)}
                   className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline"
                 >
-                  Create your first Happy Hour or Daily Deal →
+                  Create your first Special Deal or Daily Offer →
                 </button>
               </div>
             ) : (
@@ -1991,12 +1991,14 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
         <div className="space-y-4">
           {/* Quick presets */}
           <div>
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Quick Presets</p>
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Quick Presets (For Any Business)</p>
             <div className="flex gap-1.5 flex-wrap">
               {[
-                { title: 'Happy Hour: Buy 2 Cocktails Get 1 Free', type: 'BUY_ONE_GET_ONE', val: '1', code: 'HAPPY', badge: '🍸 VIP HAPPY HOUR' },
-                { title: '20% Off All Single Malts & Whiskeys', type: 'PERCENTAGE_DISCOUNT', val: '20', code: 'WHISKY20', badge: '🔥 20% OFF' },
-                { title: 'Weekend Vibes: KES 500 Off Bottle Service', type: 'FIXED_AMOUNT_DISCOUNT', val: '500', code: 'VIP500', badge: '⚡ FLASH DEAL' },
+                { label: '🎁 Buy 1 Get 1 Free', title: 'Buy 1 Get 1 Free Special', type: 'BUY_ONE_GET_ONE', val: '1', code: 'BOGO', badge: '🎁 BUY 1 GET 1', desc: 'Order any qualifying item and get an extra one on the house!' },
+                { label: '🔥 20% Off Featured', title: '20% Off Today\'s Featured Specials', type: 'PERCENTAGE_DISCOUNT', val: '20', code: 'SAVE20', badge: '🔥 20% OFF', desc: 'Enjoy a 20% discount on selected menu specials.' },
+                { label: '⚡ KES 300 Off Combo', title: 'Combo Deal: KES 300 Off Order', type: 'FIXED_AMOUNT_DISCOUNT', val: '300', code: 'DEAL300', badge: '⚡ FLASH DEAL', desc: 'Save KES 300 on meals and combo orders.' },
+                { label: '✨ 15% House Pick', title: 'House Special: 15% Off Favorites', type: 'PERCENTAGE_DISCOUNT', val: '15', code: 'HOUSE15', badge: '✨ HOUSE SPECIAL', desc: 'Handcrafted favorites at a special 15% promotional discount.' },
+                { label: '🎉 Happy Hour 25%', title: 'Happy Hour: 25% Off Refreshments & Bites', type: 'PERCENTAGE_DISCOUNT', val: '25', code: 'HAPPY25', badge: '🎉 HAPPY HOUR', desc: 'Special discount during promotional hours.' },
               ].map(preset => (
                 <button
                   key={preset.title}
@@ -2004,7 +2006,7 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
                   onClick={() => setOfferForm(p => ({
                     ...p,
                     title: preset.title,
-                    description: 'Special limited-time deal for our guests.',
+                    description: preset.desc,
                     offerType: preset.type,
                     discountValue: preset.val,
                     promoCode: preset.code,
@@ -2012,7 +2014,7 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
                   }))}
                   className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-amber-300/80 bg-amber-50/50 hover:bg-amber-100/70 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-700/60 transition-colors"
                 >
-                  {preset.title.split(':')[0]}
+                  {preset.label}
                 </button>
               ))}
             </div>
@@ -2097,7 +2099,7 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
               <SI
                 value={offerForm.title}
                 onChange={e => setOfferForm(p => ({ ...p, title: e.target.value }))}
-                placeholder="e.g. Happy Hour Cocktails, 20% Off Single Malts"
+                placeholder="e.g. 20% Off Main Meals, Buy 1 Get 1 Coffee, Weekend Special"
               />
             </div>
             <div>
@@ -2108,10 +2110,15 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
                 options={[
                   { v: '🔥 TODAY\'S SPECIAL', l: '🔥 TODAY\'S SPECIAL' },
                   { v: '⚡ FLASH DEAL', l: '⚡ FLASH DEAL' },
-                  { v: '🍸 VIP HAPPY HOUR', l: '🍸 VIP HAPPY HOUR' },
                   { v: '🎁 BUY 1 GET 1', l: '🎁 BUY 1 GET 1' },
-                  { v: '✨ CHEF\'S SPECIAL', l: '✨ CHEF\'S SPECIAL' },
+                  { v: '✨ HOUSE SPECIAL', l: '✨ HOUSE SPECIAL' },
+                  { v: '👨‍🍳 CHEF\'S PICK', l: '👨‍🍳 CHEF\'S PICK' },
+                  { v: '🎉 LIMITED TIME OFFER', l: '🎉 LIMITED TIME OFFER' },
                   { v: '💰 SPECIAL DISCOUNT', l: '💰 SPECIAL DISCOUNT' },
+                  { v: '☕ MORNING SPECIAL', l: '☕ MORNING SPECIAL' },
+                  { v: '🍽️ COMBO SPECIAL', l: '🍽️ COMBO SPECIAL' },
+                  { v: '🌟 VIP DEAL', l: '🌟 VIP DEAL' },
+                  { v: '🍹 HAPPY HOUR', l: '🍹 HAPPY HOUR' },
                 ]}
               />
             </div>
@@ -2148,7 +2155,7 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
               <SI
                 value={offerForm.promoCode}
                 onChange={e => setOfferForm(p => ({ ...p, promoCode: e.target.value.toUpperCase() }))}
-                placeholder="e.g. HAPPY20, CHEERS"
+                placeholder="e.g. SAVE20, SPECIAL15, DEAL300"
               />
             </div>
             <div>
@@ -2157,7 +2164,7 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
                 type="number"
                 value={offerForm.originalPrice}
                 onChange={e => setOfferForm(p => ({ ...p, originalPrice: e.target.value }))}
-                placeholder="e.g. 5000"
+                placeholder="e.g. 1500"
               />
             </div>
           </div>
@@ -2167,7 +2174,7 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
             <SI
               value={offerForm.description}
               onChange={e => setOfferForm(p => ({ ...p, description: e.target.value }))}
-              placeholder="e.g. Available every Friday from 5 PM to 9 PM at all tables."
+              placeholder="e.g. Valid today on all qualifying items while stocks last."
             />
           </div>
 
@@ -2198,7 +2205,7 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
                 {offerForm.imageUrl ? (
                   <img src={offerForm.imageUrl} alt="Preview" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-2xl">🍸</span>
+                  <span className="text-2xl">✨</span>
                 )}
               </div>
             </div>

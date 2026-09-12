@@ -3018,7 +3018,7 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
   const parsedCount = Math.min(Math.max(parseInt(tableCount) || 1, 1), 100);
 
   return (
-    <div className="space-y-6 print:m-0 print:p-0">
+    <div className="flex-1 min-h-0 flex flex-col space-y-4 print:m-0 print:p-0">
       {/* Print Styles */}
       <style>{`
         @media print {
@@ -3026,175 +3026,178 @@ const QrCodesPage = ({ user, showToast }: { user: any; showToast: (msg: string, 
           aside, nav, header, .no-print { display: none !important; }
           .print-area { display: block !important; }
           .qr-card-print { break-inside: avoid; page-break-inside: avoid; border: 1px solid #e2e8f0 !important; color: black !important; background: white !important; }
-          .max-h-\[620px\], [class*="max-h-"] { max-height: none !important; overflow: visible !important; }
+          .max-h-\[620px\], [class*="max-h-"], .overflow-y-auto { max-height: none !important; overflow: visible !important; }
         }
       `}</style>
 
-      {/* Top Banner / Venue Overview */}
-      <div className="rounded-2xl border p-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 no-print" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <h3 className="text-base font-black" style={{ color: 'var(--text-primary)' }}>Customer Menu QR Link</h3>
+      {/* Top sticky section: Overview, Generator, Search & Filters */}
+      <div className="flex-shrink-0 space-y-4 no-print">
+        {/* Top Banner / Venue Overview */}
+        <div className="rounded-2xl border p-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <h3 className="text-base font-black" style={{ color: 'var(--text-primary)' }}>Customer Menu QR Link</h3>
+            </div>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+              Customers scan table QR codes to browse {clubName}'s live menu and place orders directly from their phones.
+            </p>
+            <div className="mt-3 flex items-center gap-2 bg-blue-50 dark:bg-blue-950/60 px-3 py-1.5 rounded-lg text-xs font-mono text-blue-600 dark:text-blue-400 font-semibold border border-blue-200 dark:border-blue-800 w-fit">
+              <span>{fullBaseUrl}</span>
+            </div>
           </div>
-          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-            Customers scan table QR codes to browse {clubName}'s live menu and place orders directly from their phones.
-          </p>
-          <div className="mt-3 flex items-center gap-2 bg-blue-50 dark:bg-blue-950/60 px-3 py-1.5 rounded-lg text-xs font-mono text-blue-600 dark:text-blue-400 font-semibold border border-blue-200 dark:border-blue-800 w-fit">
-            <span>{fullBaseUrl}</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-4 py-2.5 text-xs font-bold transition-all hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm"
-          >
-            <Printer className="h-4 w-4 text-blue-600 dark:text-blue-400" /> Print QR Sheet
-          </button>
-          <button
-            onClick={() => copyToClipboard(fullBaseUrl, 'Venue Menu URL')}
-            className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 text-xs font-bold transition-all shadow-md hover:shadow-lg flex-shrink-0"
-          >
-            <Copy className="h-4 w-4" /> Copy Venue Link
-          </button>
-        </div>
-      </div>
-
-      {/* Generator Controls */}
-      <div className="rounded-2xl border p-6 no-print" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <h4 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Batch Table QR Code Generator</h4>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <button
-              type="button"
-              onClick={() => setGenMode('replace')}
-              className={`text-[11px] font-bold px-3 py-1 rounded-lg border transition-all ${genMode === 'replace' ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent'}`}
+              onClick={handlePrint}
+              className="flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-4 py-2.5 text-xs font-bold transition-all hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm"
             >
-              Replace Existing
+              <Printer className="h-4 w-4 text-blue-600 dark:text-blue-400" /> Print QR Sheet
             </button>
             <button
-              type="button"
-              onClick={() => setGenMode('append')}
-              className={`text-[11px] font-bold px-3 py-1 rounded-lg border transition-all ${genMode === 'append' ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent'}`}
+              onClick={() => copyToClipboard(fullBaseUrl, 'Venue Menu URL')}
+              className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 text-xs font-bold transition-all shadow-md hover:shadow-lg flex-shrink-0"
             >
-              + Add to Existing
-            </button>
-            <button
-              type="button"
-              onClick={handleReset}
-              className="text-[11px] font-bold px-2.5 py-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-              title="Reset tables to default"
-            >
-              Reset
+              <Copy className="h-4 w-4" /> Copy Venue Link
             </button>
           </div>
         </div>
 
-        <form onSubmit={handleGenerate} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-          <div>
-            <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-muted)' }}>Number of Tables</label>
-            <input
-              type="number"
-              min={1}
-              max={100}
-              value={tableCount}
-              onChange={e => setTableCount(e.target.value)}
-              placeholder="e.g. 10"
-              className="w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none font-semibold text-slate-900 bg-white border-slate-200 focus:ring-2 focus:ring-blue-500"
-            />
+        {/* Generator Controls */}
+        <div className="rounded-2xl border p-6" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <h4 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Batch Table QR Code Generator</h4>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setGenMode('replace')}
+                className={`text-[11px] font-bold px-3 py-1 rounded-lg border transition-all ${genMode === 'replace' ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent'}`}
+              >
+                Replace Existing
+              </button>
+              <button
+                type="button"
+                onClick={() => setGenMode('append')}
+                className={`text-[11px] font-bold px-3 py-1 rounded-lg border transition-all ${genMode === 'append' ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent'}`}
+              >
+                + Add to Existing
+              </button>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="text-[11px] font-bold px-2.5 py-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                title="Reset tables to default"
+              >
+                Reset
+              </button>
+            </div>
           </div>
-          <div>
-            <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-muted)' }}>Starting Table #</label>
-            <input
-              type="number"
-              min={1}
-              max={500}
-              value={startTable}
-              onChange={e => setStartTable(e.target.value)}
-              placeholder="e.g. 1"
-              className="w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none font-semibold text-slate-900 bg-white border-slate-200 focus:ring-2 focus:ring-blue-500"
-            />
+
+          <form onSubmit={handleGenerate} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+            <div>
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-muted)' }}>Number of Tables</label>
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={tableCount}
+                onChange={e => setTableCount(e.target.value)}
+                placeholder="e.g. 10"
+                className="w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none font-semibold text-slate-900 bg-white border-slate-200 focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-muted)' }}>Starting Table #</label>
+              <input
+                type="number"
+                min={1}
+                max={500}
+                value={startTable}
+                onChange={e => setStartTable(e.target.value)}
+                placeholder="e.g. 1"
+                className="w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none font-semibold text-slate-900 bg-white border-slate-200 focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-muted)' }}>Section / Area</label>
+              <input
+                type="text"
+                value={section}
+                onChange={e => setSection(e.target.value)}
+                placeholder="e.g. Main Lounge, VIP, Terrace"
+                className="w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none font-semibold text-slate-900 bg-white border-slate-200 focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <button
+              type="submit"
+              onClick={() => handleGenerate()}
+              className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white px-4 py-2.5 text-xs font-bold transition-all shadow-md hover:shadow-lg h-[42px] flex items-center justify-center gap-2"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Generate {parsedCount} Table QR Codes
+            </button>
+          </form>
+        </div>
+
+        {/* Filter and Search Bar Row */}
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+          {/* Section Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
+            <button
+              type="button"
+              onClick={() => setSelectedSectionFilter('All')}
+              className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold border transition-all flex-shrink-0 ${selectedSectionFilter === 'All' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'hover:bg-slate-100'}`}
+              style={selectedSectionFilter === 'All' ? {} : { borderColor: 'var(--border)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
+            >
+              <span>All Tables</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedSectionFilter === 'All' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>{tables.length}</span>
+            </button>
+            {distinctSections.map(sec => (
+              <button
+                key={sec}
+                type="button"
+                onClick={() => setSelectedSectionFilter(sec)}
+                className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold border transition-all whitespace-nowrap flex-shrink-0 ${selectedSectionFilter === sec ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'hover:bg-slate-100'}`}
+                style={selectedSectionFilter === sec ? {} : { borderColor: 'var(--border)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
+              >
+                <span>{sec}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedSectionFilter === sec ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>{tables.filter(t => t.section === sec).length}</span>
+              </button>
+            ))}
           </div>
-          <div>
-            <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-muted)' }}>Section / Area</label>
+
+          {/* Search Bar */}
+          <div className="relative w-full sm:w-72 flex-shrink-0">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              value={section}
-              onChange={e => setSection(e.target.value)}
-              placeholder="e.g. Main Lounge, VIP, Terrace"
-              className="w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none font-semibold text-slate-900 bg-white border-slate-200 focus:ring-2 focus:ring-blue-500"
+              value={qrSearchQuery}
+              onChange={(e) => setQrSearchQuery(e.target.value)}
+              placeholder="Search table # or section..."
+              className="w-full pl-9 pr-8 py-2 rounded-xl text-xs font-medium border outline-none transition-all focus:ring-2 focus:ring-blue-500 shadow-sm"
+              style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
             />
+            {qrSearchQuery && (
+              <button
+                onClick={() => setQrSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                title="Clear search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
-          <button
-            type="submit"
-            onClick={() => handleGenerate()}
-            className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white px-4 py-2.5 text-xs font-bold transition-all shadow-md hover:shadow-lg h-[42px] flex items-center justify-center gap-2"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            Generate {parsedCount} Table QR Codes
-          </button>
-        </form>
-      </div>
-
-      {/* Filter and Search Bar Row */}
-      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between no-print">
-        {/* Section Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
-          <button
-            type="button"
-            onClick={() => setSelectedSectionFilter('All')}
-            className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold border transition-all flex-shrink-0 ${selectedSectionFilter === 'All' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'hover:bg-slate-100'}`}
-            style={selectedSectionFilter === 'All' ? {} : { borderColor: 'var(--border)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
-          >
-            <span>All Tables</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedSectionFilter === 'All' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>{tables.length}</span>
-          </button>
-          {distinctSections.map(sec => (
-            <button
-              key={sec}
-              type="button"
-              onClick={() => setSelectedSectionFilter(sec)}
-              className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold border transition-all whitespace-nowrap flex-shrink-0 ${selectedSectionFilter === sec ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'hover:bg-slate-100'}`}
-              style={selectedSectionFilter === sec ? {} : { borderColor: 'var(--border)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
-            >
-              <span>{sec}</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedSectionFilter === sec ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>{tables.filter(t => t.section === sec).length}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Search Bar */}
-        <div className="relative w-full sm:w-72 flex-shrink-0">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            value={qrSearchQuery}
-            onChange={(e) => setQrSearchQuery(e.target.value)}
-            placeholder="Search table # or section..."
-            className="w-full pl-9 pr-8 py-2 rounded-xl text-xs font-medium border outline-none transition-all focus:ring-2 focus:ring-blue-500 shadow-sm"
-            style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-          />
-          {qrSearchQuery && (
-            <button
-              onClick={() => setQrSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
-              title="Clear search"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
         </div>
       </div>
 
       {/* QR Cards Scrollable Viewport */}
-      <div className="rounded-2xl border p-5 shadow-sm" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-        <div className="flex items-center justify-between px-1 mb-4 no-print">
+      <div className="flex-1 min-h-[300px] rounded-2xl border p-5 shadow-sm flex flex-col" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+        <div className="flex items-center justify-between px-1 mb-4 no-print flex-shrink-0">
           <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
             Showing <span className="font-bold text-blue-600 dark:text-blue-400">{filteredTables.length}</span> of {tables.length} Active Table QR Codes
           </p>
         </div>
 
-        <div className="max-h-[620px] overflow-y-auto pr-1">
+        <div className="overflow-y-auto flex-1 min-h-0 pr-1">
           {filteredTables.length === 0 ? (
             <div className="text-center py-16 px-4 space-y-2">
               <QrCode className="h-10 w-10 text-slate-300 dark:text-slate-600 mx-auto" />

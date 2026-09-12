@@ -617,96 +617,101 @@ const StaffManagementPage = ({ showToast }: { showToast: (m: string) => void }) 
   };
 
   return (
-    <div className="space-y-5">
-      <SectionHeader title="Staff Management" subtitle="Manage waiters for your venue — only managers can create staff" action={
-        <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold text-white hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>
-          <Plus className="h-3.5 w-3.5" /> Add Waiter
-        </button>
-      } />
+    <div className="flex-1 min-h-0 flex flex-col space-y-4">
+      {/* Top section: Title, KPIs, Filters */}
+      <div className="flex-shrink-0 space-y-4">
+        <SectionHeader title="Staff Management" subtitle="Manage waiters for your venue — only managers can create staff" action={
+          <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold text-white hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>
+            <Plus className="h-3.5 w-3.5" /> Add Waiter
+          </button>
+        } />
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
-        <KPI label="Total Waiters" value={String(waiters.length)} sub="Registered staff" icon={<Users className="h-5 w-5 text-blue-500" />} />
-        <KPI label="Online Now" value={String(online)} sub="Currently active" icon={<CheckCircle2 className="h-5 w-5 text-emerald-500" />} />
-        <KPI label="On Leave" value={String(onLeave)} sub="Away from shift" icon={<Clock className="h-5 w-5 text-amber-500" />} />
-        <KPI label="Offline" value={String(waiters.length - online)} sub="Not logged in" icon={<UserX className="h-5 w-5 text-slate-400" />} />
-      </div>
-
-      {/* Filters */}
-      <div className="flex items-center gap-3">
-        <div className="flex-1 flex items-center gap-2 rounded-lg border px-3.5 py-2" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          <Search className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, username or phone…" className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--text-primary)' }} />
+        {/* Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <KPI label="Total Waiters" value={String(waiters.length)} sub="Registered staff" icon={<Users className="h-5 w-5 text-blue-500" />} />
+          <KPI label="Online Now" value={String(online)} sub="Currently active" icon={<CheckCircle2 className="h-5 w-5 text-emerald-500" />} />
+          <KPI label="On Leave" value={String(onLeave)} sub="Away from shift" icon={<Clock className="h-5 w-5 text-amber-500" />} />
+          <KPI label="Offline" value={String(waiters.length - online)} sub="Not logged in" icon={<UserX className="h-5 w-5 text-slate-400" />} />
         </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="rounded-lg border px-3.5 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-          {['All', 'Active', 'Inactive', 'On Leave'].map(s => <option key={s}>{s}</option>)}
-        </select>
-        <button onClick={() => { csvExport(['Name', 'Username', 'Phone', 'Email', 'Status', 'Shift', 'Online', 'Last Login'], filtered.map(w => [`${w.firstName} ${w.lastName}`, w.username, w.phone, w.email, w.status, w.shift, w.onlineStatus, w.lastLogin]), 'staff-export.csv'); showToast('Staff list exported'); }}
-          className="flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-slate-50 transition-colors" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-          <Download className="h-3.5 w-3.5" /> Export
-        </button>
+
+        {/* Filters */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 flex items-center gap-2 rounded-lg border px-3.5 py-2" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+            <Search className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, username or phone…" className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--text-primary)' }} />
+          </div>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="rounded-lg border px-3.5 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+            {['All', 'Active', 'Inactive', 'On Leave'].map(s => <option key={s}>{s}</option>)}
+          </select>
+          <button onClick={() => { csvExport(['Name', 'Username', 'Phone', 'Email', 'Status', 'Shift', 'Online', 'Last Login'], filtered.map(w => [`${w.firstName} ${w.lastName}`, w.username, w.phone, w.email, w.status, w.shift, w.onlineStatus, w.lastLogin]), 'staff-export.csv'); showToast('Staff list exported'); }}
+            className="flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-slate-50 transition-colors" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+            <Download className="h-3.5 w-3.5" /> Export
+          </button>
+        </div>
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              {['Waiter', 'Username', 'Phone', 'Status', 'Online', 'Shift', 'Last Login', 'Actions'].map(h => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-bold" style={{ color: 'var(--text-muted)' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
-              <tr><td colSpan={8} className="text-center py-10 text-sm" style={{ color: 'var(--text-muted)' }}>No staff members found.</td></tr>
-            ) : filtered.map(w => (
-              <tr key={w.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
-                <td className="px-4 py-3.5">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0">
-                      {w.firstName[0]}{w.lastName[0]}
-                    </div>
-                    <div>
-                      <div className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{w.firstName} {w.lastName}</div>
-                      <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{w.employeeNo}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-4 py-3.5 text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>@{w.username}</td>
-                <td className="px-4 py-3.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{w.phone}</td>
-                <td className="px-4 py-3.5"><StatusBadge status={w.status} /></td>
-                <td className="px-4 py-3.5">
-                  <div className="flex items-center gap-2">
-                    <div className={`h-2.5 w-2.5 rounded-full ${w.onlineStatus === 'Online' ? 'bg-emerald-500 ring-4 ring-emerald-500/20 animate-pulse' : 'bg-slate-300'}`} />
-                    <span className={`text-xs ${w.onlineStatus === 'Online' ? 'text-emerald-600 font-bold' : 'text-slate-400'}`}>
-                      {w.onlineStatus}
-                    </span>
-                  </div>
-                </td>
-                <td className="px-4 py-3.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{w.shift || '—'}</td>
-                <td className="px-4 py-3.5 text-xs" style={{ color: 'var(--text-muted)' }}>{w.lastLogin}</td>
-                <td className="px-4 py-3.5">
-                  <div className="flex items-center gap-1.5">
-                    <button onClick={() => handleResetPassword(w)} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="Reset Password">
-                      <Key className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} />
-                    </button>
-                    <button onClick={() => toggleStatus(w.id)} className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors" title={w.status === 'Active' ? 'Deactivate' : 'Activate'}>
-                      {w.status === 'Active' ? <UserX className="h-3.5 w-3.5 text-amber-500" /> : <UserCheck className="h-3.5 w-3.5 text-emerald-500" />}
-                    </button>
-                    <button onClick={() => deleteWaiter(w.id)} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Remove">
-                      <Trash2 className="h-3.5 w-3.5 text-red-400" />
-                    </button>
-                  </div>
-                </td>
+      <div className="flex-1 min-h-[260px] rounded-xl border overflow-hidden shadow-sm flex flex-col" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
+        <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
+          <table className="w-full text-sm border-collapse">
+            <thead className="sticky top-0 z-10 shadow-sm" style={{ background: 'var(--bg-card)' }}>
+              <tr className="border-b" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+                {['Waiter', 'Username', 'Phone', 'Status', 'Online', 'Shift', 'Last Login', 'Actions'].map(h => (
+                  <th key={h} className="px-4 py-3 text-left text-xs font-bold bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm" style={{ color: 'var(--text-muted)' }}>{h}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>
+              {filtered.length === 0 ? (
+                <tr><td colSpan={8} className="text-center py-10 text-sm" style={{ color: 'var(--text-muted)' }}>No staff members found.</td></tr>
+              ) : filtered.map(w => (
+                <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors" style={{ background: 'var(--bg-card)' }}>
+                  <td className="px-4 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0">
+                        {w.firstName[0]}{w.lastName[0]}
+                      </div>
+                      <div>
+                        <div className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{w.firstName} {w.lastName}</div>
+                        <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{w.employeeNo}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5 text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>@{w.username}</td>
+                  <td className="px-4 py-3.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{w.phone}</td>
+                  <td className="px-4 py-3.5"><StatusBadge status={w.status} /></td>
+                  <td className="px-4 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <div className={`h-2.5 w-2.5 rounded-full ${w.onlineStatus === 'Online' ? 'bg-emerald-500 ring-4 ring-emerald-500/20 animate-pulse' : 'bg-slate-300'}`} />
+                      <span className={`text-xs ${w.onlineStatus === 'Online' ? 'text-emerald-600 font-bold' : 'text-slate-400'}`}>
+                        {w.onlineStatus}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{w.shift || '—'}</td>
+                  <td className="px-4 py-3.5 text-xs" style={{ color: 'var(--text-muted)' }}>{w.lastLogin}</td>
+                  <td className="px-4 py-3.5">
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => handleResetPassword(w)} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="Reset Password">
+                        <Key className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} />
+                      </button>
+                      <button onClick={() => toggleStatus(w.id)} className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors" title={w.status === 'Active' ? 'Deactivate' : 'Activate'}>
+                        {w.status === 'Active' ? <UserX className="h-3.5 w-3.5 text-amber-500" /> : <UserCheck className="h-3.5 w-3.5 text-emerald-500" />}
+                      </button>
+                      <button onClick={() => deleteWaiter(w.id)} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Remove">
+                        <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Security note */}
-      <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 flex items-center gap-3">
+      <div className="flex-shrink-0 rounded-xl border border-slate-100 bg-slate-50 dark:bg-slate-900/40 dark:border-slate-800 px-4 py-3 flex items-center gap-3">
         <Shield className="h-4 w-4 text-slate-400 flex-shrink-0" />
         <p className="text-xs text-slate-500">
           Only <strong>Managers</strong> can create and manage waiter accounts. Platform Admins do not have access to staff management.
@@ -810,67 +815,69 @@ const OrdersPage = ({ showToast }: { showToast: (m: string) => void }) => {
   const filtered = orders.filter(o => (filter === 'All' || o.status === filter) && (search === '' || o.id.toLowerCase().includes(search.toLowerCase()) || o.table.toLowerCase().includes(search.toLowerCase()) || o.waiter.toLowerCase().includes(search.toLowerCase())));
 
   return (
-    <div className="space-y-5">
-      <SectionHeader
-        title={
-          <div className="flex items-center gap-2.5">
-            <span>Live Orders</span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-              </span>
-              <span>Live Sync Active</span>
-            </span>
-          </div>
-        }
-        subtitle="Real-time order feed for your venue — auto updates instantly on status changes"
-        action={
-        <div className="flex items-center gap-2">
-          <button onClick={doRefresh} disabled={refreshing} className="flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-slate-50 transition-colors disabled:opacity-50" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-            <RefreshCcw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />{refreshing ? 'Refreshing…' : 'Refresh'}
-          </button>
-          <button onClick={() => { csvExport(['Order', 'Table', 'Item', 'Waiter', 'Amount (KES)', 'Status', 'Time'], filtered.map(o => [o.id, o.table, o.item, o.waiter, o.amount, o.status, o.time]), 'orders-export.csv'); showToast('Orders exported'); }}
-            className="flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-slate-50 transition-colors" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-            <Download className="h-3.5 w-3.5" /> Export CSV
-          </button>
-        </div>
-      } />
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex-1 min-w-48 flex items-center gap-2 rounded-lg border px-3.5 py-2" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          <Search className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search order, table, waiter…" className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--text-primary)' }} />
-        </div>
-        <div className="flex gap-1.5 flex-wrap items-center">
-          {statuses.map(s => {
-            const count = s === 'All' ? orders.length : orders.filter(o => (o.status ?? '').toUpperCase() === s).length;
-            const isSelected = filter === s;
-            const config = s === 'All' ? null : getStatusConfig(s);
-
-            return (
-              <button
-                key={s}
-                onClick={() => setFilter(s)}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all border ${
-                  isSelected
-                    ? (config ? config.activeFilter : 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600 shadow-sm shadow-blue-500/20')
-                    : (config ? `${config.inactiveFilter} border-[var(--border)] bg-[var(--bg-card)]` : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-[var(--text-secondary)] border-[var(--border)] bg-[var(--bg-card)]')
-                }`}
-              >
-                {config && <span className={`h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-white' : config.dot}`} />}
-                <span>{s}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                  isSelected ? 'bg-white/25 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                }`}>
-                  {count}
+    <div className="flex-1 min-h-0 flex flex-col space-y-4">
+      <div className="flex-shrink-0 space-y-4">
+        <SectionHeader
+          title={
+            <div className="flex items-center gap-2.5">
+              <span>Live Orders</span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                 </span>
-              </button>
-            );
-          })}
+                <span>Live Sync Active</span>
+              </span>
+            </div>
+          }
+          subtitle="Real-time order feed for your venue — auto updates instantly on status changes"
+          action={
+          <div className="flex items-center gap-2">
+            <button onClick={doRefresh} disabled={refreshing} className="flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-slate-50 transition-colors disabled:opacity-50" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+              <RefreshCcw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />{refreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
+            <button onClick={() => { csvExport(['Order', 'Table', 'Item', 'Waiter', 'Amount (KES)', 'Status', 'Time'], filtered.map(o => [o.id, o.table, o.item, o.waiter, o.amount, o.status, o.time]), 'orders-export.csv'); showToast('Orders exported'); }}
+              className="flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-slate-50 transition-colors" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+              <Download className="h-3.5 w-3.5" /> Export CSV
+            </button>
+          </div>
+        } />
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-48 flex items-center gap-2 rounded-lg border px-3.5 py-2" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+            <Search className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search order, table, waiter…" className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--text-primary)' }} />
+          </div>
+          <div className="flex gap-1.5 flex-wrap items-center">
+            {statuses.map(s => {
+              const count = s === 'All' ? orders.length : orders.filter(o => (o.status ?? '').toUpperCase() === s).length;
+              const isSelected = filter === s;
+              const config = s === 'All' ? null : getStatusConfig(s);
+
+              return (
+                <button
+                  key={s}
+                  onClick={() => setFilter(s)}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all border ${
+                    isSelected
+                      ? (config ? config.activeFilter : 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600 shadow-sm shadow-blue-500/20')
+                      : (config ? `${config.inactiveFilter} border-[var(--border)] bg-[var(--bg-card)]` : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-[var(--text-secondary)] border-[var(--border)] bg-[var(--bg-card)]')
+                  }`}
+                >
+                  {config && <span className={`h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-white' : config.dot}`} />}
+                  <span>{s}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    isSelected ? 'bg-white/25 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
-      <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-        <div className="max-h-[62vh] overflow-y-auto overflow-x-auto scrollbar-thin" style={{ scrollbarWidth: 'thin' }}>
+      <div className="flex-1 min-h-[300px] rounded-xl border overflow-hidden flex flex-col shadow-sm" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
+        <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 scrollbar-thin" style={{ scrollbarWidth: 'thin' }}>
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10 backdrop-blur-md shadow-sm" style={{ background: 'var(--bg-card)' }}>
               <tr className="border-b" style={{ borderColor: 'var(--border)' }}>

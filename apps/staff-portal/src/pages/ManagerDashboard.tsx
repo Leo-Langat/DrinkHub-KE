@@ -1459,7 +1459,8 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="flex-1 min-h-0 flex flex-col space-y-4">
+      <div className="flex-shrink-0 space-y-4">
       <SectionHeader title="Menu Management" subtitle="Manage your venue's categories, food, drink items, and daily offers in real-time" action={
         <div className="flex items-center gap-2.5 flex-wrap">
           <button
@@ -1584,10 +1585,11 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
           )}
         </div>
       </div>
+      </div>
 
       {/* Menu Items Scrollable Table */}
-      <div className="rounded-xl border overflow-hidden shadow-sm" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
-        <div className="max-h-[580px] overflow-y-auto overflow-x-auto relative">
+      <div className="flex-1 min-h-[300px] rounded-xl border overflow-hidden shadow-sm flex flex-col" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
+        <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
           <table className="w-full text-sm border-collapse">
             <thead className="sticky top-0 z-10 shadow-sm">
               <tr className="border-b" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
@@ -3427,7 +3429,7 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
   };
 
   return (
-    <div className="min-h-screen flex" style={{ background: 'var(--bg-body)' }}>
+    <div className="h-screen flex overflow-hidden" style={{ background: 'var(--bg-body)' }}>
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
       <aside className="flex-shrink-0 flex flex-col sticky top-0 h-screen transition-all duration-200" style={{ width: collapsed ? '64px' : '210px', background: 'var(--bg-sidebar)', borderRight: '1px solid #1E293B' }}>
         <div className="flex items-center gap-2.5 p-3.5 border-b" style={{ borderColor: '#1E293B' }}>
@@ -3494,8 +3496,8 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="border-b px-6 py-3 flex items-center justify-between sticky top-0 z-20" style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}>
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        <header className="flex-shrink-0 border-b px-6 py-3 flex items-center justify-between z-20" style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}>
           <div>
             <h1 className="text-base font-black" style={{ color: 'var(--text-primary)' }}>{PAGE_TITLES[page]}</h1>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{clubName} ({clubLocation}) | {new Date().toLocaleDateString('en-KE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</p>
@@ -3614,7 +3616,7 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
             </div>
           </div>
         </header>
-        <main className="flex-1 p-6 overflow-auto">{renderPage()}</main>
+        <main className="flex-1 p-6 overflow-y-auto min-h-0 flex flex-col">{renderPage()}</main>
       </div>
     </div>
   );

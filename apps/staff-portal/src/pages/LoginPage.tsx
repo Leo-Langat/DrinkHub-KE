@@ -151,55 +151,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex" style={{ background: 'var(--bg-body)' }}>
-      {/* ---- LEFT PANEL: Brand Sidebar ---- */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #2563EB 0%, #1E40AF 60%, #1e3a8a 100%)' }}>
-        <div className="relative z-10">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <Wine className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl font-black text-white tracking-tight">OrderUp</span>
-          </div>
-        </div>
-
-        <div className="relative z-10 space-y-6">
-          <div className="space-y-2">
-            <h2 className="text-4xl font-black text-white leading-tight">
-              Staff Portal
-            </h2>
-            <p className="text-blue-200 text-lg max-w-sm leading-relaxed">
-              The operations hub for waiters and managers across all OrderUp venues in Kenya.
-            </p>
-          </div>
-
-          <div className="space-y-3 max-w-sm">
-            {[
-              { icon: '🍸', text: 'Real-time order management for your venue' },
-              { icon: '📲', text: 'M-Pesa, Card & Cash payment tracking' },
-              { icon: '👥', text: 'Staff coordination across all tables' },
-              { icon: '📊', text: 'Live revenue & analytics dashboard' },
-            ].map((f) => (
-              <div key={f.text} className="flex items-center gap-3 rounded-xl bg-white/10 backdrop-blur-sm px-4 py-3 border border-white/10">
-                <span className="text-lg">{f.icon}</span>
-                <span className="text-sm text-blue-100">{f.text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Decorative background circles */}
-        <div className="absolute -top-32 -right-32 h-96 w-96 rounded-full bg-white/5" />
-        <div className="absolute -bottom-16 -left-16 h-64 w-64 rounded-full bg-white/5" />
-        <div className="absolute top-1/2 -right-8 h-48 w-48 rounded-full bg-white/5" />
-      </div>
-
-      {/* ---- RIGHT PANEL: Login Form ---- */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-16">
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-body)' }}>
+      {/* ---- LOGIN FORM (centered) ---- */}
+      <div className="w-full flex items-center justify-center p-6 py-12">
         <div className="w-full max-w-md space-y-8">
-          {/* Mobile Logo */}
-          <div className="flex lg:hidden items-center gap-3 justify-center">
+          {/* Logo */}
+          <div className="flex items-center gap-3 justify-center">
             <div className="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center">
               <Wine className="h-5 w-5 text-white" />
             </div>

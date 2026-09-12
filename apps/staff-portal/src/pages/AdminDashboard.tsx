@@ -4303,70 +4303,73 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     const managerList = Array.isArray(managers) ? managers : [];
 
     return (
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
-              Staff Performance & Accountability
-            </h2>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Fulfillment metrics and orders handled across {businessName} staff
-            </p>
-          </div>
-        </div>
-
-        {/* Manager & Waiter Counts */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-5 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-            <div className="flex items-center gap-3 mb-2">
-              <Shield className="h-5 w-5 text-blue-600" />
-              <h4 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>
-                Management Team ({managerList.length})
-              </h4>
-            </div>
-            <p className="text-xs text-slate-500 mb-3">Managers oversee waiter dispatch and menu operations.</p>
-            <div className="space-y-2">
-              {managerList.length === 0 ? (
-                <p className="text-xs text-slate-400 py-2">No managers assigned to this business yet.</p>
-              ) : (
-                managerList.map((m) => (
-                  <div key={m.userUuid || m.email || String(Math.random())} className="flex items-center justify-between p-2 rounded-xl bg-slate-500/5 text-xs">
-                    <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{m.fullName || m.email}</span>
-                    <StatusBadge status={m.isActive ? 'ACTIVE' : 'SUSPENDED'} />
-                  </div>
-                ))
-              )}
+      <div className="flex-1 min-h-0 flex flex-col space-y-4">
+        {/* Top sticky section: Title & Management/Waiter cards */}
+        <div className="flex-shrink-0 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
+                Staff Performance & Accountability
+              </h2>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Fulfillment metrics and orders handled across {businessName} staff
+              </p>
             </div>
           </div>
 
-          <div className="p-5 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-            <div className="flex items-center gap-3 mb-2">
-              <Award className="h-5 w-5 text-purple-600" />
-              <h4 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>
-                Waiter Dispatch Force ({waiters.length})
-              </h4>
+          {/* Manager & Waiter Counts */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-5 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-3 mb-2">
+                <Shield className="h-5 w-5 text-blue-600" />
+                <h4 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>
+                  Management Team ({managerList.length})
+                </h4>
+              </div>
+              <p className="text-xs text-slate-500 mb-3">Managers oversee waiter dispatch and menu operations.</p>
+              <div className="space-y-2">
+                {managerList.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-2">No managers assigned to this business yet.</p>
+                ) : (
+                  managerList.map((m) => (
+                    <div key={m.userUuid || m.email || String(Math.random())} className="flex items-center justify-between p-2 rounded-xl bg-slate-500/5 text-xs">
+                      <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{m.fullName || m.email}</span>
+                      <StatusBadge status={m.isActive ? 'ACTIVE' : 'SUSPENDED'} />
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
-            <p className="text-xs text-slate-500 mb-3">Waiters claim table orders and collect POS/Cash payments.</p>
-            <div className="text-xs text-slate-400">
-              {waiters.length} registered waiters ready for table service.
+
+            <div className="p-5 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-3 mb-2">
+                <Award className="h-5 w-5 text-purple-600" />
+                <h4 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>
+                  Waiter Dispatch Force ({waiters.length})
+                </h4>
+              </div>
+              <p className="text-xs text-slate-500 mb-3">Waiters claim table orders and collect POS/Cash payments.</p>
+              <div className="text-xs text-slate-400">
+                {waiters.length} registered waiters ready for table service.
+              </div>
             </div>
           </div>
         </div>
 
         {/* Waiters Performance Table */}
-        <div className="p-5 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          <h4 className="text-sm font-black mb-3" style={{ color: 'var(--text-primary)' }}>
+        <div className="flex-1 min-h-[280px] p-5 rounded-2xl border flex flex-col shadow-sm" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          <h4 className="text-sm font-black mb-3 flex-shrink-0" style={{ color: 'var(--text-primary)' }}>
             Waiter Order Handling Metrics
           </h4>
-          <div className="overflow-x-auto w-full">
-            <table className="w-full min-w-[650px] text-left text-xs">
-              <thead>
-                <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>
-                  <th className="pb-3 whitespace-nowrap">Waiter Name</th>
-                  <th className="pb-3 whitespace-nowrap">Orders Served</th>
-                  <th className="pb-3 whitespace-nowrap">Revenue Collected</th>
-                  <th className="pb-3 whitespace-nowrap">Avg Fulfillment Time</th>
-                  <th className="pb-3 whitespace-nowrap">Efficiency</th>
+          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 w-full">
+            <table className="w-full min-w-[650px] text-left text-xs border-collapse">
+              <thead className="sticky top-0 z-10 shadow-sm" style={{ background: 'var(--bg-card)' }}>
+                <tr className="border-b font-bold whitespace-nowrap" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+                  <th className="py-2.5 px-3 whitespace-nowrap bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm">Waiter Name</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm">Orders Served</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm">Revenue Collected</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm">Avg Fulfillment Time</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm">Efficiency</th>
                 </tr>
               </thead>
               <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>
@@ -4379,14 +4382,14 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                 ) : (
                   waiterStats.map((w, idx) => (
                     <tr key={idx} className="hover:bg-slate-500/5 transition-colors">
-                      <td className="py-3 font-bold whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>
+                      <td className="py-3 px-3 font-bold whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>
                         {w.name}
                       </td>
-                      <td className="py-3 font-bold text-blue-600 whitespace-nowrap">{w.ordersServed} orders</td>
-                      <td className="py-3 font-black text-emerald-600 whitespace-nowrap">{formatKsh(w.revenueGenerated)}</td>
-                      <td className="py-3 text-slate-500 whitespace-nowrap">{w.avgFulfillmentMins} mins</td>
-                      <td className="py-3 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">
+                      <td className="py-3 px-3 font-bold text-blue-600 whitespace-nowrap">{w.ordersServed} orders</td>
+                      <td className="py-3 px-3 font-black text-emerald-600 whitespace-nowrap">{formatKsh(w.revenueGenerated)}</td>
+                      <td className="py-3 px-3 text-slate-500 whitespace-nowrap">{w.avgFulfillmentMins} mins</td>
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
                           High
                         </span>
                       </td>

@@ -1125,182 +1125,224 @@ export const DigitalStorefrontPage: React.FC = () => {
   return (
     <div className="h-screen overflow-y-auto pb-28" style={{ background: 'var(--bg)', scrollbarWidth: 'none' }}>
 
-      {/* ── HERO BANNER ─────────────────────── */}
-      <div ref={heroRef} className="relative h-56 overflow-hidden">
-        {brand.bannerUrl
-          ? <img
-              src={brand.bannerUrl}
-              alt={brand.name}
-              className="w-full h-full object-cover"
-              style={{ opacity: heroOpacity, transform: `scale(${1 + (1 - heroOpacity) * 0.08})`, transition: 'transform 0.05s linear' }}
-            />
-          : <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${brand.primary}CC 0%, ${brand.primaryDark} 100%)` }} />
-        }
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(10,10,15,0.2) 0%, rgba(10,10,15,0.85) 70%, rgba(10,10,15,1) 100%)' }} />
+      {/* ── STICKY TOP HEADER & CATEGORY NAVIGATION ─────────────────── */}
+      <div
+        className="sticky top-0 z-30 shadow-xl border-b border-white/10 backdrop-blur-md"
+        style={{ background: 'var(--bg)' }}
+      >
+        {/* ── HERO BANNER ─────────────────────── */}
+        <div ref={heroRef} className="relative h-44 sm:h-52 md:h-56 overflow-hidden">
+          {brand.bannerUrl
+            ? <img
+                src={brand.bannerUrl}
+                alt={brand.name}
+                className="w-full h-full object-cover"
+                style={{ opacity: heroOpacity, transform: `scale(${1 + (1 - heroOpacity) * 0.08})`, transition: 'transform 0.05s linear' }}
+              />
+            : <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${brand.primary}CC 0%, ${brand.primaryDark} 100%)` }} />
+          }
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(10,10,15,0.2) 0%, rgba(10,10,15,0.85) 70%, rgba(10,10,15,1) 100%)' }} />
 
-        {/* Top bar with OrderUp Company Logo & Venue Status */}
-        <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
-          <div className="flex items-center gap-2 rounded-full px-3.5 py-1.5 backdrop-blur-md border shadow-lg" style={{ background: 'rgba(10,10,15,0.7)', borderColor: 'rgba(255,255,255,0.15)' }}>
-            {/* OrderUp Official Company Logo Emblem */}
-            <div className="h-6 w-6 rounded-lg bg-gradient-to-tr from-amber-500 via-rose-500 to-blue-600 flex items-center justify-center shadow-md flex-shrink-0">
-              <Wine className="w-3.5 h-3.5 text-white" />
+          {/* Top bar with OrderUp Company Logo & Venue Status */}
+          <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
+            <div className="flex items-center gap-2 rounded-full px-3.5 py-1.5 backdrop-blur-md border shadow-lg" style={{ background: 'rgba(10,10,15,0.7)', borderColor: 'rgba(255,255,255,0.15)' }}>
+              {/* OrderUp Official Company Logo Emblem */}
+              <div className="h-6 w-6 rounded-lg bg-gradient-to-tr from-amber-500 via-rose-500 to-blue-600 flex items-center justify-center shadow-md flex-shrink-0">
+                <Wine className="w-3.5 h-3.5 text-white" />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-black text-xs tracking-wider text-white">Order<span className="text-amber-400">Up</span></span>
+                <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">KE</span>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-black text-xs tracking-wider text-white">Order<span className="text-amber-400">Up</span></span>
-              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">KE</span>
-            </div>
-          </div>
 
-          {/* Online status chip */}
-          {venueOpen ? (
-            <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase backdrop-blur-md shadow-lg" style={{ background: 'rgba(10,10,15,0.7)', color: '#34D399', border: '1px solid rgba(52,211,153,0.3)' }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
-              Open Now
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase backdrop-blur-md shadow-lg" style={{ background: 'rgba(10,10,15,0.7)', color: '#F87171', border: '1px solid rgba(248,113,113,0.3)' }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
-              Closed
-            </div>
-          )}
-        </div>
-
-        {/* Club identity row */}
-        <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
-          <div className="flex items-center gap-3">
-            {brand.logoUrl ? (
-              <div className="relative w-14 h-14 rounded-2xl overflow-hidden border-2 shadow-xl flex-shrink-0 bg-slate-900" style={{ borderColor: 'rgba(255,255,255,0.25)' }}>
-                <img
-                  src={brand.logoUrl}
-                  alt={brand.name}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
-                    const parent = (e.target as HTMLElement).parentElement;
-                    if (parent) {
-                      parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-black text-white bg-gradient-to-tr from-blue-600 to-indigo-600">${brand.name.charAt(0)}</div>`;
-                    }
-                  }}
-                />
+            {/* Online status chip */}
+            {venueOpen ? (
+              <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase backdrop-blur-md shadow-lg" style={{ background: 'rgba(10,10,15,0.7)', color: '#34D399', border: '1px solid rgba(52,211,153,0.3)' }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
+                Open Now
               </div>
             ) : (
-              <div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black text-white border-2 shadow-xl flex-shrink-0 bg-gradient-to-tr from-blue-600 via-indigo-600 to-amber-500"
-                style={{ borderColor: 'rgba(255,255,255,0.25)' }}
-              >
-                {brand.name.charAt(0) || 'D'}
+              <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase backdrop-blur-md shadow-lg" style={{ background: 'rgba(10,10,15,0.7)', color: '#F87171', border: '1px solid rgba(248,113,113,0.3)' }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
+                Closed
               </div>
             )}
-            <div>
-              <div className="flex items-center gap-1.5">
-                <h1 className="text-xl font-black text-white leading-none">{brand.name}</h1>
-                <span className="inline-flex items-center gap-0.5 text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  <Check className="w-2.5 h-2.5" /> Verified
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <MapPin className="w-3 h-3 opacity-60 text-amber-400" />
-                <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{brand.tagline}</span>
-              </div>
-            </div>
           </div>
-          {/* Table badge */}
-          {table && (
-            <div className="rounded-2xl px-3.5 py-2 text-center shadow-lg border border-white/10" style={{ background: brand.primary }}>
-              <p className="text-[9px] font-black uppercase opacity-80 text-white leading-none tracking-wider">Table</p>
-              <p className="text-lg font-black text-white leading-tight">#{table}</p>
-            </div>
-          )}
-        </div>
-      </div>
 
-      {/* ── SESSION INACTIVITY TIMEOUT NOTICE BANNER ── */}
-      {sessionExpiredMsg && (
-        <div className="px-4 pt-4 fade-up">
-          <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-300 bg-red-50 dark:bg-red-950/70 dark:border-red-800 p-3.5 text-xs text-red-900 dark:text-red-200 shadow-sm animate-in fade-in">
-            <div className="flex items-start gap-3 min-w-0">
-              <Timer className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
-              <div>
-                <span className="font-extrabold block text-red-800 dark:text-red-300">Session Expired</span>
-                <span className="text-red-700 dark:text-red-300/90">{sessionExpiredMsg}</span>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSessionExpiredMsg(null)}
-              className="text-red-400 hover:text-red-700 dark:text-red-400 p-0.5 transition-colors"
-              title="Dismiss"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── CLOSED NOTICE BANNER ── */}
-      {!venueOpen && (
-        <div className="px-4 pt-4 fade-up">
-          <div
-            className="rounded-2xl p-4 flex items-center gap-3 border"
-            style={{
-              background: 'linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(239,68,68,0.06) 100%)',
-              borderColor: 'rgba(239,68,68,0.3)',
-            }}
-          >
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg" style={{ background: 'rgba(239,68,68,0.15)' }}>🔒</div>
-            <div className="flex-1 min-w-0">
-              <p className="font-black text-sm" style={{ color: '#F87171' }}>We're Currently Closed</p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                {brand.name} is open from {brand.openingHours} to {brand.closingHours}. You can still browse the menu.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeOrder && activeOrder.status !== 'CANCELLED' && (
-        <div className="px-4 pt-3 fade-up">
-          <div
-            onClick={() => setScreen('success')}
-            className="rounded-2xl p-3.5 flex items-center justify-between cursor-pointer transition-all hover:scale-[1.01] shadow-lg border"
-            style={{
-              background: 'linear-gradient(135deg, rgba(37,99,235,0.25) 0%, rgba(37,99,235,0.1) 100%)',
-              borderColor: 'rgba(37,99,235,0.4)',
-            }}
-          >
+          {/* Club identity row */}
+          <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-blue-600/30 text-blue-400">
-                <Clock className="w-5 h-5 animate-spin" style={{ animationDuration: '4s' }} />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-600 text-white">
-                    {activeOrder.status}
-                  </span>
-                  <p className="text-xs font-bold text-white">
-                    {activeOrder.orderNumber ? `Order #${activeOrder.orderNumber}` : 'Active Order'}
-                  </p>
+              {brand.logoUrl ? (
+                <div className="relative w-14 h-14 rounded-2xl overflow-hidden border-2 shadow-xl flex-shrink-0 bg-slate-900" style={{ borderColor: 'rgba(255,255,255,0.25)' }}>
+                  <img
+                    src={brand.logoUrl}
+                    alt={brand.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                      const parent = (e.target as HTMLElement).parentElement;
+                      if (parent) {
+                        parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-black text-white bg-gradient-to-tr from-blue-600 to-indigo-600">${brand.name.charAt(0)}</div>`;
+                      }
+                    }}
+                  />
                 </div>
-                <p className="text-[11px] mt-0.5 text-blue-200">
-                  {activeOrder.status === 'PENDING' ? 'Waiting for waiter to claim...' :
-                   activeOrder.status === 'CLAIMED' ? (activeOrder.waiter ? `Claimed by ${activeOrder.waiter.fullName}` : 'Claimed by waiter') :
-                   activeOrder.status === 'PREPARING' ? 'Preparing drinks & food...' :
-                   activeOrder.status === 'READY' ? 'Ready for pickup & delivery' :
-                   'Delivered to your table ✓'}
+              ) : (
+                <div
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black text-white border-2 shadow-xl flex-shrink-0 bg-gradient-to-tr from-blue-600 via-indigo-600 to-amber-500"
+                  style={{ borderColor: 'rgba(255,255,255,0.25)' }}
+                >
+                  {brand.name.charAt(0) || 'D'}
+                </div>
+              )}
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <h1 className="text-xl font-black text-white leading-none">{brand.name}</h1>
+                  <span className="inline-flex items-center gap-0.5 text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    <Check className="w-2.5 h-2.5" /> Verified
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <MapPin className="w-3 h-3 opacity-60 text-amber-400" />
+                  <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{brand.tagline}</span>
+                </div>
+              </div>
+            </div>
+            {/* Table badge */}
+            {table && (
+              <div className="rounded-2xl px-3.5 py-2 text-center shadow-lg border border-white/10" style={{ background: brand.primary }}>
+                <p className="text-[9px] font-black uppercase opacity-80 text-white leading-none tracking-wider">Table</p>
+                <p className="text-lg font-black text-white leading-tight">#{table}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── SESSION INACTIVITY TIMEOUT NOTICE BANNER ── */}
+        {sessionExpiredMsg && (
+          <div className="px-4 pt-3 fade-up">
+            <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-300 bg-red-50 dark:bg-red-950/70 dark:border-red-800 p-3.5 text-xs text-red-900 dark:text-red-200 shadow-sm animate-in fade-in">
+              <div className="flex items-start gap-3 min-w-0">
+                <Timer className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <span className="font-extrabold block text-red-800 dark:text-red-300">Session Expired</span>
+                  <span className="text-red-700 dark:text-red-300/90">{sessionExpiredMsg}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSessionExpiredMsg(null)}
+                className="text-red-400 hover:text-red-700 dark:text-red-400 p-0.5 transition-colors"
+                title="Dismiss"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── CLOSED NOTICE BANNER ── */}
+        {!venueOpen && (
+          <div className="px-4 pt-3 fade-up">
+            <div
+              className="rounded-2xl p-4 flex items-center gap-3 border"
+              style={{
+                background: 'linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(239,68,68,0.06) 100%)',
+                borderColor: 'rgba(239,68,68,0.3)',
+              }}
+            >
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg" style={{ background: 'rgba(239,68,68,0.15)' }}>🔒</div>
+              <div className="flex-1 min-w-0">
+                <p className="font-black text-sm" style={{ color: '#F87171' }}>We're Currently Closed</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                  {brand.name} is open from {brand.openingHours} to {brand.closingHours}. You can still browse the menu.
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-1 text-xs font-bold text-blue-400">
-              {activeOrder.status !== 'DELIVERED' && (
-                <>
-                  <span>View Tracker</span>
-                  <ChevronRight className="w-4 h-4" />
-                </>
-              )}
+          </div>
+        )}
+
+        {/* ── ACTIVE ORDER BANNER ── */}
+        {activeOrder && activeOrder.status !== 'CANCELLED' && (
+          <div className="px-4 pt-3 fade-up">
+            <div
+              onClick={() => setScreen('success')}
+              className="rounded-2xl p-3.5 flex items-center justify-between cursor-pointer transition-all hover:scale-[1.01] shadow-lg border"
+              style={{
+                background: 'linear-gradient(135deg, rgba(37,99,235,0.25) 0%, rgba(37,99,235,0.1) 100%)',
+                borderColor: 'rgba(37,99,235,0.4)',
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-blue-600/30 text-blue-400">
+                  <Clock className="w-5 h-5 animate-spin" style={{ animationDuration: '4s' }} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-600 text-white">
+                      {activeOrder.status}
+                    </span>
+                    <p className="text-xs font-bold text-white">
+                      {activeOrder.orderNumber ? `Order #${activeOrder.orderNumber}` : 'Active Order'}
+                    </p>
+                  </div>
+                  <p className="text-[11px] mt-0.5 text-blue-200">
+                    {activeOrder.status === 'PENDING' ? 'Waiting for waiter to claim...' :
+                     activeOrder.status === 'CLAIMED' ? (activeOrder.waiter ? `Claimed by ${activeOrder.waiter.fullName}` : 'Claimed by waiter') :
+                     activeOrder.status === 'PREPARING' ? 'Preparing drinks & food...' :
+                     activeOrder.status === 'READY' ? 'Ready for pickup & delivery' :
+                     'Delivered to your table ✓'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-xs font-bold text-blue-400">
+                {activeOrder.status !== 'DELIVERED' && (
+                  <>
+                    <span>View Tracker</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </>
+                )}
+              </div>
             </div>
           </div>
+        )}
+
+        {/* ── CATEGORY PILLS ───────────────────── */}
+        <div className="px-4 pt-3.5 pb-3">
+          <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
+            {categories.map((c) => {
+              const isDeals = c === '🔥 Deals' || c === 'Offers';
+              return (
+                <button
+                  key={c}
+                  onClick={() => setCat(c)}
+                  className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    isDeals && cat !== c ? 'animate-pulse' : ''
+                  }`}
+                  style={{
+                    background: cat === c
+                      ? (isDeals ? 'linear-gradient(135deg, #F59E0B, #EF4444)' : brand.primary)
+                      : (isDeals ? 'rgba(245, 158, 11, 0.15)' : 'var(--surface)'),
+                    color: cat === c ? '#fff' : (isDeals ? '#F59E0B' : 'var(--text-secondary)'),
+                    border: `1px solid ${cat === c ? 'transparent' : (isDeals ? 'rgba(245, 158, 11, 0.4)' : 'var(--border)')}`,
+                    boxShadow: isDeals && cat === c ? '0 4px 15px rgba(245, 158, 11, 0.4)' : undefined,
+                  }}
+                >
+                  {c}
+                  {isDeals && offers.length > 0 && (
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                      cat === c ? 'bg-black/30 text-white' : 'bg-amber-500 text-slate-950'
+                    }`}>
+                      {offers.length}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      )}
+      </div>
 
       {/* ── FUTURISTIC MOVING SPECIAL DEALS & OFFERS BANNER ─────────────────────── */}
       {offers.length > 0 && (
@@ -1560,43 +1602,8 @@ export const DigitalStorefrontPage: React.FC = () => {
         </div>
       )}
 
-      {/* ── CATEGORY PILLS ───────────────────── */}
-      <div ref={menuSectionRef} className="px-4 pt-5 pb-1 fade-up-delay-1">
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
-          {categories.map((c) => {
-            const isDeals = c === '🔥 Deals' || c === 'Offers';
-            return (
-              <button
-                key={c}
-                onClick={() => setCat(c)}
-                className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  isDeals && cat !== c ? 'animate-pulse' : ''
-                }`}
-                style={{
-                  background: cat === c
-                    ? (isDeals ? 'linear-gradient(135deg, #F59E0B, #EF4444)' : brand.primary)
-                    : (isDeals ? 'rgba(245, 158, 11, 0.15)' : 'var(--surface)'),
-                  color: cat === c ? '#fff' : (isDeals ? '#F59E0B' : 'var(--text-secondary)'),
-                  border: `1px solid ${cat === c ? 'transparent' : (isDeals ? 'rgba(245, 158, 11, 0.4)' : 'var(--border)')}`,
-                  boxShadow: isDeals && cat === c ? '0 4px 15px rgba(245, 158, 11, 0.4)' : undefined,
-                }}
-              >
-                {c}
-                {isDeals && offers.length > 0 && (
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                    cat === c ? 'bg-black/30 text-white' : 'bg-amber-500 text-slate-950'
-                  }`}>
-                    {offers.length}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       {/* ── MENU ITEMS ───────────────────────── */}
-      <div className="px-4 pt-3 space-y-3 fade-up-delay-2">
+      <div ref={menuSectionRef} className="px-4 pt-3 space-y-3 fade-up-delay-2">
         {/* Special Header when in Deals Tab */}
         {cat === '🔥 Deals' && (
           <div

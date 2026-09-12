@@ -1736,86 +1736,89 @@ const BusinessesPage = ({
   }
 
   return (
-    <div className="space-y-5">
-      <SectionHeader
-        title="Businesses & Establishments"
-        subtitle={`${businesses.length} registered hospitality businesses`}
-        action={
-          <button
-            onClick={() => setView('create')}
-            className="flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:opacity-90 transition"
-            style={{ background: '#2563EB' }}
-          >
-            <Plus className="h-3.5 w-3.5" /> Register Business
-          </button>
-        }
-      />
+    <div className="flex-1 min-h-0 flex flex-col space-y-4">
+      {/* Top sticky controls */}
+      <div className="flex-shrink-0 space-y-4">
+        <SectionHeader
+          title="Businesses & Establishments"
+          subtitle={`${businesses.length} registered hospitality businesses`}
+          action={
+            <button
+              onClick={() => setView('create')}
+              className="flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:opacity-90 transition"
+              style={{ background: '#2563EB' }}
+            >
+              <Plus className="h-3.5 w-3.5" /> Register Business
+            </button>
+          }
+        />
 
-      {/* Filters Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-        <div className="flex-1 flex items-center gap-2 rounded-lg border px-3.5 py-2 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-          <Search className="h-4 w-4 text-slate-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search by business name or location…"
-            className="flex-1 bg-transparent text-sm outline-none text-slate-900 dark:text-white placeholder:text-slate-400"
-          />
-        </div>
+        {/* Filters Bar */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="flex-1 flex items-center gap-2 rounded-lg border px-3.5 py-2 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+            <Search className="h-4 w-4 text-slate-400" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by business name or location…"
+              className="flex-1 bg-transparent text-sm outline-none text-slate-900 dark:text-white placeholder:text-slate-400"
+            />
+          </div>
 
-        <div className="flex items-center gap-2">
-          <select
-            value={typeFilter}
-            onChange={e => setTypeFilter(e.target.value)}
-            className="rounded-lg border px-3 py-2 text-xs font-medium bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 outline-none"
-          >
-            <option value="ALL">All Business Types</option>
-            {Object.entries(BUSINESS_TYPE_LABELS).map(([k, l]) => (
-              <option key={k} value={k}>{l}</option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              value={typeFilter}
+              onChange={e => setTypeFilter(e.target.value)}
+              className="rounded-lg border px-3 py-2 text-xs font-medium bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 outline-none"
+            >
+              <option value="ALL">All Business Types</option>
+              {Object.entries(BUSINESS_TYPE_LABELS).map(([k, l]) => (
+                <option key={k} value={k}>{l}</option>
+              ))}
+            </select>
 
-          <select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            className="rounded-lg border px-3 py-2 text-xs font-medium bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 outline-none"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="Active">Active</option>
-            <option value="Suspended">Suspended</option>
-            <option value="Trial">Trial</option>
-          </select>
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              className="rounded-lg border px-3 py-2 text-xs font-medium bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 outline-none"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="Active">Active</option>
+              <option value="Suspended">Suspended</option>
+              <option value="Trial">Trial</option>
+            </select>
 
-          <button
-            onClick={() => {
-              csvExport(
-                ['Business Name', 'Type', 'City', 'County', 'Plan', 'Status', 'Orders', 'Created Date'],
-                filtered.map(b => [b.name, b.businessType, b.city, b.county, b.plan, b.status, b.orders, b.createdAt]),
-                'businesses-export.csv'
-              );
-              showToast('Businesses exported to CSV');
-            }}
-            className="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-          >
-            <Download className="h-3.5 w-3.5" /> Export
-          </button>
+            <button
+              onClick={() => {
+                csvExport(
+                  ['Business Name', 'Type', 'City', 'County', 'Plan', 'Status', 'Orders', 'Created Date'],
+                  filtered.map(b => [b.name, b.businessType, b.city, b.county, b.plan, b.status, b.orders, b.createdAt]),
+                  'businesses-export.csv'
+                );
+                showToast('Businesses exported to CSV');
+              }}
+              className="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+            >
+              <Download className="h-3.5 w-3.5" /> Export
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Business Name</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Type</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Location</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Admin</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Plan</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Status</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Created</th>
-                <th className="px-5 py-3 text-right text-xs font-bold text-slate-400">Actions</th>
+      <div className="flex-1 min-h-[300px] rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm flex flex-col">
+        <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 w-full">
+          <table className="w-full text-sm border-collapse">
+            <thead className="sticky top-0 z-10 shadow-sm" style={{ background: 'var(--bg-card)' }}>
+              <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Business Name</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Type</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Location</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Admin</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Plan</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Status</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Created</th>
+                <th className="px-5 py-3 text-right text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -2243,83 +2246,86 @@ const BusinessAdminsPage = ({
   };
 
   return (
-    <div className="space-y-5">
-      {showAddAdmin && (
-        <CreateUserModal
-          businesses={businesses}
-          defaultRole="ADMIN"
-          onClose={() => setShowAddAdmin(false)}
-          onSuccess={msg => {
-            showToast(msg);
-            onRefresh();
-          }}
-        />
-      )}
-
-      <SectionHeader
-        title="Business Admins"
-        subtitle="Manage primary administrator accounts provisioned for each business"
-        action={
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowAddAdmin(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-orange-500 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-orange-600 transition"
-            >
-              <UserPlus className="h-3.5 w-3.5" /> Add Admin
-            </button>
-            <button
-              onClick={() => {
-                csvExport(
-                  ['Admin Name', 'Email', 'Phone', 'Business', 'Role', 'Status', 'Last Login', 'Created Date'],
-                  filtered.map(a => [a.fullName, a.email, a.phone, a.businessName, a.role, a.status, a.lastLogin, a.createdAt]),
-                  'business-admins-export.csv'
-                );
-                showToast('Admins list exported');
-              }}
-              className="flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-semibold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-            >
-              <Download className="h-3.5 w-3.5" /> Export
-            </button>
-          </div>
-        }
-      />
-
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-        <div className="flex-1 flex items-center gap-2 rounded-lg border px-3.5 py-2 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-          <Search className="h-4 w-4 text-slate-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search by admin name, email, or phone…"
-            className="flex-1 bg-transparent text-sm outline-none text-slate-900 dark:text-white placeholder:text-slate-400"
+    <div className="flex-1 min-h-0 flex flex-col space-y-4">
+      {/* Top sticky controls */}
+      <div className="flex-shrink-0 space-y-4">
+        {showAddAdmin && (
+          <CreateUserModal
+            businesses={businesses}
+            defaultRole="ADMIN"
+            onClose={() => setShowAddAdmin(false)}
+            onSuccess={msg => {
+              showToast(msg);
+              onRefresh();
+            }}
           />
-        </div>
+        )}
 
-        <select
-          value={businessFilter}
-          onChange={e => setBusinessFilter(e.target.value)}
-          className="rounded-lg border px-3 py-2 text-xs font-medium bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 outline-none"
-        >
-          <option value="ALL">All Businesses</option>
-          {businesses.map(b => (
-            <option key={b.id} value={b.id}>{b.name}</option>
-          ))}
-        </select>
+        <SectionHeader
+          title="Business Admins"
+          subtitle="Manage primary administrator accounts provisioned for each business"
+          action={
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowAddAdmin(true)}
+                className="flex items-center gap-1.5 rounded-lg bg-orange-500 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-orange-600 transition"
+              >
+                <UserPlus className="h-3.5 w-3.5" /> Add Admin
+              </button>
+              <button
+                onClick={() => {
+                  csvExport(
+                    ['Admin Name', 'Email', 'Phone', 'Business', 'Role', 'Status', 'Last Login', 'Created Date'],
+                    filtered.map(a => [a.fullName, a.email, a.phone, a.businessName, a.role, a.status, a.lastLogin, a.createdAt]),
+                    'business-admins-export.csv'
+                  );
+                  showToast('Admins list exported');
+                }}
+                className="flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-semibold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+              >
+                <Download className="h-3.5 w-3.5" /> Export
+              </button>
+            </div>
+          }
+        />
+
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="flex-1 flex items-center gap-2 rounded-lg border px-3.5 py-2 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+            <Search className="h-4 w-4 text-slate-400" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by admin name, email, or phone…"
+              className="flex-1 bg-transparent text-sm outline-none text-slate-900 dark:text-white placeholder:text-slate-400"
+            />
+          </div>
+
+          <select
+            value={businessFilter}
+            onChange={e => setBusinessFilter(e.target.value)}
+            className="rounded-lg border px-3 py-2 text-xs font-medium bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 outline-none"
+          >
+            <option value="ALL">All Businesses</option>
+            {businesses.map(b => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Admin Name</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Contact Info</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Business</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Status</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Last Login</th>
-                <th className="px-5 py-3 text-right text-xs font-bold text-slate-400">Actions</th>
+      <div className="flex-1 min-h-[300px] rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm flex flex-col">
+        <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 w-full">
+          <table className="w-full text-sm border-collapse">
+            <thead className="sticky top-0 z-10 shadow-sm" style={{ background: 'var(--bg-card)' }}>
+              <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Admin Name</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Contact Info</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Business</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Status</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Last Login</th>
+                <th className="px-5 py-3 text-right text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -2478,104 +2484,107 @@ const PlatformUsersPage = ({
   };
 
   return (
-    <div className="space-y-5">
-      {showAddUser && (
-        <CreateUserModal
-          businesses={businesses}
-          onClose={() => setShowAddUser(false)}
-          onSuccess={msg => {
-            showToast(msg);
-            fetchUsers();
-          }}
-        />
-      )}
-
-      <SectionHeader
-        title="Platform Users"
-        subtitle="Platform-wide user directory across all businesses and roles"
-        action={
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowAddUser(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-orange-500 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-orange-600 transition"
-            >
-              <UserPlus className="h-3.5 w-3.5" /> Add Platform User
-            </button>
-            <button
-              onClick={() => {
-                csvExport(
-                  ['Name', 'Email', 'Phone', 'Role', 'Business', 'Status', 'Created At'],
-                  filtered.map(u => [u.fullName, u.email, u.phone || '', u.role, u.businessName || '', u.isActive ? 'Active' : 'Inactive', u.createdAt]),
-                  'platform-users.csv'
-                );
-                showToast('Users exported');
-              }}
-              className="flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-semibold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-            >
-              <Download className="h-3.5 w-3.5" /> Export Users
-            </button>
-          </div>
-        }
-      />
-
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex-1 min-w-[200px] flex items-center gap-2 rounded-lg border px-3.5 py-2 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-          <Search className="h-4 w-4 text-slate-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search by name, email, or phone…"
-            className="flex-1 bg-transparent text-sm outline-none text-slate-900 dark:text-white placeholder:text-slate-400"
+    <div className="flex-1 min-h-0 flex flex-col space-y-4">
+      {/* Top sticky controls */}
+      <div className="flex-shrink-0 space-y-4">
+        {showAddUser && (
+          <CreateUserModal
+            businesses={businesses}
+            onClose={() => setShowAddUser(false)}
+            onSuccess={msg => {
+              showToast(msg);
+              fetchUsers();
+            }}
           />
+        )}
+
+        <SectionHeader
+          title="Platform Users"
+          subtitle="Platform-wide user directory across all businesses and roles"
+          action={
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowAddUser(true)}
+                className="flex items-center gap-1.5 rounded-lg bg-orange-500 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-orange-600 transition"
+              >
+                <UserPlus className="h-3.5 w-3.5" /> Add Platform User
+              </button>
+              <button
+                onClick={() => {
+                  csvExport(
+                    ['Name', 'Email', 'Phone', 'Role', 'Business', 'Status', 'Created At'],
+                    filtered.map(u => [u.fullName, u.email, u.phone || '', u.role, u.businessName || '', u.isActive ? 'Active' : 'Inactive', u.createdAt]),
+                    'platform-users.csv'
+                  );
+                  showToast('Users exported');
+                }}
+                className="flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-semibold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+              >
+                <Download className="h-3.5 w-3.5" /> Export Users
+              </button>
+            </div>
+          }
+        />
+
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex-1 min-w-[200px] flex items-center gap-2 rounded-lg border px-3.5 py-2 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+            <Search className="h-4 w-4 text-slate-400" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by name, email, or phone…"
+              className="flex-1 bg-transparent text-sm outline-none text-slate-900 dark:text-white placeholder:text-slate-400"
+            />
+          </div>
+
+          <select
+            value={roleFilter}
+            onChange={e => setRoleFilter(e.target.value)}
+            className="rounded-lg border px-3 py-2 text-xs font-medium bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 outline-none"
+          >
+            <option value="ALL">All Roles</option>
+            <option value="SUPER_ADMIN">Super Admin</option>
+            <option value="ADMIN">Business Admin</option>
+            <option value="MANAGER">Manager</option>
+            <option value="WAITER">Waiter</option>
+          </select>
+
+          <select
+            value={businessFilter}
+            onChange={e => setBusinessFilter(e.target.value)}
+            className="rounded-lg border px-3 py-2 text-xs font-medium bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 outline-none max-w-xs"
+          >
+            <option value="ALL">All Businesses</option>
+            {businesses.map(b => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="rounded-lg border px-3 py-2 text-xs font-medium bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 outline-none"
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="ACTIVE">Active</option>
+            <option value="INACTIVE">Suspended / Inactive</option>
+          </select>
         </div>
-
-        <select
-          value={roleFilter}
-          onChange={e => setRoleFilter(e.target.value)}
-          className="rounded-lg border px-3 py-2 text-xs font-medium bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 outline-none"
-        >
-          <option value="ALL">All Roles</option>
-          <option value="SUPER_ADMIN">Super Admin</option>
-          <option value="ADMIN">Business Admin</option>
-          <option value="MANAGER">Manager</option>
-          <option value="WAITER">Waiter</option>
-        </select>
-
-        <select
-          value={businessFilter}
-          onChange={e => setBusinessFilter(e.target.value)}
-          className="rounded-lg border px-3 py-2 text-xs font-medium bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 outline-none max-w-xs"
-        >
-          <option value="ALL">All Businesses</option>
-          {businesses.map(b => (
-            <option key={b.id} value={b.id}>{b.name}</option>
-          ))}
-        </select>
-
-        <select
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
-          className="rounded-lg border px-3 py-2 text-xs font-medium bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 outline-none"
-        >
-          <option value="ALL">All Statuses</option>
-          <option value="ACTIVE">Active</option>
-          <option value="INACTIVE">Suspended / Inactive</option>
-        </select>
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">User</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Role</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Assigned Business</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Status</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Registered</th>
-                <th className="px-5 py-3 text-right text-xs font-bold text-slate-400">Actions</th>
+      <div className="flex-1 min-h-[300px] rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm flex flex-col">
+        <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 w-full">
+          <table className="w-full text-sm border-collapse">
+            <thead className="sticky top-0 z-10 shadow-sm" style={{ background: 'var(--bg-card)' }}>
+              <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">User</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Role</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Assigned Business</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Status</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Registered</th>
+                <th className="px-5 py-3 text-right text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -2842,51 +2851,55 @@ const AuditLogsPage = ({ showToast }: { showToast: (m: string, t?: 'success' | '
   }, [logs, search]);
 
   return (
-    <div className="space-y-5">
-      <SectionHeader
-        title="Audit Logs & Compliance"
-        subtitle="Platform security events, admin actions, and state changes recorded in the audit trail"
-        action={
-          <button
-            onClick={() => {
-              csvExport(
-                ['Level', 'Action', 'Actor', 'Role', 'Target Resource', 'Business', 'IP Address', 'Timestamp'],
-                filtered.map(l => [l.level, l.action, l.actor, l.role, l.resource, l.businessName || '', l.ip, l.time]),
-                'audit-logs.csv'
-              );
-              showToast('Audit logs exported');
-            }}
-            className="flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-semibold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-          >
-            <Download className="h-3.5 w-3.5" /> Export Audit Logs
-          </button>
-        }
-      />
+    <div className="flex-1 min-h-0 flex flex-col space-y-4">
+      {/* Top sticky controls */}
+      <div className="flex-shrink-0 space-y-4">
+        <SectionHeader
+          title="Audit Logs & Compliance"
+          subtitle="Platform security events, admin actions, and state changes recorded in the audit trail"
+          action={
+            <button
+              onClick={() => {
+                csvExport(
+                  ['Level', 'Action', 'Actor', 'Role', 'Target Resource', 'Business', 'IP Address', 'Timestamp'],
+                  filtered.map(l => [l.level, l.action, l.actor, l.role, l.resource, l.businessName || '', l.ip, l.time]),
+                  'audit-logs.csv'
+                );
+                showToast('Audit logs exported');
+              }}
+              className="flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-semibold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+            >
+              <Download className="h-3.5 w-3.5" /> Export Audit Logs
+            </button>
+          }
+        />
 
-      <div className="flex items-center gap-3">
-        <div className="flex-1 flex items-center gap-2 rounded-lg border px-3.5 py-2 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-          <Search className="h-4 w-4 text-slate-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search audit events by action, actor, or business…"
-            className="flex-1 bg-transparent text-sm outline-none text-slate-900 dark:text-white placeholder:text-slate-400"
-          />
+        <div className="flex items-center gap-3">
+          <div className="flex-1 flex items-center gap-2 rounded-lg border px-3.5 py-2 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+            <Search className="h-4 w-4 text-slate-400" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search audit events by action, actor, or business…"
+              className="flex-1 bg-transparent text-sm outline-none text-slate-900 dark:text-white placeholder:text-slate-400"
+            />
+          </div>
         </div>
       </div>
 
-      <div className="rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Severity</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Action / Event</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Actor</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Target Resource</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Business Scope</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">IP Address</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Timestamp</th>
+      {/* Table */}
+      <div className="flex-1 min-h-[300px] rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm flex flex-col">
+        <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 w-full">
+          <table className="w-full text-sm border-collapse">
+            <thead className="sticky top-0 z-10 shadow-sm" style={{ background: 'var(--bg-card)' }}>
+              <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Severity</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Action / Event</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Actor</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Target Resource</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Business Scope</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">IP Address</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400 whitespace-nowrap bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">Timestamp</th>
               </tr>
             </thead>
             <tbody>
@@ -3224,7 +3237,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   };
 
   return (
-    <div className="min-h-screen flex" style={{ background: 'var(--bg-body)' }}>
+    <div className="h-screen flex overflow-hidden" style={{ background: 'var(--bg-body)' }}>
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
 
       {/* ─── SIDEBAR ─── */}
@@ -3281,9 +3294,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       </aside>
 
       {/* ─── MAIN CONTENT ─── */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <header
-          className="border-b px-6 py-3.5 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md"
+          className="flex-shrink-0 border-b px-6 py-3.5 flex items-center justify-between z-20 backdrop-blur-md"
           style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}
         >
           <div>
@@ -3359,7 +3372,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           </div>
         </header>
 
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 p-6 overflow-y-auto min-h-0 flex flex-col">
           {renderPage()}
         </main>
       </div>

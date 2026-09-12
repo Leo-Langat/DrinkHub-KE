@@ -1895,7 +1895,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     };
 
     return (
-      <div className="space-y-6">
+      <div className="flex-1 min-h-0 flex flex-col space-y-4">
         {/* ── Header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -2048,7 +2048,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
         </div>
 
         {/* ── Managers Table ── */}
-        <div className="p-5 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+        <div className="flex-1 min-h-[300px] p-5 rounded-2xl border shadow-sm flex flex-col" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
           {managerListError ? (
             <div className="flex flex-col items-center justify-center py-12 gap-3">
               <AlertCircle className="h-8 w-8 text-red-400" />
@@ -2067,7 +2067,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               ))}
             </div>
           ) : (
-            <div className="overflow-x-auto overflow-y-auto w-full" style={{ maxHeight: '480px' }}>
+            <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
               <table className="w-full min-w-[750px] text-left text-xs">
                 <thead className="sticky top-0 z-10" style={{ background: 'var(--bg-card)' }}>
                   <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>
@@ -2985,7 +2985,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     };
 
     return (
-      <div className="space-y-6">
+      <div className="flex-1 min-h-0 flex flex-col space-y-4">
         {/* ── Header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -3151,7 +3151,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
         </div>
 
         {/* ── Waiters Table ── */}
-        <div className="p-5 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+        <div className="flex-1 min-h-[300px] p-5 rounded-2xl border shadow-sm flex flex-col" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
           {waiterListError ? (
             <div className="flex flex-col items-center justify-center py-12 gap-3">
               <AlertCircle className="h-8 w-8 text-red-400" />
@@ -3170,7 +3170,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               ))}
             </div>
           ) : (
-            <div className="overflow-x-auto overflow-y-auto w-full" style={{ maxHeight: '480px' }}>
+            <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
               <table className="w-full min-w-[850px] text-left text-xs">
                 <thead className="sticky top-0 z-10" style={{ background: 'var(--bg-card)' }}>
                   <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>
@@ -3793,12 +3793,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     });
 
     return (
-      <div className="space-y-4">
-        {/* Sticky Top Header Section (Title + Filters) */}
-        <div
-          className="sticky -top-6 z-20 space-y-4 pt-1 pb-2"
-          style={{ background: 'var(--bg-body)' }}
-        >
+      <div className="flex-1 min-h-0 flex flex-col space-y-4">
+        {/* Top Header Section (Title + Filters) - Fixed / Sticky */}
+        <div className="flex-shrink-0 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
@@ -3848,9 +3845,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           </div>
         </div>
 
-        {/* Orders Table */}
-        <div className="p-5 rounded-2xl border shadow-sm" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          <div className="overflow-x-auto overflow-y-auto w-full" style={{ maxHeight: 'calc(100vh - 280px)', minHeight: '320px' }}>
+        {/* Orders Table - Fills remaining viewport height and scrolls */}
+        <div className="flex-1 min-h-[300px] p-5 rounded-2xl border shadow-sm flex flex-col" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
             <table className="w-full min-w-[880px] text-left text-xs">
               <thead className="sticky top-0 z-10 shadow-sm" style={{ background: 'var(--bg-card)' }}>
                 <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>
@@ -5969,12 +5966,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     });
 
     return (
-      <div className="space-y-6">
-        {/* Sticky Top Header Section (Title + Add Buttons + Tabs) */}
-        <div
-          className="sticky -top-6 z-20 space-y-4 pt-1 pb-2"
-          style={{ background: 'var(--bg-body)' }}
-        >
+      <div className="flex-1 min-h-0 flex flex-col space-y-4">
+        {/* Top Header & Sub-Navigation Tabs - Fixed at top */}
+        <div className="flex-shrink-0 space-y-4">
           {/* Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
@@ -6057,9 +6051,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
         {userSubTab === 'managers' && renderManagersView()}
         {userSubTab === 'waiters' && renderWaitersView()}
         {userSubTab === 'all' && (
-          <div className="space-y-6">
+          <div className="flex-1 min-h-0 flex flex-col space-y-4">
             {/* KPI Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="flex-shrink-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="p-4 rounded-2xl border flex items-center gap-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
                 <div className="h-12 w-12 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0">
                   <Users className="h-6 w-6" />
@@ -6114,7 +6108,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
             </div>
 
             {/* Filter / Search Bar */}
-            <div className="flex items-center gap-3 p-3 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+            <div className="flex-shrink-0 flex items-center gap-3 p-3 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
               <Search className="h-4 w-4 text-slate-400" />
               <input
                 type="text"
@@ -6134,9 +6128,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               )}
             </div>
 
-            {/* Combined Users Table */}
-            <div className="p-5 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              <div className="overflow-x-auto overflow-y-auto w-full" style={{ maxHeight: 'calc(100vh - 380px)', minHeight: '320px' }}>
+            {/* Combined Users Table - Fills remaining height and scrolls */}
+            <div className="flex-1 min-h-[260px] p-5 rounded-2xl border shadow-sm flex flex-col" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+              <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
                 <table className="w-full min-w-[760px] text-left text-xs">
                   <thead className="sticky top-0 z-10" style={{ background: 'var(--bg-card)' }}>
                     <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>
@@ -6350,7 +6344,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   };
 
   return (
-    <div className="min-h-screen flex" style={{ background: 'var(--bg-body)' }}>
+    <div className="h-screen flex overflow-hidden" style={{ background: 'var(--bg-body)' }}>
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
 
       {/* ── Sidebar Navigation ── */}
@@ -6450,9 +6444,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       </aside>
 
       {/* ── Main Workspace Body ── */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <header
-          className="border-b px-6 py-3.5 flex items-center justify-between sticky top-0 z-20"
+          className="flex-shrink-0 border-b px-6 py-3.5 flex items-center justify-between z-20"
           style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}
         >
           <div className="min-w-0">
@@ -6473,7 +6467,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           </div>
         </header>
 
-        <main className="flex-1 p-6 overflow-y-auto">
+        <main className="flex-1 p-6 overflow-y-auto min-h-0 flex flex-col">
           {loading ? (
             <div className="h-96 flex flex-col items-center justify-center text-slate-400 space-y-3">
               <Building2 className="h-10 w-10 animate-bounce text-blue-600" />

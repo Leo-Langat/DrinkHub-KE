@@ -5564,70 +5564,43 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                 <p className="text-xs text-slate-500">Used to personalize the customer ordering UI, navigation bar, and active buttons</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-500">Hex Color Code</label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="color"
-                        value={brandThemeColor}
-                        onChange={(e) => setBrandThemeColor(e.target.value)}
-                        className="h-10 w-16 rounded-xl cursor-pointer border-0 bg-transparent"
-                      />
-                      <input
-                        type="text"
-                        value={brandThemeColor}
-                        onChange={(e) => setBrandThemeColor(e.target.value)}
-                        placeholder="#2563EB"
-                        className="flex-1 rounded-xl border p-2.5 text-xs font-mono font-bold outline-none uppercase"
-                        style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Preset Colors */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400">Popular Presets</label>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {['#2563EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#0F172A', '#D97706'].map((c) => (
-                        <button
-                          key={c}
-                          type="button"
-                          onClick={() => setBrandThemeColor(c)}
-                          className={`h-7 w-7 rounded-lg border-2 transition ${
-                            brandThemeColor.toUpperCase() === c.toUpperCase() ? 'border-blue-500 scale-110' : 'border-transparent'
-                          }`}
-                          style={{ backgroundColor: c }}
-                          title={c}
-                        />
-                      ))}
-                    </div>
+              <div className="space-y-4 max-w-xl">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500">Hex Color Code</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={brandThemeColor}
+                      onChange={(e) => setBrandThemeColor(e.target.value)}
+                      className="h-10 w-16 rounded-xl cursor-pointer border-0 bg-transparent"
+                    />
+                    <input
+                      type="text"
+                      value={brandThemeColor}
+                      onChange={(e) => setBrandThemeColor(e.target.value)}
+                      placeholder="#2563EB"
+                      className="flex-1 rounded-xl border p-2.5 text-xs font-mono font-bold outline-none uppercase"
+                      style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                    />
                   </div>
                 </div>
 
-                {/* Live Preview Card */}
-                <div className="p-4 rounded-2xl border space-y-3" style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Live UI Preview</span>
-                  <div className="p-3.5 rounded-xl border bg-white dark:bg-slate-900 shadow-sm space-y-2.5" style={{ borderColor: 'var(--border)' }}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="h-6 w-6 rounded-lg text-white font-black text-[10px] flex items-center justify-center" style={{ backgroundColor: brandThemeColor }}>
-                          {profName.charAt(0) || 'D'}
-                        </div>
-                        <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{profName || 'Business Name'}</span>
-                      </div>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: brandThemeColor }}>
-                        Order Now
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className="w-full py-2 rounded-lg text-xs font-bold text-white shadow-sm"
-                      style={{ backgroundColor: brandThemeColor }}
-                    >
-                      Add to Cart (KSh 650)
-                    </button>
+                {/* Preset Colors */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-400">Popular Presets</label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {['#2563EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#0F172A', '#D97706'].map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setBrandThemeColor(c)}
+                        className={`h-7 w-7 rounded-lg border-2 transition ${
+                          brandThemeColor.toUpperCase() === c.toUpperCase() ? 'border-blue-500 scale-110' : 'border-transparent'
+                        }`}
+                        style={{ backgroundColor: c }}
+                        title={c}
+                      />
+                    ))}
                   </div>
                 </div>
               </div>

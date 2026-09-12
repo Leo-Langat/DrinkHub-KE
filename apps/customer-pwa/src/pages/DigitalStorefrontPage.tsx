@@ -135,7 +135,6 @@ export const DigitalStorefrontPage: React.FC = () => {
   const [cat, setCat] = useState<string>('All');
   const [cart, setCart] = useState<CartMap>({});
   const [screen, setScreen] = useState<'menu' | 'cart' | 'checkout' | 'success'>('menu');
-  const [ageOk, setAgeOk] = useState(false);
   const [payment, setPayment] = useState<'mpesa' | 'card' | 'cash'>('mpesa');
   const [phone, setPhone] = useState('');
   const [placing, setPlacing] = useState(false);
@@ -584,7 +583,6 @@ export const DigitalStorefrontPage: React.FC = () => {
   /* ── Place order (real API) ───────────────── */
   const placeOrder = async () => {
     if (!isOnline) return;
-    if (!ageOk) return;
     setPlacing(true);
     setPlaceError(null);
     try {
@@ -601,11 +599,12 @@ export const DigitalStorefrontPage: React.FC = () => {
       }
 
       const parsedTableNum = table ? parseInt(String(table).replace(/[^0-9]/g, ''), 10) : undefined;
+      const resolvedPaymentMethod = payment === 'cash' ? 'CASH' : payment === 'card' ? 'CARD' : 'MPESA_STK';
       const body: Record<string, any> = {
         ...(clubUuid ? { clubUuid } : {}),
         ageVerified: true,
         items,
-        paymentMethod: payment.toUpperCase(),
+        paymentMethod: resolvedPaymentMethod,
       };
       if (tableUuid) body.tableUuid = tableUuid;
       if (table) {
@@ -613,7 +612,9 @@ export const DigitalStorefrontPage: React.FC = () => {
         if (parsedTableNum && !isNaN(parsedTableNum)) {
           body.tableNumber = parsedTableNum;
         }
-        body.notes = `Table #${table}`;
+        body.notes = `Table #${table} | Payment: ${resolvedPaymentMethod}`;
+      } else {
+        body.notes = `Payment: ${resolvedPaymentMethod}`;
       }
       if (formattedPhone) body.phoneNumber = formattedPhone;
       if (appliedOffer) body.offerUuid = appliedOffer.id;
@@ -1002,14 +1003,6 @@ export const DigitalStorefrontPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 18+ */}
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input type="checkbox" checked={ageOk} onChange={(e) => setAgeOk(e.target.checked)} className="mt-0.5 flex-shrink-0" />
-            <span className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              I confirm I am <strong style={{ color: 'var(--text)' }}>over 18 years old</strong> and will provide valid identification upon request.
-            </span>
-          </label>
-
           {placeError && (
             <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
               {placeError}
@@ -1023,10 +1016,10 @@ export const DigitalStorefrontPage: React.FC = () => {
           )}
 
           <button
-            disabled={!ageOk || placing || !venueOpen || (payment === 'mpesa' && phone.length < 9)}
+            disabled={placing || !venueOpen || (payment === 'mpesa' && phone.length < 9)}
             onClick={placeOrder}
             className="btn-primary w-full py-4 text-sm font-black flex items-center justify-center gap-2 text-white"
-            style={{ background: ageOk && venueOpen ? brand.primary : undefined }}
+            style={{ background: venueOpen ? brand.primary : undefined }}
           >
             {placing ? (
               <span className="flex items-center gap-2">

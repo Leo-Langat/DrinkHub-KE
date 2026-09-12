@@ -14,8 +14,28 @@ export class OrderRepository implements IOrderRepository {
         tableNumber = parseInt(match[1], 10);
       }
     }
+
+    let paymentMethod = order.paymentMethod || null;
+    if (!paymentMethod && order.payments && order.payments.length > 0) {
+      paymentMethod = order.payments[0].paymentMethod;
+    }
+    if (!paymentMethod && order.notes) {
+      const matchMethod = String(order.notes).match(/payment:\s*(mpesa_stk|mpesa|card|cash)/i);
+      if (matchMethod) {
+        const m = matchMethod[1].toUpperCase();
+        paymentMethod = m === 'MPESA' ? 'MPESA_STK' : m;
+      }
+    }
+    if (!paymentMethod) {
+      paymentMethod = 'MPESA_STK';
+    }
+
+    const paymentStatus = order.payments?.[0]?.paymentStatus || order.paymentStatus || 'PENDING';
+
     return {
       ...order,
+      paymentMethod,
+      paymentStatus,
       table: table
         ? { ...table, tableNumber: table.tableNumber ?? tableNumber, sectionName: table.sectionName ?? sectionName }
         : (tableNumber ? { tableNumber, sectionName } : null),
@@ -73,6 +93,7 @@ export class OrderRepository implements IOrderRepository {
         waiter: true,
         customerSession: { include: { table: true } },
         orderItems: { include: { product: true } },
+        payments: true,
       },
     });
     return this.formatOrder(order);
@@ -252,6 +273,25 @@ export class OrderRepository implements IOrderRepository {
     discountAmount = Math.max(0, Math.min(subtotal, discountAmount));
     const totalAmount = Math.max(0, subtotal - discountAmount);
 
+    // Resolve initial payment method requested by customer
+    let initialPaymentMethod: 'MPESA_STK' | 'CARD' | 'CASH' = 'MPESA_STK';
+    if (data.paymentMethod) {
+      const pm = String(data.paymentMethod).toUpperCase();
+      if (pm.includes('CASH')) {
+        initialPaymentMethod = 'CASH';
+      } else if (pm.includes('CARD') || pm.includes('POS')) {
+        initialPaymentMethod = 'CARD';
+      } else {
+        initialPaymentMethod = 'MPESA_STK';
+      }
+    } else if (orderNotes) {
+      const matchMethod = String(orderNotes).match(/payment:\s*(mpesa_stk|mpesa|card|cash)/i);
+      if (matchMethod) {
+        const m = matchMethod[1].toUpperCase();
+        initialPaymentMethod = m === 'MPESA' ? 'MPESA_STK' : (m as any);
+      }
+    }
+
     const created = await prisma.order.create({
       data: {
         businessUuid,
@@ -267,6 +307,18 @@ export class OrderRepository implements IOrderRepository {
         ageVerified: ageVerified === true,
         orderItems: {
           create: orderItemsData,
+        },
+        payments: {
+          create: [
+            {
+              businessUuid,
+              amount: totalAmount,
+              paymentMethod: initialPaymentMethod,
+              paymentStatus: 'PENDING',
+              phoneNumber: data.phoneNumber || null,
+              paymentNotes: `Payment method: ${initialPaymentMethod}`,
+            },
+          ],
         },
       },
       include: {

@@ -107,7 +107,7 @@ export const QrMenuPage: React.FC = () => {
 
   // Age Verification & Payment Method States
   const [isAgeModalOpen, setIsAgeModalOpen] = useState(false);
-  const [isAgeConfirmed, setIsAgeConfirmed] = useState(false);
+  const [isAgeConfirmed, setIsAgeConfirmed] = useState(true);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'MPESA' | 'CARD' | 'CASH'>('MPESA');
 
   // M-Pesa State
@@ -448,25 +448,6 @@ export const QrMenuPage: React.FC = () => {
 
             {!paymentSuccessMessage ? (
               <div className="space-y-5">
-                {/* 18+ Mandatory Disclaimer Checkbox */}
-                <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 p-4 space-y-3">
-                  <div className="flex items-center space-x-2 text-amber-400 text-xs font-bold">
-                    <Info className="h-4 w-4" />
-                    <span>18+ Mandatory Age Verification</span>
-                  </div>
-                  <label className="flex items-start space-x-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isAgeConfirmed}
-                      onChange={(e) => setIsAgeConfirmed(e.target.checked)}
-                      className="mt-0.5 h-4 w-4 rounded border-slate-700 bg-dark-900 text-brand-500 focus:ring-brand-500"
-                    />
-                    <span className="text-xs text-slate-300 leading-relaxed">
-                      "I confirm I am over 18 years old and will provide identification upon request."
-                    </span>
-                  </label>
-                </div>
-
                 {/* SELECT PAYMENT METHOD TABS (1: M-Pesa, 2: Card POS, 3: Cash) */}
                 <div className="space-y-2">
                   <label className="block text-xs font-semibold text-slate-300">Select Payment Method</label>
@@ -607,21 +588,14 @@ export const QrMenuPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* SUBMIT CHECKOUT BUTTON - DISABLED UNTIL 18+ AGE CHECKBOX IS CONFIRMED */}
+                {/* SUBMIT CHECKOUT BUTTON */}
                 <Button
                   size="lg"
-                  disabled={!isAgeConfirmed}
-                  className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="w-full bg-emerald-600 hover:bg-emerald-500"
                   onClick={handleProcessPayment}
                 >
                   Confirm Order & Process Payment
                 </Button>
-
-                {!isAgeConfirmed && (
-                  <p className="text-[11px] text-amber-400/80 text-center font-medium">
-                    ⚠️ Checkout remains disabled until age verification box is checked.
-                  </p>
-                )}
               </div>
             ) : (
               <div className="text-center space-y-4 py-6">

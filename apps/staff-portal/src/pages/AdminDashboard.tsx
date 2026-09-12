@@ -156,6 +156,7 @@ export interface OrderData {
   status: string;
   paymentStatus: string;
   paymentMethod: string;
+  payments?: Array<{ paymentMethod: string; paymentStatus: string; amount?: number }>;
   totalAmount: number;
   orderItems: OrderItemData[];
   createdAt: string;
@@ -710,6 +711,27 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     }
     return 'Takeaway';
   };
+
+  const getOrderPaymentMethodRaw = (o: any): string => {
+    let method = o?.paymentMethod || o?.payments?.[0]?.paymentMethod;
+    if (!method && o?.notes) {
+      const match = String(o.notes).match(/payment:\s*(mpesa_stk|mpesa|card|cash)/i);
+      if (match) {
+        const m = match[1].toUpperCase();
+        method = m === 'MPESA' ? 'MPESA_STK' : m;
+      }
+    }
+    return method || 'MPESA_STK';
+  };
+
+  const getOrderPaymentMethodDisplay = (o: any): string => {
+    const raw = getOrderPaymentMethodRaw(o);
+    const m = String(raw).toUpperCase();
+    if (m === 'MPESA_STK' || m === 'MPESA') return 'M-Pesa';
+    if (m === 'CARD') return 'Card';
+    if (m === 'CASH') return 'Cash';
+    return raw.replace('_', ' ');
+  };
   const businessName = profName || businessProfile?.name || businessSummary?.business?.name || overview?.business?.name || user.club?.name || user.business?.name || 'My Business';
   const businessType = businessProfile?.businessType || businessSummary?.business?.businessType || overview?.business?.type || user.business?.businessType || 'RESTAURANT';
   const currentLogoUrl = brandLogoUrl || businessProfile?.logoUrl || businessSummary?.business?.logoUrl || (overview?.business as any)?.logoUrl || (user.business as any)?.logoUrl || (user.club as any)?.logoUrl || null;
@@ -905,7 +927,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
             tableNumber: o.table?.tableNumber ?? o.tableNumber ?? (o.notes?.match(/table\s*(?:#|no\.?|num\.?)?\s*(\d+)/i)?.[1] ? Number(o.notes.match(/table\s*(?:#|no\.?|num\.?)?\s*(\d+)/i)?.[1]) : null),
             sectionName: o.table?.sectionName,
             totalAmount: o.totalAmount,
-            paymentMethod: o.paymentMethod || 'MPESA_STK',
+            paymentMethod: getOrderPaymentMethodRaw(o),
             paymentStatus: o.paymentStatus,
             status: o.status,
             createdAt: o.createdAt,
@@ -1362,8 +1384,14 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                         {o.sectionName ? ` • ${o.sectionName}` : ''}
                       </td>
                       <td className="py-3 font-black text-emerald-600">{formatKsh(o.totalAmount)}</td>
-                      <td className="py-3 text-slate-500 font-semibold">
-                        {o.paymentMethod ? o.paymentMethod.replace('_', ' ') : '—'}
+                      <td className="py-3 font-semibold">
+                        {(() => {
+                          const m = String(o.paymentMethod || '').toUpperCase();
+                          if (m.includes('CASH')) return <span className="text-amber-500 dark:text-amber-400">Cash</span>;
+                          if (m.includes('CARD')) return <span className="text-blue-500 dark:text-blue-400">Card</span>;
+                          if (m.includes('MPESA')) return <span className="text-emerald-500 dark:text-emerald-400">M-Pesa</span>;
+                          return <span className="text-slate-500">{o.paymentMethod ? o.paymentMethod.replace('_', ' ') : '—'}</span>;
+                        })()}
                       </td>
                       <td className="py-3">
                         <StatusBadge status={o.paymentStatus || 'PENDING'} />
@@ -3718,9 +3746,13 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   const renderOrdersView = () => {
     const filteredOrders = orders.filter((o) => {
       const tableDisplay = getOrderTableDisplay(o);
+      const paymentRaw = getOrderPaymentMethodRaw(o);
+      const paymentDisplay = getOrderPaymentMethodDisplay(o);
       const matchSearch =
         o.orderNumber.toLowerCase().includes(orderSearch.toLowerCase()) ||
         tableDisplay.toLowerCase().includes(orderSearch.toLowerCase()) ||
+        paymentRaw.toLowerCase().includes(orderSearch.toLowerCase()) ||
+        paymentDisplay.toLowerCase().includes(orderSearch.toLowerCase()) ||
         String(o.table?.tableNumber || o.tableNumber || '').includes(orderSearch);
       const matchStatus = orderStatusFilter === 'ALL' || o.status === orderStatusFilter;
       return matchSearch && matchStatus;
@@ -3812,8 +3844,18 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                         {o.orderItems?.map((i) => `${i.quantity}x ${i.productName || i.product?.name || 'Item'}`).join(', ') || 'No items'}
                       </td>
                       <td className="py-3 font-black text-emerald-600">{formatKsh(o.totalAmount)}</td>
-                      <td className="py-3 font-semibold text-slate-600 dark:text-slate-300">
-                        {o.paymentMethod || 'MPESA_STK'}
+                      <td className="py-3 font-semibold">
+                        {(() => {
+                          const pm = getOrderPaymentMethodRaw(o);
+                          const label = getOrderPaymentMethodDisplay(o);
+                          if (pm === 'CASH') {
+                            return <span className="inline-flex items-center gap-1 font-bold text-amber-500 dark:text-amber-400">{label}</span>;
+                          }
+                          if (pm === 'CARD') {
+                            return <span className="inline-flex items-center gap-1 font-bold text-blue-500 dark:text-blue-400">{label}</span>;
+                          }
+                          return <span className="inline-flex items-center gap-1 font-bold text-emerald-500 dark:text-emerald-400">{label}</span>;
+                        })()}
                       </td>
                       <td className="py-3">
                         <StatusBadge status={o.status} />
@@ -3866,7 +3908,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               </div>
 
               {/* Metadata */}
-              <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                 <div className="p-3 rounded-xl border" style={{ borderColor: 'var(--border)' }}>
                   <span className="text-slate-500">Order Status:</span>
                   <div className="mt-1"><StatusBadge status={selectedOrder.status} /></div>
@@ -3874,6 +3916,18 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                 <div className="p-3 rounded-xl border" style={{ borderColor: 'var(--border)' }}>
                   <span className="text-slate-500">Payment Status:</span>
                   <div className="mt-1"><StatusBadge status={selectedOrder.paymentStatus} /></div>
+                </div>
+                <div className="p-3 rounded-xl border" style={{ borderColor: 'var(--border)' }}>
+                  <span className="text-slate-500">Payment Method:</span>
+                  <div className="mt-1 font-bold">
+                    {(() => {
+                      const pm = getOrderPaymentMethodRaw(selectedOrder);
+                      const label = getOrderPaymentMethodDisplay(selectedOrder);
+                      if (pm === 'CASH') return <span className="text-amber-500 dark:text-amber-400">{label}</span>;
+                      if (pm === 'CARD') return <span className="text-blue-500 dark:text-blue-400">{label}</span>;
+                      return <span className="text-emerald-500 dark:text-emerald-400">{label}</span>;
+                    })()}
+                  </div>
                 </div>
               </div>
             </div>

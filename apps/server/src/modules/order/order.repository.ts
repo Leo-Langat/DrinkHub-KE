@@ -3,21 +3,43 @@ import { prisma } from '../../config/prisma';
 import { IOrderRepository } from './order.interface';
 
 export class OrderRepository implements IOrderRepository {
+  private formatOrder(order: any): any {
+    if (!order) return order;
+    const table = order.table || order.customerSession?.table || null;
+    let tableNumber = table?.tableNumber ?? null;
+    const sectionName = table?.sectionName ?? 'Main Floor';
+    if (!tableNumber && order.notes) {
+      const match = String(order.notes).match(/table\s*(?:#|no\.?|num\.?)?\s*(\d+)/i);
+      if (match) {
+        tableNumber = parseInt(match[1], 10);
+      }
+    }
+    return {
+      ...order,
+      table: table
+        ? { ...table, tableNumber: table.tableNumber ?? tableNumber, sectionName: table.sectionName ?? sectionName }
+        : (tableNumber ? { tableNumber, sectionName } : null),
+      tableNumber,
+    };
+  }
+
   async findById(orderUuid: string): Promise<Order | null> {
-    return prisma.order.findUnique({
+    const order = await prisma.order.findUnique({
       where: { orderUuid },
       include: {
         table: true,
         waiter: true,
         offer: true,
+        customerSession: { include: { table: true } },
         orderItems: { include: { product: true } },
         payments: true,
       },
     });
+    return this.formatOrder(order);
   }
 
   async findOrdersByBusiness(businessUuid?: string, status?: OrderStatus, waiterUuid?: string): Promise<Order[]> {
-    return prisma.order.findMany({
+    const orders = await prisma.order.findMany({
       where: {
         ...(businessUuid ? { businessUuid } : {}),
         ...(status ? { status } : {}),
@@ -28,10 +50,12 @@ export class OrderRepository implements IOrderRepository {
         table: true,
         waiter: true,
         offer: true,
+        customerSession: { include: { table: true } },
         orderItems: { include: { product: true } },
         payments: true,
       },
     });
+    return orders.map((o) => this.formatOrder(o));
   }
 
   async findOrdersByClub(clubUuid?: string, status?: OrderStatus, waiterUuid?: string): Promise<Order[]> {
@@ -39,16 +63,79 @@ export class OrderRepository implements IOrderRepository {
   }
 
   async findActiveClaimedOrderByWaiter(waiterUuid: string): Promise<Order | null> {
-    return prisma.order.findFirst({
+    const order = await prisma.order.findFirst({
       where: {
         waiterUuid,
         status: { in: ['CLAIMED', 'PREPARING', 'READY'] },
       },
+      include: {
+        table: true,
+        waiter: true,
+        customerSession: { include: { table: true } },
+        orderItems: { include: { product: true } },
+      },
     });
+    return this.formatOrder(order);
   }
 
   async createOrder(businessUuid: string, data: any): Promise<Order> {
     const { tableUuid, items, notes, customerSessionUuid, offerUuid, ageVerified } = data;
+
+    let resolvedTableUuid: string | null = tableUuid || null;
+
+    // 1. If no tableUuid provided directly, check customer session
+    if (!resolvedTableUuid && customerSessionUuid) {
+      const session = await prisma.customerSession.findUnique({
+        where: { customerSessionUuid },
+      });
+      if (session?.tableUuid) {
+        resolvedTableUuid = session.tableUuid;
+      }
+    }
+
+    // 2. If tableNumber or table provided (e.g. from customer scanning QR code)
+    const rawTable = data.tableNumber ?? data.table;
+    if (!resolvedTableUuid && rawTable !== undefined && rawTable !== null && rawTable !== '') {
+      const parsedNum = parseInt(String(rawTable).replace(/[^0-9]/g, ''), 10);
+      if (!isNaN(parsedNum) && parsedNum > 0) {
+        let tableRecord = await prisma.venueTable.findFirst({
+          where: { businessUuid, tableNumber: parsedNum, deletedAt: null },
+        });
+
+        if (!tableRecord) {
+          try {
+            tableRecord = await prisma.venueTable.upsert({
+              where: {
+                businessUuid_tableNumber: {
+                  businessUuid,
+                  tableNumber: parsedNum,
+                },
+              },
+              update: {
+                deletedAt: null,
+                isActive: true,
+              },
+              create: {
+                businessUuid,
+                tableNumber: parsedNum,
+                sectionName: data.sectionName || 'Main Floor',
+                seatingCapacity: 4,
+              },
+            });
+          } catch {
+            tableRecord = await prisma.venueTable.findFirst({
+              where: { businessUuid, tableNumber: parsedNum },
+            });
+          }
+        }
+
+        if (tableRecord) {
+          resolvedTableUuid = tableRecord.tableUuid;
+        }
+      }
+    }
+
+    const orderNotes = notes || (rawTable ? `Table #${rawTable}` : null);
 
     let subtotal = 0;
     const orderItemsData = [];
@@ -108,10 +195,7 @@ export class OrderRepository implements IOrderRepository {
         // Check if offer targets an item in the cart
         const hasMatchingProduct = prodId
           ? items.some((it: any) => it.productUuid === prodId)
-          : items.some((it: any) => {
-              const p = productsMap.get(it.productUuid);
-              return p && (off.title.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(off.title.toLowerCase()));
-            });
+          : true;
 
         if (hasMatchingProduct) {
           matchedOffer = off;
@@ -168,10 +252,10 @@ export class OrderRepository implements IOrderRepository {
     discountAmount = Math.max(0, Math.min(subtotal, discountAmount));
     const totalAmount = Math.max(0, subtotal - discountAmount);
 
-    return prisma.order.create({
+    const created = await prisma.order.create({
       data: {
         businessUuid,
-        tableUuid,
+        tableUuid: resolvedTableUuid,
         customerSessionUuid,
         offerUuid: resolvedOfferUuid,
         orderNumber: `ORD-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
@@ -179,7 +263,7 @@ export class OrderRepository implements IOrderRepository {
         discountAmount,
         totalAmount,
         status: 'PENDING',
-        notes,
+        notes: orderNotes,
         ageVerified: ageVerified === true,
         orderItems: {
           create: orderItemsData,
@@ -188,10 +272,13 @@ export class OrderRepository implements IOrderRepository {
       include: {
         table: true,
         offer: true,
+        customerSession: { include: { table: true } },
         orderItems: { include: { product: true } },
         payments: true,
       },
     });
+
+    return this.formatOrder(created);
   }
 
   async claimOrder(orderUuid: string, waiterUuid: string): Promise<Order> {
@@ -214,6 +301,7 @@ export class OrderRepository implements IOrderRepository {
         include: {
           table: true,
           waiter: true,
+          customerSession: { include: { table: true } },
           orderItems: { include: { product: true } },
           payments: true,
         },
@@ -224,19 +312,21 @@ export class OrderRepository implements IOrderRepository {
       throw new Error('ORDER_NOT_FOUND_AFTER_CLAIM');
     }
 
-    return result;
+    return this.formatOrder(result);
   }
 
   async updateStatus(orderUuid: string, status: OrderStatus): Promise<Order> {
-    return prisma.order.update({
+    const order = await prisma.order.update({
       where: { orderUuid },
       data: { status },
       include: {
         table: true,
         waiter: true,
+        customerSession: { include: { table: true } },
         orderItems: { include: { product: true } },
         payments: true,
       },
     });
+    return this.formatOrder(order);
   }
 }

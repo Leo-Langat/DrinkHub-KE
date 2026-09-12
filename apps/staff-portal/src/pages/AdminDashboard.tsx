@@ -149,6 +149,8 @@ export interface OrderData {
   businessUuid: string;
   tableUuid?: string;
   table?: { tableNumber: number; sectionName: string };
+  tableNumber?: number | string;
+  notes?: string;
   waiterUuid?: string;
   waiter?: { fullName: string; email: string };
   status: string;
@@ -691,6 +693,23 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
 
   /* Formatters & Brand Identity */
   const formatKsh = (amount: number) => `KSh ${Number(amount || 0).toLocaleString('en-KE')}`;
+  const getOrderTableDisplay = (o: any): string => {
+    const num = o?.table?.tableNumber ?? o?.tableNumber;
+    if (num !== undefined && num !== null && num !== '' && !isNaN(Number(num))) {
+      return `Table ${num}`;
+    }
+    if (typeof o?.table === 'number') {
+      return `Table ${o.table}`;
+    }
+    if (typeof o?.table === 'string' && o.table.trim() && o.table !== '-' && o.table.toLowerCase() !== 'takeaway') {
+      return o.table.toLowerCase().startsWith('table') ? o.table : `Table ${o.table}`;
+    }
+    if (o?.notes) {
+      const match = String(o.notes).match(/table\s*(?:#|no\.?|num\.?)?\s*(\d+)/i);
+      if (match) return `Table ${match[1]}`;
+    }
+    return 'Takeaway';
+  };
   const businessName = profName || businessProfile?.name || businessSummary?.business?.name || overview?.business?.name || user.club?.name || user.business?.name || 'My Business';
   const businessType = businessProfile?.businessType || businessSummary?.business?.businessType || overview?.business?.type || user.business?.businessType || 'RESTAURANT';
   const currentLogoUrl = brandLogoUrl || businessProfile?.logoUrl || businessSummary?.business?.logoUrl || (overview?.business as any)?.logoUrl || (user.business as any)?.logoUrl || (user.club as any)?.logoUrl || null;
@@ -883,7 +902,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
         : orders.slice(0, 8).map((o) => ({
             id: o.orderUuid,
             orderNumber: o.orderNumber,
-            tableNumber: o.table?.tableNumber,
+            tableNumber: o.table?.tableNumber ?? o.tableNumber ?? (o.notes?.match(/table\s*(?:#|no\.?|num\.?)?\s*(\d+)/i)?.[1] ? Number(o.notes.match(/table\s*(?:#|no\.?|num\.?)?\s*(\d+)/i)?.[1]) : null),
             sectionName: o.table?.sectionName,
             totalAmount: o.totalAmount,
             paymentMethod: o.paymentMethod || 'MPESA_STK',
@@ -3698,9 +3717,11 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   ───────────────────────────────────────────────────────────── */
   const renderOrdersView = () => {
     const filteredOrders = orders.filter((o) => {
+      const tableDisplay = getOrderTableDisplay(o);
       const matchSearch =
         o.orderNumber.toLowerCase().includes(orderSearch.toLowerCase()) ||
-        String(o.table?.tableNumber || '').includes(orderSearch);
+        tableDisplay.toLowerCase().includes(orderSearch.toLowerCase()) ||
+        String(o.table?.tableNumber || o.tableNumber || '').includes(orderSearch);
       const matchStatus = orderStatusFilter === 'ALL' || o.status === orderStatusFilter;
       return matchSearch && matchStatus;
     });
@@ -3786,7 +3807,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                       className="hover:bg-slate-500/5 cursor-pointer transition-colors"
                     >
                       <td className="py-3 font-bold text-blue-600">#{o.orderNumber}</td>
-                      <td className="py-3 font-semibold">Table {o.table?.tableNumber || 'Takeaway'}</td>
+                      <td className="py-3 font-semibold">{getOrderTableDisplay(o)}</td>
                       <td className="py-3 text-slate-500">
                         {o.orderItems?.map((i) => `${i.quantity}x ${i.productName || i.product?.name || 'Item'}`).join(', ') || 'No items'}
                       </td>
@@ -3817,7 +3838,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                 <div>
                   <span className="text-xs text-slate-500">Table Placement</span>
                   <div className="text-base font-black" style={{ color: 'var(--text-primary)' }}>
-                    Table {selectedOrder.table?.tableNumber || 'Takeaway'} ({selectedOrder.table?.sectionName || 'Main Area'})
+                    {getOrderTableDisplay(selectedOrder)}{selectedOrder.table?.sectionName ? ` (${selectedOrder.table.sectionName})` : ''}
                   </div>
                 </div>
                 <div className="text-right">

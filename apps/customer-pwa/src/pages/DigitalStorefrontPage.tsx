@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import {
   Plus, Minus, X, ChevronRight, ChevronLeft, Sparkles, CheckCircle2,
   Clock, AlertCircle, ShoppingCart, MapPin, Wifi, WifiOff,
@@ -98,7 +98,29 @@ const DEFAULT_BRAND: BrandingConfig = {
 ───────────────────────────────────────────── */
 export const DigitalStorefrontPage: React.FC = () => {
   const { venueSlug, tableNum } = useParams<{ venueSlug?: string; tableNum?: string }>();
-  const table = tableNum ?? '';
+  const [searchParams] = useSearchParams();
+
+  // Robust table detection from path param, query param, or session storage
+  const table = useMemo(() => {
+    const raw =
+      tableNum ||
+      searchParams.get('table') ||
+      searchParams.get('t') ||
+      searchParams.get('tableNum') ||
+      searchParams.get('table_number') ||
+      '';
+    if (raw) {
+      try {
+        sessionStorage.setItem(`drinkhub_table_${venueSlug || 'venue'}`, raw);
+      } catch {}
+      return raw;
+    }
+    try {
+      return sessionStorage.getItem(`drinkhub_table_${venueSlug || 'venue'}`) || '';
+    } catch {
+      return '';
+    }
+  }, [tableNum, searchParams, venueSlug]);
 
   /* ── State ────────────────────────────────── */
   const [brand, setBrand] = useState<BrandingConfig>(DEFAULT_BRAND);
@@ -241,12 +263,28 @@ export const DigitalStorefrontPage: React.FC = () => {
 
         // Resolve table UUID from venueTables/tables array
         const tablesList: any[] = club.venueTables ?? club.tables ?? [];
+        let matchedTableUuid: string | null = null;
         if (table && tablesList.length > 0) {
           const match = tablesList.find(
             (t: any) => String(t.tableNumber) === String(table)
           );
-          if (match) setTableUuid(match.tableUuid ?? match.uuid ?? match.id ?? null);
+          if (match) matchedTableUuid = match.tableUuid ?? match.uuid ?? match.id ?? null;
         }
+
+        if (!matchedTableUuid && table && resolvedClubUuid) {
+          try {
+            const tablesRes = await fetch(getApiUrl(`/tenants/${resolvedClubUuid}/tables`));
+            if (tablesRes.ok) {
+              const tablesData = await tablesRes.json();
+              const fetchedTables = tablesData.data || [];
+              const match = fetchedTables.find(
+                (t: any) => String(t.tableNumber) === String(table)
+              );
+              if (match) matchedTableUuid = match.tableUuid ?? match.uuid ?? match.id ?? null;
+            }
+          } catch {}
+        }
+        setTableUuid(matchedTableUuid);
 
         // 2. Fetch menu with X-Tenant-Id header
         const menuRes = await fetch(getApiUrl('/menu'), {
@@ -562,6 +600,7 @@ export const DigitalStorefrontPage: React.FC = () => {
             : `+254${cleanDigits}`;
       }
 
+      const parsedTableNum = table ? parseInt(String(table).replace(/[^0-9]/g, ''), 10) : undefined;
       const body: Record<string, any> = {
         ...(clubUuid ? { clubUuid } : {}),
         ageVerified: true,
@@ -569,6 +608,13 @@ export const DigitalStorefrontPage: React.FC = () => {
         paymentMethod: payment.toUpperCase(),
       };
       if (tableUuid) body.tableUuid = tableUuid;
+      if (table) {
+        body.table = table;
+        if (parsedTableNum && !isNaN(parsedTableNum)) {
+          body.tableNumber = parsedTableNum;
+        }
+        body.notes = `Table #${table}`;
+      }
       if (formattedPhone) body.phoneNumber = formattedPhone;
       if (appliedOffer) body.offerUuid = appliedOffer.id;
 

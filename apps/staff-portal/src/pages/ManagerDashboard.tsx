@@ -86,6 +86,24 @@ const PhoneInput = ({ error, value, onChange, placeholder }: { error?: string; v
 );
 
 /*           Shared UI           */
+const getOrderTableDisplay = (o: any): string => {
+  const num = o?.table?.tableNumber ?? o?.tableNumber;
+  if (num !== undefined && num !== null && num !== '' && !isNaN(Number(num))) {
+    return `Table ${num}`;
+  }
+  if (typeof o?.table === 'number') {
+    return `Table ${o.table}`;
+  }
+  if (typeof o?.table === 'string' && o.table.trim() && o.table !== '-' && o.table.toLowerCase() !== 'takeaway') {
+    return o.table.toLowerCase().startsWith('table') ? o.table : `Table ${o.table}`;
+  }
+  if (o?.notes) {
+    const match = String(o.notes).match(/table\s*(?:#|no\.?|num\.?)?\s*(\d+)/i);
+    if (match) return `Table ${match[1]}`;
+  }
+  return 'Takeaway';
+};
+
 const getStatusConfig = (rawStatus: string) => {
   const key = (rawStatus ?? '').toUpperCase().trim();
   switch (key) {
@@ -719,7 +737,7 @@ const OrdersPage = ({ showToast }: { showToast: (m: string) => void }) => {
       const raw: any[] = data.data?.orders ?? data.data ?? [];
       setOrders(raw.map((o: any) => ({
         id: o.orderNumber ?? o.uuid?.slice(0, 8).toUpperCase() ?? '-',
-        table: o.table?.tableNumber ? `T-${String(o.table.tableNumber).padStart(2, '0')}` : '-',
+        table: getOrderTableDisplay(o),
         item: (o.items ?? o.orderItems ?? []).map((i: any) => `${i.product?.name ?? i.name} x ${i.quantity}`).join(', ') || '-',
         waiter: o.waiter ? `${(o.waiter.fullName ?? '').split(' ')[0]} ${(o.waiter.fullName ?? '').split(' ').slice(-1)[0]?.charAt(0) ?? ''}.` : 'Unclaimed',
         amount: Number(o.totalAmount ?? 0),
@@ -2305,7 +2323,7 @@ const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
         // 4. Populate Recent Orders with clean items list and waiter
         setRecentOrders(raw.slice(0, 50).map((o: any) => ({
           id: o.orderNumber ?? o.uuid?.slice(0, 8).toUpperCase() ?? '-',
-          table: o.table?.tableNumber ? `T-${String(o.table.tableNumber).padStart(2, '0')}` : '-',
+          table: getOrderTableDisplay(o),
           item: (o.items ?? o.orderItems ?? []).map((i: any) => `${i.product?.name ?? i.name} x ${i.quantity ?? 1}`).join(', ') || 'Drink Order',
           waiter: o.waiter?.fullName ? o.waiter.fullName.split(' ')[0] : 'Unassigned',
           amount: Number(o.totalAmount ?? 0),
@@ -2578,7 +2596,7 @@ const ReportsPage = ({ showToast }: { showToast: (m: string, type?: 'success' | 
         const raw: any[] = d.data?.orders ?? d.data ?? [];
         const rows = raw.map((o: any) => [
           o.orderNumber ?? o.uuid?.slice(0, 8),
-          o.table?.tableNumber ? `T-${o.table.tableNumber}` : '-',
+          getOrderTableDisplay(o),
           (o.items ?? o.orderItems ?? []).map((i: any) => `${i.product?.name ?? i.name} x ${i.quantity ?? 1}`).join('; '),
           o.waiter?.fullName ?? 'Unassigned',
           o.totalAmount,

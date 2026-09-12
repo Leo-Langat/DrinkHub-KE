@@ -3,6 +3,12 @@ import { z } from 'zod';
 export const createOrderSchema = z.object({
   body: z.object({
     tableUuid: z.string().uuid().optional(),
+    tableNumber: z.union([z.number(), z.string()]).optional(),
+    table: z.union([z.number(), z.string()]).optional(),
+    clubUuid: z.string().optional(),
+    businessUuid: z.string().optional(),
+    phoneNumber: z.string().optional(),
+    paymentMethod: z.string().optional(),
     items: z.array(
       z.object({
         productUuid: z.string().uuid(),
@@ -17,7 +23,7 @@ export const createOrderSchema = z.object({
     ageVerified: z.literal(true, {
       errorMap: () => ({ message: 'You must confirm you are of legal drinking age to place an order.' }),
     }),
-  }),
+  }).passthrough(),
 });
 
 export const claimOrderSchema = z.object({

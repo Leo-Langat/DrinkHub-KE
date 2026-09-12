@@ -560,7 +560,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   const [scheduleSaving, setScheduleSaving] = useState(false);
 
   // Active settings sub-tab
-  const [settingsTab, setSettingsTab] = useState<'profile' | 'branding' | 'hours' | 'regional'>('profile');
+  const [settingsTab, setSettingsTab] = useState<'profile' | 'branding' | 'hours'>('profile');
 
   /**
    * Load business profile from GET /api/v1/business/profile
@@ -5321,54 +5321,58 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     ];
 
     return (
-      <div className="space-y-6">
-        {/* ── Header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
-                Business Profile & Settings
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
-                Tenant Scoped
-              </span>
+      <div className="flex-1 min-h-0 flex flex-col space-y-4">
+        {/* ── Sticky Top Header & Tabs ── */}
+        <div className="flex-shrink-0 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
+                  Business Profile & Settings
+                </h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                  Tenant Scoped
+                </span>
+              </div>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Configure your public business profile, branding, and operating schedule.
+              </p>
             </div>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Configure your public business profile, branding, operating schedule, and regional settings.
-            </p>
+            <button
+              onClick={loadBusinessProfile}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold hover:bg-slate-500/10 transition"
+              style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+            >
+              <RefreshCcw className="h-3.5 w-3.5" />
+              Refresh
+            </button>
           </div>
-          <button
-            onClick={loadBusinessProfile}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold hover:bg-slate-500/10 transition"
-            style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
-          >
-            <RefreshCcw className="h-3.5 w-3.5" />
-            Refresh
-          </button>
+
+          {/* ── Sub-Navigation Tabs ── */}
+          <div className="flex items-center gap-2 border-b pb-2 overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
+            {[
+              { key: 'profile', label: 'Profile & Location', icon: <Building2 className="h-4 w-4" /> },
+              { key: 'branding', label: 'Branding & Theme', icon: <Sparkles className="h-4 w-4" /> },
+              { key: 'hours', label: 'Operating Schedule', icon: <Clock className="h-4 w-4" /> },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setSettingsTab(tab.key as any)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition flex-shrink-0 ${
+                  settingsTab === tab.key
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-500 hover:bg-slate-500/10'
+                }`}
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* ── Sub-Navigation Tabs ── */}
-        <div className="flex items-center gap-2 border-b pb-2 overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
-          {[
-            { key: 'profile', label: 'Profile & Location', icon: <Building2 className="h-4 w-4" /> },
-            { key: 'branding', label: 'Branding & Theme', icon: <Sparkles className="h-4 w-4" /> },
-            { key: 'hours', label: 'Operating Schedule', icon: <Clock className="h-4 w-4" /> },
-            { key: 'regional', label: 'Regional & Currency', icon: <DollarSign className="h-4 w-4" /> },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setSettingsTab(tab.key as any)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition flex-shrink-0 ${
-                settingsTab === tab.key
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-500 hover:bg-slate-500/10'
-              }`}
-            >
-              {tab.icon}
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </div>
+        {/* ── Scrollable Tab Content Container ── */}
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1">
 
         {/* ── Tab 1: Profile & Location ── */}
         {settingsTab === 'profile' && (
@@ -5730,62 +5734,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
             </div>
           </form>
         )}
-
-        {/* ── Tab 4: Regional & Currency ── */}
-        {settingsTab === 'regional' && (
-          <form onSubmit={handleSaveRegional} className="p-6 rounded-2xl border space-y-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-            <div>
-              <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>
-                Regional, Timezone & Currency Configuration
-              </h3>
-              <p className="text-xs text-slate-500">Configure your business timezone for daily metrics and ISO currency code for pricing</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500">Business Timezone *</label>
-                <select
-                  value={settingTimezone}
-                  onChange={(e) => setSettingTimezone(e.target.value)}
-                  className="w-full rounded-xl border p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
-                  style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                >
-                  {COMMON_TIMEZONES.map((tz) => (
-                    <option key={tz.value} value={tz.value}>
-                      {tz.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500">Currency Code *</label>
-                <select
-                  value={settingCurrency}
-                  onChange={(e) => setSettingCurrency(e.target.value)}
-                  className="w-full rounded-xl border p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
-                  style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                >
-                  {COMMON_CURRENCIES.map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="pt-3 flex justify-end">
-              <button
-                type="submit"
-                disabled={settingsSaving}
-                className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition disabled:opacity-60"
-              >
-                {settingsSaving ? 'Saving Settings...' : 'Save Regional Settings'}
-              </button>
-            </div>
-          </form>
-        )}
+        </div>
       </div>
     );
   };

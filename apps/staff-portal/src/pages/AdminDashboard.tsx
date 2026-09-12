@@ -917,22 +917,6 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     const revTrend = overview?.revenue;
     const ordTrend = overview?.orders;
 
-    // Recent orders from overview or fallback to live database orders
-    const recentOrdersList =
-      overview?.recentOrders && overview.recentOrders.length > 0
-        ? overview.recentOrders
-        : orders.slice(0, 8).map((o) => ({
-            id: o.orderUuid,
-            orderNumber: o.orderNumber,
-            tableNumber: o.table?.tableNumber ?? o.tableNumber ?? (o.notes?.match(/table\s*(?:#|no\.?|num\.?)?\s*(\d+)/i)?.[1] ? Number(o.notes.match(/table\s*(?:#|no\.?|num\.?)?\s*(\d+)/i)?.[1]) : null),
-            sectionName: o.table?.sectionName,
-            totalAmount: o.totalAmount,
-            paymentMethod: getOrderPaymentMethodRaw(o),
-            paymentStatus: o.paymentStatus,
-            status: o.status,
-            createdAt: o.createdAt,
-          }));
-
     // Top menu items from overview or derived from database orders
     const topMenuItemsList =
       overview?.topMenuItems && overview.topMenuItems.length > 0
@@ -1325,88 +1309,6 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                 ))}
               </div>
             )}
-          </div>
-        </div>
-
-        {/* ── Recent Orders Table (8 Latest) ── */}
-        <div className="p-5 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h4 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>
-                Recent Business Orders
-              </h4>
-              <p className="text-xs text-slate-500">Latest orders placed at {currentBizName}</p>
-            </div>
-            <button
-              onClick={() => setPage('orders')}
-              className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"
-            >
-              View All Orders
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
-
-          <div className="overflow-x-auto overflow-y-auto w-full" style={{ maxHeight: '480px' }}>
-            <table className="w-full min-w-[720px] text-left text-xs">
-              <thead className="sticky top-0 z-10" style={{ background: 'var(--bg-card)' }}>
-                <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>
-                  <th className="pb-3 whitespace-nowrap">Order #</th>
-                  <th className="pb-3 whitespace-nowrap">Table / Section</th>
-                  <th className="pb-3 whitespace-nowrap">Amount</th>
-                  <th className="pb-3 whitespace-nowrap">Payment Method</th>
-                  <th className="pb-3 whitespace-nowrap">Payment Status</th>
-                  <th className="pb-3 whitespace-nowrap">Order Status</th>
-                  <th className="pb-3 whitespace-nowrap">Time</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>
-                {recentOrdersList.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400">
-                      <ClipboardList className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                      <p className="font-bold">No orders placed yet</p>
-                      <p className="text-[11px] mt-1">Orders will appear here as soon as customers scan QR codes and place orders.</p>
-                    </td>
-                  </tr>
-                ) : (
-                  recentOrdersList.map((o) => (
-                    <tr
-                      key={o.id}
-                      onClick={() => {
-                        const fullOrder = orders.find((ord) => ord.orderUuid === o.id);
-                        if (fullOrder) setSelectedOrder(fullOrder);
-                      }}
-                      className="hover:bg-slate-500/5 cursor-pointer transition-colors"
-                    >
-                      <td className="py-3 font-bold text-blue-600 whitespace-nowrap">#{o.orderNumber}</td>
-                      <td className="py-3 font-semibold whitespace-nowrap">
-                        {o.tableNumber ? `Table ${o.tableNumber}` : 'Takeaway'}
-                        {o.sectionName ? ` • ${o.sectionName}` : ''}
-                      </td>
-                      <td className="py-3 font-black text-emerald-600 whitespace-nowrap">{formatKsh(o.totalAmount)}</td>
-                      <td className="py-3 font-semibold whitespace-nowrap">
-                        {(() => {
-                          const m = String(o.paymentMethod || '').toUpperCase();
-                          if (m.includes('CASH')) return <span className="text-amber-500 dark:text-amber-400">Cash</span>;
-                          if (m.includes('CARD')) return <span className="text-blue-500 dark:text-blue-400">Card</span>;
-                          if (m.includes('MPESA')) return <span className="text-emerald-500 dark:text-emerald-400">M-Pesa</span>;
-                          return <span className="text-slate-500">{o.paymentMethod ? o.paymentMethod.replace('_', ' ') : '—'}</span>;
-                        })()}
-                      </td>
-                      <td className="py-3 whitespace-nowrap">
-                        <StatusBadge status={o.paymentStatus || 'PENDING'} />
-                      </td>
-                      <td className="py-3 whitespace-nowrap">
-                        <StatusBadge status={o.status} />
-                      </td>
-                      <td className="py-3 text-slate-400 whitespace-nowrap">
-                        {new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
           </div>
         </div>
       </div>

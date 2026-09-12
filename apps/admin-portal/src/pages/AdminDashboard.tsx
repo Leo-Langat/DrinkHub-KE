@@ -1582,49 +1582,6 @@ const DashboardOverviewPage = ({
           </button>
         </div>
       </div>
-
-      {/* Recent Businesses Table */}
-      <div className="rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-        <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-black text-slate-900 dark:text-white">Recently Registered Businesses</h3>
-            <p className="text-xs text-slate-400">Latest venues onboarded to the platform</p>
-          </div>
-          <button onClick={() => onNavigate('businesses')} className="text-xs font-bold text-blue-600 hover:underline">
-            View All
-          </button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Business</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Type</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Location</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Admin Contact</th>
-                <th className="px-5 py-3 text-left text-xs font-bold text-slate-400">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {!stats?.recentBusinesses || stats.recentBusinesses.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-xs text-slate-400">No registered businesses found</td>
-                </tr>
-              ) : (
-                stats.recentBusinesses.map(b => (
-                  <tr key={b.businessUuid} className="border-b last:border-0 border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition">
-                    <td className="px-5 py-3 font-semibold text-xs text-slate-900 dark:text-white">{b.name}</td>
-                    <td className="px-5 py-3"><BusinessTypeBadge type={b.businessType} /></td>
-                    <td className="px-5 py-3 text-xs text-slate-500">{b.city}, {b.county}</td>
-                    <td className="px-5 py-3 text-xs text-slate-600 dark:text-slate-300">{b.admin?.fullName || '—'} ({b.admin?.email || '—'})</td>
-                    <td className="px-5 py-3"><StatusBadge status={b.status} /></td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   );
 };

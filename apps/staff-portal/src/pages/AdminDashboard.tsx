@@ -1346,17 +1346,17 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
             </button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full min-w-[720px] text-left text-xs">
               <thead>
-                <tr className="border-b text-slate-400 font-bold" style={{ borderColor: 'var(--border)' }}>
-                  <th className="pb-3">Order #</th>
-                  <th className="pb-3">Table / Section</th>
-                  <th className="pb-3">Amount</th>
-                  <th className="pb-3">Payment Method</th>
-                  <th className="pb-3">Payment Status</th>
-                  <th className="pb-3">Order Status</th>
-                  <th className="pb-3">Time</th>
+                <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>
+                  <th className="pb-3 whitespace-nowrap">Order #</th>
+                  <th className="pb-3 whitespace-nowrap">Table / Section</th>
+                  <th className="pb-3 whitespace-nowrap">Amount</th>
+                  <th className="pb-3 whitespace-nowrap">Payment Method</th>
+                  <th className="pb-3 whitespace-nowrap">Payment Status</th>
+                  <th className="pb-3 whitespace-nowrap">Order Status</th>
+                  <th className="pb-3 whitespace-nowrap">Time</th>
                 </tr>
               </thead>
               <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>
@@ -1378,13 +1378,13 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                       }}
                       className="hover:bg-slate-500/5 cursor-pointer transition-colors"
                     >
-                      <td className="py-3 font-bold text-blue-600">#{o.orderNumber}</td>
-                      <td className="py-3 font-semibold">
+                      <td className="py-3 font-bold text-blue-600 whitespace-nowrap">#{o.orderNumber}</td>
+                      <td className="py-3 font-semibold whitespace-nowrap">
                         {o.tableNumber ? `Table ${o.tableNumber}` : 'Takeaway'}
                         {o.sectionName ? ` • ${o.sectionName}` : ''}
                       </td>
-                      <td className="py-3 font-black text-emerald-600">{formatKsh(o.totalAmount)}</td>
-                      <td className="py-3 font-semibold">
+                      <td className="py-3 font-black text-emerald-600 whitespace-nowrap">{formatKsh(o.totalAmount)}</td>
+                      <td className="py-3 font-semibold whitespace-nowrap">
                         {(() => {
                           const m = String(o.paymentMethod || '').toUpperCase();
                           if (m.includes('CASH')) return <span className="text-amber-500 dark:text-amber-400">Cash</span>;
@@ -1393,13 +1393,13 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                           return <span className="text-slate-500">{o.paymentMethod ? o.paymentMethod.replace('_', ' ') : '—'}</span>;
                         })()}
                       </td>
-                      <td className="py-3">
+                      <td className="py-3 whitespace-nowrap">
                         <StatusBadge status={o.paymentStatus || 'PENDING'} />
                       </td>
-                      <td className="py-3">
+                      <td className="py-3 whitespace-nowrap">
                         <StatusBadge status={o.status} />
                       </td>
-                      <td className="py-3 text-slate-400">
+                      <td className="py-3 text-slate-400 whitespace-nowrap">
                         {new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </td>
                     </tr>
@@ -1783,7 +1783,8 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     }
     try {
       setEditManagerSaving(true);
-      await authFetch(`/managers/${editManagerData.managerUuid}`, {
+      const managerId = editManagerData.managerUuid || editManagerData.userUuid;
+      await authFetch(`/managers/${managerId}`, {
         method: 'PATCH',
         body: JSON.stringify({
           fullName: editManagerFullName.trim(),
@@ -1795,6 +1796,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       setEditManagerOpen(false);
       setEditManagerData(null);
       loadManagers(managerPage, managerStatusFilter, managerSearch);
+      loadWaiters(waiterPage, waiterStatusFilter, waiterSearch);
     } catch (err: any) {
       showToast(err.message || 'Failed to update manager.', 'error');
     } finally {
@@ -1810,7 +1812,8 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     if (!resetPwdTarget) return;
     try {
       setResetPwdBusy(true);
-      const res = await authFetch(`/managers/${resetPwdTarget.managerUuid}/reset-password`, {
+      const managerId = resetPwdTarget.managerUuid || resetPwdTarget.userUuid;
+      const res = await authFetch(`/managers/${managerId}/reset-password`, {
         method: 'POST',
         body: JSON.stringify({
           ...(resetPwdCustom.trim() ? { temporaryPassword: resetPwdCustom.trim() } : {}),
@@ -1824,6 +1827,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
         });
         showToast(`Password reset initiated for ${resetPwdTarget.fullName}`, 'success');
         loadManagers(managerPage, managerStatusFilter, managerSearch);
+        loadWaiters(waiterPage, waiterStatusFilter, waiterSearch);
       }
     } catch (err: any) {
       showToast(err.message || 'Failed to reset manager password', 'error');
@@ -1840,7 +1844,8 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     const newActive = !statusManagerTarget.isActive;
     try {
       setStatusManagerBusy(true);
-      await authFetch(`/managers/${statusManagerTarget.managerUuid}/status`, {
+      const managerId = statusManagerTarget.managerUuid || statusManagerTarget.userUuid;
+      await authFetch(`/managers/${managerId}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ isActive: newActive }),
       });
@@ -1851,6 +1856,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       setStatusManagerOpen(false);
       setStatusManagerTarget(null);
       loadManagers(managerPage, managerStatusFilter, managerSearch);
+      loadWaiters(waiterPage, waiterStatusFilter, waiterSearch);
     } catch (err: any) {
       showToast(err.message || 'Failed to update manager status.', 'error');
     } finally {
@@ -1865,11 +1871,13 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     if (!deleteManagerTarget) return;
     try {
       setDeleteManagerBusy(true);
-      await authFetch(`/managers/${deleteManagerTarget.managerUuid}`, { method: 'DELETE' });
+      const managerId = deleteManagerTarget.managerUuid || deleteManagerTarget.userUuid;
+      await authFetch(`/managers/${managerId}`, { method: 'DELETE' });
       showToast(`Manager ${deleteManagerTarget.fullName} has been removed.`, 'success');
       setDeleteManagerOpen(false);
       setDeleteManagerTarget(null);
       loadManagers(managerPage, managerStatusFilter, managerSearch);
+      loadWaiters(waiterPage, waiterStatusFilter, waiterSearch);
     } catch (err: any) {
       showToast(err.message || 'Failed to remove manager.', 'error');
     } finally {
@@ -2059,17 +2067,17 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               ))}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+            <div className="overflow-x-auto w-full">
+              <table className="w-full min-w-[750px] text-left text-xs">
                 <thead>
-                  <tr className="border-b text-slate-400 font-bold" style={{ borderColor: 'var(--border)' }}>
-                    <th className="pb-3">Manager</th>
-                    <th className="pb-3">Email Address</th>
-                    <th className="pb-3">Phone</th>
-                    <th className="pb-3">Status</th>
-                    <th className="pb-3">Activity / Last Login</th>
-                    <th className="pb-3">Date Added</th>
-                    <th className="pb-3 text-right">Actions</th>
+                  <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>
+                    <th className="pb-3 whitespace-nowrap">Manager</th>
+                    <th className="pb-3 whitespace-nowrap">Email Address</th>
+                    <th className="pb-3 whitespace-nowrap">Phone</th>
+                    <th className="pb-3 whitespace-nowrap">Status</th>
+                    <th className="pb-3 whitespace-nowrap">Activity / Last Login</th>
+                    <th className="pb-3 whitespace-nowrap">Date Added</th>
+                    <th className="pb-3 text-right whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>
@@ -2228,7 +2236,16 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
             </div>
           )}
         </div>
+      </div>
+    );
+  };
 
+  /**
+   * Manager Modals (rendered at Users view level so all actions work from all tabs)
+   */
+  const renderManagerModals = () => {
+    return (
+      <>
         {/* ── Create Manager Modal ── */}
         <Modal open={createManagerOpen} onClose={() => setCreateManagerOpen(false)} title="Add New Manager">
           <form onSubmit={handleCreateManagerSubmit} className="space-y-4">
@@ -2632,7 +2649,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
             </div>
           </div>
         </Modal>
-      </div>
+      </>
     );
   };
 
@@ -2839,7 +2856,8 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
 
     try {
       setEditWaiterSaving(true);
-      const res = await authFetch(`/waiters/${editWaiterData.waiterUuid}`, {
+      const waiterId = editWaiterData.waiterUuid || editWaiterData.userUuid;
+      const res = await authFetch(`/waiters/${waiterId}`, {
         method: 'PATCH',
         body: JSON.stringify({
           fullName: editWaiterFullName.trim(),
@@ -2855,6 +2873,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       showToast('Waiter updated successfully!', 'success');
       setEditWaiterOpen(false);
       loadWaiters(waiterPage, waiterStatusFilter, waiterSearch);
+      loadManagers(managerPage, managerStatusFilter, managerSearch);
     } catch (err: any) {
       showToast(err.message || 'Failed to update waiter', 'error');
     } finally {
@@ -2871,7 +2890,8 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
 
     try {
       setResetWaiterPwdBusy(true);
-      const res = await authFetch(`/waiters/${resetWaiterPwdTarget.waiterUuid}/reset-password`, {
+      const waiterId = resetWaiterPwdTarget.waiterUuid || resetWaiterPwdTarget.userUuid;
+      const res = await authFetch(`/waiters/${waiterId}/reset-password`, {
         method: 'POST',
         body: JSON.stringify(
           resetWaiterPwdCustom.trim()
@@ -2887,6 +2907,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       setResetWaiterPwdResult(res.data);
       showToast(`Password reset initiated for ${resetWaiterPwdTarget.fullName}`, 'success');
       loadWaiters(waiterPage, waiterStatusFilter, waiterSearch);
+      loadManagers(managerPage, managerStatusFilter, managerSearch);
     } catch (err: any) {
       showToast(err.message || 'Failed to reset password', 'error');
     } finally {
@@ -2902,7 +2923,8 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     try {
       setStatusWaiterBusy(true);
       const newStatus = !statusWaiterTarget.isActive;
-      const res = await authFetch(`/waiters/${statusWaiterTarget.waiterUuid}/status`, {
+      const waiterId = statusWaiterTarget.waiterUuid || statusWaiterTarget.userUuid;
+      const res = await authFetch(`/waiters/${waiterId}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ isActive: newStatus }),
       });
@@ -2918,6 +2940,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       setStatusWaiterOpen(false);
       setStatusWaiterTarget(null);
       loadWaiters(waiterPage, waiterStatusFilter, waiterSearch);
+      loadManagers(managerPage, managerStatusFilter, managerSearch);
     } catch (err: any) {
       showToast(err.message || 'Failed to update status', 'error');
     } finally {
@@ -2932,7 +2955,8 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     if (!deleteWaiterTarget) return;
     try {
       setDeleteWaiterBusy(true);
-      const res = await authFetch(`/waiters/${deleteWaiterTarget.waiterUuid}`, { method: 'DELETE' });
+      const waiterId = deleteWaiterTarget.waiterUuid || deleteWaiterTarget.userUuid;
+      const res = await authFetch(`/waiters/${waiterId}`, { method: 'DELETE' });
 
       if (!res.success) {
         throw new Error(res.error?.message || 'Failed to delete waiter.');
@@ -2942,6 +2966,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       setDeleteWaiterOpen(false);
       setDeleteWaiterTarget(null);
       loadWaiters(waiterPage, waiterStatusFilter, waiterSearch);
+      loadManagers(managerPage, managerStatusFilter, managerSearch);
     } catch (err: any) {
       showToast(err.message || 'Failed to remove waiter', 'error');
     } finally {
@@ -3145,18 +3170,18 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               ))}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+            <div className="overflow-x-auto w-full">
+              <table className="w-full min-w-[850px] text-left text-xs">
                 <thead>
-                  <tr className="border-b text-slate-400 font-bold" style={{ borderColor: 'var(--border)' }}>
-                    <th className="pb-3">Waiter</th>
-                    <th className="pb-3">Email Address</th>
-                    <th className="pb-3">Phone</th>
-                    <th className="pb-3">Status</th>
-                    <th className="pb-3">Orders Handled</th>
-                    <th className="pb-3">Activity / Last Login</th>
-                    <th className="pb-3">Date Added</th>
-                    <th className="pb-3 text-right">Actions</th>
+                  <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>
+                    <th className="pb-3 whitespace-nowrap">Waiter</th>
+                    <th className="pb-3 whitespace-nowrap">Email Address</th>
+                    <th className="pb-3 whitespace-nowrap">Phone</th>
+                    <th className="pb-3 whitespace-nowrap">Status</th>
+                    <th className="pb-3 whitespace-nowrap">Orders Handled</th>
+                    <th className="pb-3 whitespace-nowrap">Activity / Last Login</th>
+                    <th className="pb-3 whitespace-nowrap">Date Added</th>
+                    <th className="pb-3 text-right whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>
@@ -3317,7 +3342,16 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
             </div>
           )}
         </div>
+      </div>
+    );
+  };
 
+  /**
+   * Waiter Modals (rendered at Users view level so all actions work from all tabs)
+   */
+  const renderWaiterModals = () => {
+    return (
+      <>
         {/* ── Create Waiter Modal ── */}
         <Modal open={createWaiterOpen} onClose={() => setCreateWaiterOpen(false)} title="Add New Waiter">
           <form onSubmit={handleCreateWaiterSubmit} className="space-y-4">
@@ -3736,7 +3770,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
             </div>
           </div>
         </Modal>
-      </div>
+      </>
     );
   };
 
@@ -3810,18 +3844,18 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
 
         {/* Orders Table */}
         <div className="p-5 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full min-w-[880px] text-left text-xs">
               <thead>
-                <tr className="border-b text-slate-400 font-bold" style={{ borderColor: 'var(--border)' }}>
-                  <th className="pb-3">Order #</th>
-                  <th className="pb-3">Table Seating</th>
-                  <th className="pb-3">Items Summary</th>
-                  <th className="pb-3">Total Amount</th>
-                  <th className="pb-3">Payment Method</th>
-                  <th className="pb-3">Order Status</th>
-                  <th className="pb-3">Waiter</th>
-                  <th className="pb-3">Timestamp</th>
+                <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>
+                  <th className="pb-3 whitespace-nowrap">Order #</th>
+                  <th className="pb-3 whitespace-nowrap">Table Seating</th>
+                  <th className="pb-3 whitespace-nowrap">Items Summary</th>
+                  <th className="pb-3 whitespace-nowrap">Total Amount</th>
+                  <th className="pb-3 whitespace-nowrap">Payment Method</th>
+                  <th className="pb-3 whitespace-nowrap">Order Status</th>
+                  <th className="pb-3 whitespace-nowrap">Waiter</th>
+                  <th className="pb-3 whitespace-nowrap">Timestamp</th>
                 </tr>
               </thead>
               <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>
@@ -3838,13 +3872,13 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                       onClick={() => setSelectedOrder(o)}
                       className="hover:bg-slate-500/5 cursor-pointer transition-colors"
                     >
-                      <td className="py-3 font-bold text-blue-600">#{o.orderNumber}</td>
-                      <td className="py-3 font-semibold">{getOrderTableDisplay(o)}</td>
+                      <td className="py-3 font-bold text-blue-600 whitespace-nowrap">#{o.orderNumber}</td>
+                      <td className="py-3 font-semibold whitespace-nowrap">{getOrderTableDisplay(o)}</td>
                       <td className="py-3 text-slate-500">
                         {o.orderItems?.map((i) => `${i.quantity}x ${i.productName || i.product?.name || 'Item'}`).join(', ') || 'No items'}
                       </td>
-                      <td className="py-3 font-black text-emerald-600">{formatKsh(o.totalAmount)}</td>
-                      <td className="py-3 font-semibold">
+                      <td className="py-3 font-black text-emerald-600 whitespace-nowrap">{formatKsh(o.totalAmount)}</td>
+                      <td className="py-3 font-semibold whitespace-nowrap">
                         {(() => {
                           const pm = getOrderPaymentMethodRaw(o);
                           const label = getOrderPaymentMethodDisplay(o);
@@ -3857,11 +3891,11 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                           return <span className="inline-flex items-center gap-1 font-bold text-emerald-500 dark:text-emerald-400">{label}</span>;
                         })()}
                       </td>
-                      <td className="py-3">
+                      <td className="py-3 whitespace-nowrap">
                         <StatusBadge status={o.status} />
                       </td>
-                      <td className="py-3 text-slate-500">{o.waiter?.fullName || 'Unassigned'}</td>
-                      <td className="py-3 text-slate-400">
+                      <td className="py-3 text-slate-500 whitespace-nowrap">{o.waiter?.fullName || 'Unassigned'}</td>
+                      <td className="py-3 text-slate-400 whitespace-nowrap">
                         {new Date(o.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                       </td>
                     </tr>
@@ -4189,17 +4223,17 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
 
         {/* Payments Table */}
         <div className="p-5 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full min-w-[780px] text-left text-xs">
               <thead>
-                <tr className="border-b text-slate-400 font-bold" style={{ borderColor: 'var(--border)' }}>
-                  <th className="pb-3">Receipt / Ref</th>
-                  <th className="pb-3">Order Ref</th>
-                  <th className="pb-3">Amount</th>
-                  <th className="pb-3">Method</th>
-                  <th className="pb-3">Status</th>
-                  <th className="pb-3">Customer Phone / Waiter</th>
-                  <th className="pb-3">Timestamp</th>
+                <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>
+                  <th className="pb-3 whitespace-nowrap">Receipt / Ref</th>
+                  <th className="pb-3 whitespace-nowrap">Order Ref</th>
+                  <th className="pb-3 whitespace-nowrap">Amount</th>
+                  <th className="pb-3 whitespace-nowrap">Method</th>
+                  <th className="pb-3 whitespace-nowrap">Status</th>
+                  <th className="pb-3 whitespace-nowrap">Customer Phone / Waiter</th>
+                  <th className="pb-3 whitespace-nowrap">Timestamp</th>
                 </tr>
               </thead>
               <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>
@@ -4212,21 +4246,21 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                 ) : (
                   filteredPayments.map((p) => (
                     <tr key={p.paymentUuid} className="hover:bg-slate-500/5 transition-colors">
-                      <td className="py-3 font-mono font-bold text-blue-600">
+                      <td className="py-3 font-mono font-bold text-blue-600 whitespace-nowrap">
                         {p.mpesaReceiptNumber || p.checkoutRequestId?.slice(-8) || p.paymentUuid.slice(0, 8)}
                       </td>
-                      <td className="py-3 font-semibold">
+                      <td className="py-3 font-semibold whitespace-nowrap">
                         {p.order?.orderNumber ? `#${p.order.orderNumber}` : p.orderUuid.slice(0, 8)}
                       </td>
-                      <td className="py-3 font-black text-emerald-600">{formatKsh(p.amount)}</td>
-                      <td className="py-3 font-semibold">{p.paymentMethod}</td>
-                      <td className="py-3">
+                      <td className="py-3 font-black text-emerald-600 whitespace-nowrap">{formatKsh(p.amount)}</td>
+                      <td className="py-3 font-semibold whitespace-nowrap">{p.paymentMethod}</td>
+                      <td className="py-3 whitespace-nowrap">
                         <StatusBadge status={p.paymentStatus} />
                       </td>
-                      <td className="py-3 text-slate-500">
+                      <td className="py-3 text-slate-500 whitespace-nowrap">
                         {p.phoneNumber || p.order?.waiter?.fullName || '—'}
                       </td>
-                      <td className="py-3 text-slate-400">
+                      <td className="py-3 text-slate-400 whitespace-nowrap">
                         {new Date(p.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                       </td>
                     </tr>
@@ -4321,15 +4355,15 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           <h4 className="text-sm font-black mb-3" style={{ color: 'var(--text-primary)' }}>
             Waiter Order Handling Metrics
           </h4>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full min-w-[650px] text-left text-xs">
               <thead>
-                <tr className="border-b text-slate-400 font-bold" style={{ borderColor: 'var(--border)' }}>
-                  <th className="pb-3">Waiter Name</th>
-                  <th className="pb-3">Orders Served</th>
-                  <th className="pb-3">Revenue Collected</th>
-                  <th className="pb-3">Avg Fulfillment Time</th>
-                  <th className="pb-3">Efficiency</th>
+                <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>
+                  <th className="pb-3 whitespace-nowrap">Waiter Name</th>
+                  <th className="pb-3 whitespace-nowrap">Orders Served</th>
+                  <th className="pb-3 whitespace-nowrap">Revenue Collected</th>
+                  <th className="pb-3 whitespace-nowrap">Avg Fulfillment Time</th>
+                  <th className="pb-3 whitespace-nowrap">Efficiency</th>
                 </tr>
               </thead>
               <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>
@@ -4342,13 +4376,13 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                 ) : (
                   waiterStats.map((w, idx) => (
                     <tr key={idx} className="hover:bg-slate-500/5 transition-colors">
-                      <td className="py-3 font-bold" style={{ color: 'var(--text-primary)' }}>
+                      <td className="py-3 font-bold whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>
                         {w.name}
                       </td>
-                      <td className="py-3 font-bold text-blue-600">{w.ordersServed} orders</td>
-                      <td className="py-3 font-black text-emerald-600">{formatKsh(w.revenueGenerated)}</td>
-                      <td className="py-3 text-slate-500">{w.avgFulfillmentMins} mins</td>
-                      <td className="py-3">
+                      <td className="py-3 font-bold text-blue-600 whitespace-nowrap">{w.ordersServed} orders</td>
+                      <td className="py-3 font-black text-emerald-600 whitespace-nowrap">{formatKsh(w.revenueGenerated)}</td>
+                      <td className="py-3 text-slate-500 whitespace-nowrap">{w.avgFulfillmentMins} mins</td>
+                      <td className="py-3 whitespace-nowrap">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">
                           High
                         </span>
@@ -4791,23 +4825,23 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                 {reportData.paymentMethodBreakdown?.length > 0 && (
                   <div className="p-4 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
                     <div className="text-sm font-black mb-3" style={{ color: 'var(--text-primary)' }}>By Payment Method</div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
+                    <div className="overflow-x-auto w-full">
+                      <table className="w-full min-w-[480px] text-xs">
                         <thead>
-                          <tr style={{ color: 'var(--text-muted)' }}>
-                            <th className="text-left py-2 font-semibold">Method</th>
-                            <th className="text-right py-2 font-semibold">Transactions</th>
-                            <th className="text-right py-2 font-semibold">Revenue</th>
-                            <th className="text-right py-2 font-semibold">%</th>
+                          <tr style={{ color: 'var(--text-muted)' }} className="whitespace-nowrap">
+                            <th className="text-left py-2 font-semibold whitespace-nowrap">Method</th>
+                            <th className="text-right py-2 font-semibold whitespace-nowrap">Transactions</th>
+                            <th className="text-right py-2 font-semibold whitespace-nowrap">Revenue</th>
+                            <th className="text-right py-2 font-semibold whitespace-nowrap">%</th>
                           </tr>
                         </thead>
                         <tbody>
                           {reportData.paymentMethodBreakdown.map((m: any, i: number) => (
                             <tr key={m.method} className="border-t" style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-                              <td className="py-2 font-semibold">{m.method.replace('_', ' ')}</td>
-                              <td className="py-2 text-right">{m.transactions}</td>
-                              <td className="py-2 text-right">{formatKsh(m.revenue)}</td>
-                              <td className="py-2 text-right">{m.percentage}%</td>
+                              <td className="py-2 font-semibold whitespace-nowrap">{m.method.replace('_', ' ')}</td>
+                              <td className="py-2 text-right whitespace-nowrap">{m.transactions}</td>
+                              <td className="py-2 text-right whitespace-nowrap">{formatKsh(m.revenue)}</td>
+                              <td className="py-2 text-right whitespace-nowrap">{m.percentage}%</td>
                             </tr>
                           ))}
                         </tbody>
@@ -4835,27 +4869,27 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                 {reportData.topProducts?.length > 0 && (
                   <div className="p-4 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
                     <div className="text-sm font-black mb-3" style={{ color: 'var(--text-primary)' }}>Top 10 Products</div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
+                    <div className="overflow-x-auto w-full">
+                      <table className="w-full min-w-[640px] text-xs">
                         <thead>
-                          <tr style={{ color: 'var(--text-muted)' }}>
-                            <th className="text-left py-2 font-semibold">#</th>
-                            <th className="text-left py-2 font-semibold">Product</th>
-                            <th className="text-left py-2 font-semibold">Category</th>
-                            <th className="text-right py-2 font-semibold">Qty Sold</th>
-                            <th className="text-right py-2 font-semibold">Revenue</th>
-                            <th className="text-right py-2 font-semibold">%</th>
+                          <tr style={{ color: 'var(--text-muted)' }} className="whitespace-nowrap">
+                            <th className="text-left py-2 font-semibold whitespace-nowrap">#</th>
+                            <th className="text-left py-2 font-semibold whitespace-nowrap">Product</th>
+                            <th className="text-left py-2 font-semibold whitespace-nowrap">Category</th>
+                            <th className="text-right py-2 font-semibold whitespace-nowrap">Qty Sold</th>
+                            <th className="text-right py-2 font-semibold whitespace-nowrap">Revenue</th>
+                            <th className="text-right py-2 font-semibold whitespace-nowrap">%</th>
                           </tr>
                         </thead>
                         <tbody>
                           {reportData.topProducts.map((p: any, i: number) => (
                             <tr key={p.productUuid} className="border-t" style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-                              <td className="py-2 font-bold text-indigo-600">{i + 1}</td>
-                              <td className="py-2 font-semibold">{p.productName}</td>
-                              <td className="py-2" style={{ color: 'var(--text-muted)' }}>{p.category}</td>
-                              <td className="py-2 text-right">{p.quantitySold}</td>
-                              <td className="py-2 text-right">{formatKsh(p.revenue)}</td>
-                              <td className="py-2 text-right">{p.percentageOfTotalRevenue}%</td>
+                              <td className="py-2 font-bold text-indigo-600 whitespace-nowrap">{i + 1}</td>
+                              <td className="py-2 font-semibold whitespace-nowrap">{p.productName}</td>
+                              <td className="py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{p.category}</td>
+                              <td className="py-2 text-right whitespace-nowrap">{p.quantitySold}</td>
+                              <td className="py-2 text-right whitespace-nowrap">{formatKsh(p.revenue)}</td>
+                              <td className="py-2 text-right whitespace-nowrap">{p.percentageOfTotalRevenue}%</td>
                             </tr>
                           ))}
                         </tbody>
@@ -4885,38 +4919,38 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                 {reportData.waiters?.length > 0 && (
                   <div className="p-4 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
                     <div className="text-sm font-black mb-3" style={{ color: 'var(--text-primary)' }}>User / Staff Performance</div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
+                    <div className="overflow-x-auto w-full">
+                      <table className="w-full min-w-[850px] text-xs">
                         <thead>
-                          <tr style={{ color: 'var(--text-muted)' }}>
-                            <th className="text-left py-2 font-semibold">User</th>
-                            <th className="text-right py-2 font-semibold">Claimed</th>
-                            <th className="text-right py-2 font-semibold">Completed</th>
-                            <th className="text-right py-2 font-semibold">Cancelled</th>
-                            <th className="text-right py-2 font-semibold">Active</th>
-                            <th className="text-right py-2 font-semibold">Rate</th>
-                            <th className="text-right py-2 font-semibold">Revenue</th>
-                            <th className="text-right py-2 font-semibold">Avg Time</th>
+                          <tr style={{ color: 'var(--text-muted)' }} className="whitespace-nowrap">
+                            <th className="text-left py-2 font-semibold whitespace-nowrap">User</th>
+                            <th className="text-right py-2 font-semibold whitespace-nowrap">Claimed</th>
+                            <th className="text-right py-2 font-semibold whitespace-nowrap">Completed</th>
+                            <th className="text-right py-2 font-semibold whitespace-nowrap">Cancelled</th>
+                            <th className="text-right py-2 font-semibold whitespace-nowrap">Active</th>
+                            <th className="text-right py-2 font-semibold whitespace-nowrap">Rate</th>
+                            <th className="text-right py-2 font-semibold whitespace-nowrap">Revenue</th>
+                            <th className="text-right py-2 font-semibold whitespace-nowrap">Avg Time</th>
                           </tr>
                         </thead>
                         <tbody>
                           {reportData.waiters.map((w: any) => (
                             <tr key={w.waiterUuid} className="border-t" style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-                              <td className="py-2">
+                              <td className="py-2 whitespace-nowrap">
                                 <div className="font-semibold">{w.fullName}</div>
                                 <div style={{ color: 'var(--text-muted)' }}>{w.email}</div>
                               </td>
-                              <td className="py-2 text-right">{w.ordersClaimed}</td>
-                              <td className="py-2 text-right text-green-600">{w.ordersCompleted}</td>
-                              <td className="py-2 text-right text-red-500">{w.ordersCancelled}</td>
-                              <td className="py-2 text-right text-indigo-500">{w.activeOrders}</td>
-                              <td className="py-2 text-right">
+                              <td className="py-2 text-right whitespace-nowrap">{w.ordersClaimed}</td>
+                              <td className="py-2 text-right text-green-600 whitespace-nowrap">{w.ordersCompleted}</td>
+                              <td className="py-2 text-right text-red-500 whitespace-nowrap">{w.ordersCancelled}</td>
+                              <td className="py-2 text-right text-indigo-500 whitespace-nowrap">{w.activeOrders}</td>
+                              <td className="py-2 text-right whitespace-nowrap">
                                 <span className={`font-bold ${w.completionRate >= 80 ? 'text-green-600' : w.completionRate >= 50 ? 'text-amber-600' : 'text-red-500'}`}>
                                   {w.completionRate}%
                                 </span>
                               </td>
-                              <td className="py-2 text-right">{formatKsh(w.revenueHandled)}</td>
-                              <td className="py-2 text-right" style={{ color: 'var(--text-muted)' }}>
+                              <td className="py-2 text-right whitespace-nowrap">{formatKsh(w.revenueHandled)}</td>
+                              <td className="py-2 text-right whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
                                 {w.averageCompletionTimeMinutes > 0 ? `${w.averageCompletionTimeMinutes}m` : '—'}
                               </td>
                             </tr>
@@ -5905,8 +5939,18 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     );
 
     const combinedUsers = [
-      ...managerList.map((m) => ({ ...m, userType: 'MANAGER' as const })),
-      ...waiterList.map((w) => ({ ...w, userType: 'WAITER' as const })),
+      ...managerList.map((m) => ({
+        ...m,
+        userType: 'MANAGER' as const,
+        managerUuid: m.managerUuid || m.userUuid,
+        userUuid: m.userUuid || m.managerUuid,
+      })),
+      ...waiterList.map((w) => ({
+        ...w,
+        userType: 'WAITER' as const,
+        waiterUuid: w.waiterUuid || w.userUuid,
+        userUuid: w.userUuid || w.waiterUuid,
+      })),
     ].filter((u) => {
       if (!allUsersSearch) return true;
       const q = allUsersSearch.toLowerCase();
@@ -5939,7 +5983,6 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => {
-                setUserSubTab('managers');
                 generateSecurePassword();
                 setCreateManagerOpen(true);
               }}
@@ -5950,7 +5993,6 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
             </button>
             <button
               onClick={() => {
-                setUserSubTab('waiters');
                 generateSecureWaiterPassword();
                 setCreateWaiterOpen(true);
               }}
@@ -6082,16 +6124,16 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
 
             {/* Combined Users Table */}
             <div className="p-5 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+              <div className="overflow-x-auto w-full">
+                <table className="w-full min-w-[760px] text-left text-xs">
                   <thead>
-                    <tr className="border-b text-slate-400 font-bold" style={{ borderColor: 'var(--border)' }}>
-                      <th className="pb-3">User</th>
-                      <th className="pb-3">Role</th>
-                      <th className="pb-3">Phone</th>
-                      <th className="pb-3">Status</th>
-                      <th className="pb-3">Added</th>
-                      <th className="pb-3 text-right">Actions</th>
+                    <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>
+                      <th className="pb-3 whitespace-nowrap">User</th>
+                      <th className="pb-3 whitespace-nowrap">Role</th>
+                      <th className="pb-3 whitespace-nowrap">Phone</th>
+                      <th className="pb-3 whitespace-nowrap">Status</th>
+                      <th className="pb-3 whitespace-nowrap">Added</th>
+                      <th className="pb-3 text-right whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>
@@ -6106,10 +6148,10 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                     ) : (
                       combinedUsers.map((u: any) => {
                         const isMgr = u.userType === 'MANAGER';
-                        const id = isMgr ? u.userUuid : u.waiterUuid;
+                        const uuid = isMgr ? (u.managerUuid || u.userUuid) : (u.waiterUuid || u.userUuid);
                         return (
-                          <tr key={`${u.userType}-${id}`} className="hover:bg-slate-500/5 transition-colors">
-                            <td className="py-3">
+                          <tr key={`${u.userType}-${uuid}`} className="hover:bg-slate-500/5 transition-colors">
+                            <td className="py-3 whitespace-nowrap">
                               <div className="flex items-center gap-2.5">
                                 <div
                                   className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs ${
@@ -6128,7 +6170,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                                 </div>
                               </div>
                             </td>
-                            <td className="py-3">
+                            <td className="py-3 whitespace-nowrap">
                               <span
                                 className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                                   isMgr
@@ -6140,8 +6182,8 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                                 {u.userType}
                               </span>
                             </td>
-                            <td className="py-3 text-slate-500">{u.phone || '—'}</td>
-                            <td className="py-3">
+                            <td className="py-3 whitespace-nowrap text-slate-500">{u.phone || '—'}</td>
+                            <td className="py-3 whitespace-nowrap">
                               <span
                                 className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
                                   u.isActive
@@ -6157,11 +6199,27 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                                 {u.isActive ? 'Active' : 'Inactive'}
                               </span>
                             </td>
-                            <td className="py-3 text-slate-400">
+                            <td className="py-3 whitespace-nowrap text-slate-400">
                               {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}
                             </td>
-                            <td className="py-3 text-right">
+                            <td className="py-3 whitespace-nowrap text-right">
                               <div className="flex items-center justify-end gap-1.5">
+                                {/* View Details */}
+                                <button
+                                  onClick={() => {
+                                    if (isMgr) {
+                                      openViewManager(uuid);
+                                    } else {
+                                      openViewWaiter(uuid);
+                                    }
+                                  }}
+                                  title="View Details"
+                                  className="p-1.5 rounded-lg border hover:bg-blue-500/10 transition-colors"
+                                  style={{ borderColor: 'var(--border)' }}
+                                >
+                                  <Eye className="h-3.5 w-3.5 text-blue-500" />
+                                </button>
+                                {/* Reset Password */}
                                 <button
                                   onClick={() => {
                                     if (isMgr) {
@@ -6177,11 +6235,12 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                                     }
                                   }}
                                   title="Reset Password"
-                                  className="p-1.5 rounded-lg border hover:bg-slate-500/10 transition-colors"
+                                  className="p-1.5 rounded-lg border hover:bg-amber-500/10 transition-colors"
                                   style={{ borderColor: 'var(--border)' }}
                                 >
                                   <Key className="h-3.5 w-3.5 text-amber-600" />
                                 </button>
+                                {/* Edit User */}
                                 <button
                                   onClick={() => {
                                     if (isMgr) {
@@ -6191,11 +6250,31 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                                     }
                                   }}
                                   title="Edit User"
-                                  className="p-1.5 rounded-lg border hover:bg-slate-500/10 transition-colors"
+                                  className="p-1.5 rounded-lg border hover:bg-blue-500/10 transition-colors"
                                   style={{ borderColor: 'var(--border)' }}
                                 >
                                   <Edit2 className="h-3.5 w-3.5 text-blue-600" />
                                 </button>
+                                {/* Activate / Deactivate */}
+                                <button
+                                  onClick={() => {
+                                    if (isMgr) {
+                                      setStatusManagerTarget(u);
+                                      setStatusManagerOpen(true);
+                                    } else {
+                                      setStatusWaiterTarget(u);
+                                      setStatusWaiterOpen(true);
+                                    }
+                                  }}
+                                  title={u.isActive ? 'Deactivate User' : 'Activate User'}
+                                  className={`p-1.5 rounded-lg border transition-colors ${
+                                    u.isActive ? 'hover:bg-amber-500/10 text-amber-600' : 'hover:bg-emerald-500/10 text-emerald-600'
+                                  }`}
+                                  style={{ borderColor: 'var(--border)' }}
+                                >
+                                  {u.isActive ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
+                                </button>
+                                {/* Remove User */}
                                 <button
                                   onClick={() => {
                                     if (isMgr) {
@@ -6224,6 +6303,10 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
             </div>
           </div>
         )}
+
+        {/* User Management Modals (Mounted at Users level so all actions work across All Users, Managers, and Waiters) */}
+        {renderManagerModals()}
+        {renderWaiterModals()}
       </div>
     );
   };

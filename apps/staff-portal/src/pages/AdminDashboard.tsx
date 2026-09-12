@@ -1346,9 +1346,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
             </button>
           </div>
 
-          <div className="overflow-x-auto w-full">
+          <div className="overflow-x-auto overflow-y-auto w-full" style={{ maxHeight: '480px' }}>
             <table className="w-full min-w-[720px] text-left text-xs">
-              <thead>
+              <thead className="sticky top-0 z-10" style={{ background: 'var(--bg-card)' }}>
                 <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>
                   <th className="pb-3 whitespace-nowrap">Order #</th>
                   <th className="pb-3 whitespace-nowrap">Table / Section</th>
@@ -2067,9 +2067,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               ))}
             </div>
           ) : (
-            <div className="overflow-x-auto w-full">
+            <div className="overflow-x-auto overflow-y-auto w-full" style={{ maxHeight: '480px' }}>
               <table className="w-full min-w-[750px] text-left text-xs">
-                <thead>
+                <thead className="sticky top-0 z-10" style={{ background: 'var(--bg-card)' }}>
                   <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>
                     <th className="pb-3 whitespace-nowrap">Manager</th>
                     <th className="pb-3 whitespace-nowrap">Email Address</th>
@@ -3170,9 +3170,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               ))}
             </div>
           ) : (
-            <div className="overflow-x-auto w-full">
+            <div className="overflow-x-auto overflow-y-auto w-full" style={{ maxHeight: '480px' }}>
               <table className="w-full min-w-[850px] text-left text-xs">
-                <thead>
+                <thead className="sticky top-0 z-10" style={{ background: 'var(--bg-card)' }}>
                   <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>
                     <th className="pb-3 whitespace-nowrap">Waiter</th>
                     <th className="pb-3 whitespace-nowrap">Email Address</th>
@@ -3844,9 +3844,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
 
         {/* Orders Table */}
         <div className="p-5 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          <div className="overflow-x-auto w-full">
+          <div className="overflow-x-auto overflow-y-auto w-full" style={{ maxHeight: '480px' }}>
             <table className="w-full min-w-[880px] text-left text-xs">
-              <thead>
+              <thead className="sticky top-0 z-10" style={{ background: 'var(--bg-card)' }}>
                 <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>
                   <th className="pb-3 whitespace-nowrap">Order #</th>
                   <th className="pb-3 whitespace-nowrap">Table Seating</th>
@@ -6124,9 +6124,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
 
             {/* Combined Users Table */}
             <div className="p-5 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              <div className="overflow-x-auto w-full">
+              <div className="overflow-x-auto overflow-y-auto w-full" style={{ maxHeight: '480px' }}>
                 <table className="w-full min-w-[760px] text-left text-xs">
-                  <thead>
+                  <thead className="sticky top-0 z-10" style={{ background: 'var(--bg-card)' }}>
                     <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>
                       <th className="pb-3 whitespace-nowrap">User</th>
                       <th className="pb-3 whitespace-nowrap">Role</th>

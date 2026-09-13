@@ -9,7 +9,7 @@ import {
   ChevronLeft, Check, UserCog, Mail, Phone, MapPin,
   RotateCcw, UserX, UserCheck, Calendar, Lock, ShieldAlert,
   UtensilsCrossed, Store, Coffee, Hotel, Filter, SlidersHorizontal,
-  UserPlus,
+  UserPlus, Menu,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis,
@@ -3049,6 +3049,7 @@ const PAGE_TITLES: Record<NavKey, string> = {
 export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const [page, setPage] = useState<NavKey>('dashboard');
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => setToast({ msg, type }), []);
 
@@ -3197,9 +3198,19 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     <div className="h-screen flex overflow-hidden" style={{ background: 'var(--bg-body)' }}>
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
 
+      {/* ── Mobile Sidebar Backdrop ── */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
       {/* ─── SIDEBAR ─── */}
       <aside
-        className="flex-shrink-0 flex flex-col sticky top-0 h-screen transition-all duration-200 z-30"
+        className={`flex-shrink-0 flex flex-col h-screen transition-all duration-200 z-50
+          fixed lg:sticky top-0
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
         style={{ width: collapsed ? '64px' : '230px', background: 'var(--bg-sidebar)', borderRight: '1px solid #1E293B' }}
       >
         <div className="flex items-center gap-3 p-4 border-b border-slate-800">
@@ -3222,7 +3233,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           {NAV_ITEMS.map(item => (
             <button
               key={item.key}
-              onClick={() => setPage(item.key)}
+              onClick={() => { setPage(item.key); setMobileOpen(false); }}
               title={collapsed ? item.label : undefined}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
                 page === item.key
@@ -3253,19 +3264,30 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       {/* ─── MAIN CONTENT ─── */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <header
-          className="flex-shrink-0 border-b px-6 py-3.5 flex items-center justify-between z-20 backdrop-blur-md"
+          className="flex-shrink-0 border-b px-3 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between z-20 backdrop-blur-md"
           style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}
         >
-          <div>
-            <h1 className="text-base font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>
-              {PAGE_TITLES[page]}
-            </h1>
-            <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-              Super Admin Console · Platform Control
-            </p>
+          <div className="flex items-center gap-2 min-w-0">
+            {/* Hamburger — only on mobile */}
+            <button
+              type="button"
+              onClick={() => setMobileOpen(true)}
+              className="p-1.5 -ml-0.5 mr-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors lg:hidden flex-shrink-0"
+              title="Open Menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-base font-black tracking-tight truncate" style={{ color: 'var(--text-primary)' }}>
+                {PAGE_TITLES[page]}
+              </h1>
+              <p className="text-xs font-medium hidden sm:block" style={{ color: 'var(--text-muted)' }}>
+                Super Admin Console · Platform Control
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="hidden sm:flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
               <Zap className="h-3.5 w-3.5 text-emerald-500" /> Platform Operational
             </div>
@@ -3329,7 +3351,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           </div>
         </header>
 
-        <main className="flex-1 p-6 overflow-y-auto min-h-0 flex flex-col">
+        <main className="flex-1 p-3 sm:p-6 overflow-y-auto min-h-0 flex flex-col">
           {renderPage()}
         </main>
       </div>

@@ -8,6 +8,7 @@ import {
   AlertCircle, ArrowUpRight, RotateCcw, Key, UserX, UserCheck,
   Phone, Mail, Hash, Lock, Clock, Briefcase, Shield, QrCode, Copy, ExternalLink,
   Tag, Layers, FolderPlus, Camera, Image, Upload, Printer, Sparkles, Flame, Gift, Percent, Zap,
+  Menu,
 } from 'lucide-react';
 import { resolveImageUrl } from '../config/api';
 import {
@@ -3326,6 +3327,7 @@ const INIT_MGR_NOTIFS: MgrNotif[] = [];
 export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const [page, setPage] = React.useState<NavKey>('dashboard');
   const [collapsed, setCollapsed] = React.useState(false);
+  const [mobileOpen, setMobileOpen] = React.useState(false);
   const [toast, setToast] = React.useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => setToast({ msg, type }), []);
 
@@ -3441,7 +3443,15 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
   return (
     <div className="h-screen flex overflow-hidden" style={{ background: 'var(--bg-body)' }}>
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
-      <aside className="flex-shrink-0 flex flex-col sticky top-0 h-screen transition-all duration-200" style={{ width: collapsed ? '64px' : '210px', background: 'var(--bg-sidebar)', borderRight: '1px solid #1E293B' }}>
+      {/* ── Mobile Sidebar Backdrop ── */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      <aside className={`flex-shrink-0 flex flex-col h-screen transition-all duration-200 fixed lg:sticky top-0 z-50 lg:z-30 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`} style={{ width: collapsed ? '64px' : '210px', background: 'var(--bg-sidebar)', borderRight: '1px solid #1E293B' }}>
         <div
           className={`flex ${collapsed ? 'flex-col items-center gap-2 p-2.5' : 'items-center gap-2.5 p-3.5'} border-b`}
           style={{ borderColor: '#1E293B' }}
@@ -3502,7 +3512,7 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
         </div>
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
           {NAV_ITEMS.map(item => (
-            <button key={item.key} onClick={() => setPage(item.key)} title={collapsed ? item.label : undefined}
+            <button key={item.key} onClick={() => { setPage(item.key); setMobileOpen(false); }} title={collapsed ? item.label : undefined}
               className="w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm font-medium transition-all"
               style={{ background: page === item.key ? '#1E293B' : 'transparent', color: page === item.key ? '#FFFFFF' : '#64748B', justifyContent: collapsed ? 'center' : 'flex-start' }}>
               <span className="flex-shrink-0">{item.icon}</span>
@@ -3518,14 +3528,25 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        <header className="flex-shrink-0 border-b px-6 py-3 flex items-center justify-between z-20" style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}>
-          <div>
-            <h1 className="text-base font-black" style={{ color: 'var(--text-primary)' }}>{PAGE_TITLES[page]}</h1>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{clubName} ({clubLocation}) | {new Date().toLocaleDateString('en-KE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</p>
+        <header className="flex-shrink-0 border-b px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between z-20" style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}>
+          <div className="flex items-center gap-2 min-w-0">
+            {/* Hamburger — only on mobile */}
+            <button
+              type="button"
+              onClick={() => setMobileOpen(true)}
+              className="p-1.5 -ml-0.5 mr-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors lg:hidden flex-shrink-0"
+              title="Open Menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-base font-black truncate" style={{ color: 'var(--text-primary)' }}>{PAGE_TITLES[page]}</h1>
+              <p className="text-xs truncate hidden sm:block" style={{ color: 'var(--text-muted)' }}>{clubName} ({clubLocation}) | {new Date().toLocaleDateString('en-KE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold ${isOpenNow ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+            <div className={`hidden sm:flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold ${isOpenNow ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
               <div className={`h-1.5 w-1.5 rounded-full ${isOpenNow ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
               {isOpenNow ? 'Open' : 'Closed'} | {openingHours} – {closingHours}
             </div>
@@ -3637,7 +3658,7 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
             </div>
           </div>
         </header>
-        <main className="flex-1 p-6 overflow-y-auto min-h-0 flex flex-col">{renderPage()}</main>
+        <main className="flex-1 p-3 sm:p-6 overflow-y-auto min-h-0 flex flex-col">{renderPage()}</main>
       </div>
     </div>
   );

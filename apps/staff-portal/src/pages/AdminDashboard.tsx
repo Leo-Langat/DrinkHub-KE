@@ -51,6 +51,7 @@ import {
   Sparkles,
   HelpCircle,
   Lock,
+  Menu,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -457,6 +458,7 @@ const authFetch = async (endpoint: string, options: RequestInit = {}): Promise<a
 export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const [page, setPage] = useState<AdminNavKey>('dashboard');
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
@@ -6174,9 +6176,19 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     <div className="h-screen flex overflow-hidden" style={{ background: 'var(--bg-body)' }}>
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
 
+      {/* ── Mobile Sidebar Backdrop ── */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
       {/* ── Sidebar Navigation ── */}
       <aside
-        className="flex-shrink-0 flex flex-col sticky top-0 h-screen transition-all duration-200"
+        className={`flex-shrink-0 flex flex-col h-screen transition-all duration-200
+          fixed lg:sticky top-0 z-50 lg:z-30
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
         style={{
           width: collapsed ? '64px' : '230px',
           background: 'var(--bg-sidebar)',
@@ -6249,7 +6261,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           {NAV_ITEMS.map((item) => (
             <button
               key={item.key}
-              onClick={() => setPage(item.key)}
+              onClick={() => { setPage(item.key); setMobileOpen(false); }}
               title={collapsed ? item.label : undefined}
               className="w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-xs font-semibold transition-all"
               style={{
@@ -6280,28 +6292,39 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       {/* ── Main Workspace Body ── */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <header
-          className="flex-shrink-0 border-b px-6 py-3.5 flex items-center justify-between z-20"
+          className="flex-shrink-0 border-b px-3 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between z-20"
           style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}
         >
-          <div className="min-w-0">
-            <h1 className="text-base font-black truncate" style={{ color: 'var(--text-primary)' }}>
-              {NAV_ITEMS.find((n) => n.key === page)?.label}
-            </h1>
-            <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
-              {businessName} ({businessType}) | {new Date().toLocaleDateString('en-KE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-            </p>
+          <div className="flex items-center gap-2 min-w-0">
+            {/* Hamburger — only on mobile */}
+            <button
+              type="button"
+              onClick={() => setMobileOpen(true)}
+              className="p-1.5 -ml-0.5 mr-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors lg:hidden flex-shrink-0"
+              title="Open Menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-base font-black truncate" style={{ color: 'var(--text-primary)' }}>
+                {NAV_ITEMS.find((n) => n.key === page)?.label}
+              </h1>
+              <p className="text-xs truncate hidden sm:block" style={{ color: 'var(--text-muted)' }}>
+                {businessName} ({businessType}) | {new Date().toLocaleDateString('en-KE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <ThemeToggle />
-            <div className="h-8 px-3 rounded-xl border flex items-center gap-2 text-xs font-bold" style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+            <div className="h-8 px-2.5 sm:px-3 rounded-xl border flex items-center gap-1.5 sm:gap-2 text-xs font-bold" style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
               <Shield className="h-3.5 w-3.5 text-blue-600" />
-              <span>{user.fullName || 'Admin'}</span>
+              <span className="hidden sm:inline">{user.fullName || 'Admin'}</span>
             </div>
           </div>
         </header>
 
-        <main className="flex-1 p-6 overflow-y-auto min-h-0 flex flex-col">
+        <main className="flex-1 p-3 sm:p-6 overflow-y-auto min-h-0 flex flex-col">
           {loading ? (
             <div className="h-96 flex flex-col items-center justify-center text-slate-400 space-y-3">
               <Building2 className="h-10 w-10 animate-bounce text-blue-600" />

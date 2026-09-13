@@ -3442,10 +3442,16 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
     <div className="h-screen flex overflow-hidden" style={{ background: 'var(--bg-body)' }}>
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
       <aside className="flex-shrink-0 flex flex-col sticky top-0 h-screen transition-all duration-200" style={{ width: collapsed ? '64px' : '210px', background: 'var(--bg-sidebar)', borderRight: '1px solid #1E293B' }}>
-        <div className="flex items-center gap-2.5 p-3.5 border-b" style={{ borderColor: '#1E293B' }}>
+        <div
+          className={`flex ${collapsed ? 'flex-col items-center gap-2 p-2.5' : 'items-center gap-2.5 p-3.5'} border-b`}
+          style={{ borderColor: '#1E293B' }}
+        >
           <div
-            title={clubName}
-            className="h-10 w-10 rounded-xl flex-shrink-0 flex items-center justify-center transition-all overflow-hidden shadow-sm border border-slate-700/60"
+            onClick={() => {
+              if (collapsed) setCollapsed(false);
+            }}
+            title={collapsed ? 'Click to expand sidebar' : clubName}
+            className={`h-10 w-10 rounded-xl flex-shrink-0 flex items-center justify-center transition-all overflow-hidden shadow-sm border border-slate-700/60 relative group ${collapsed ? 'cursor-pointer hover:border-blue-500' : ''}`}
             style={{ backgroundColor: clubThemeColor }}
           >
             {clubLogoUrl && !logoError ? (
@@ -3459,6 +3465,11 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
               <span className="text-white font-black text-base uppercase tracking-wider">
                 {clubName ? clubName.charAt(0) : <Wine className="h-5 w-5 text-white" />}
               </span>
+            )}
+            {collapsed && (
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-xl">
+                <ChevronRight className="h-4 w-4 text-white" />
+              </div>
             )}
           </div>
           {!collapsed ? (
@@ -3483,9 +3494,9 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
               type="button"
               onClick={() => setCollapsed(false)}
               title="Expand sidebar"
-              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors"
+              className="w-8 h-7 rounded-lg flex items-center justify-center text-slate-300 hover:text-white bg-slate-800/70 hover:bg-slate-700 border border-slate-700/70 transition-all shadow-sm group"
             >
-              <ChevronRight className="h-3.5 w-3.5" />
+              <ChevronRight className="h-4 w-4 text-blue-400 group-hover:text-white transition-colors" />
             </button>
           )}
         </div>

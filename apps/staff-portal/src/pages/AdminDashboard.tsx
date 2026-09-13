@@ -6183,13 +6183,20 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           borderRight: '1px solid #1E293B',
         }}
       >
-        <div className="flex items-center gap-2.5 p-3.5 border-b" style={{ borderColor: '#1E293B' }}>
+        <div
+          className={`flex ${collapsed ? 'flex-col items-center gap-2 p-2.5' : 'items-center gap-2.5 p-3.5'} border-b`}
+          style={{ borderColor: '#1E293B' }}
+        >
           <button
             onClick={() => {
-              setSettingsTab('branding');
-              setPage('settings');
+              if (collapsed) {
+                setCollapsed(false);
+              } else {
+                setSettingsTab('branding');
+                setPage('settings');
+              }
             }}
-            title="Click to edit Business Logo & Brand Theme"
+            title={collapsed ? 'Click to expand sidebar' : 'Click to edit Business Logo & Brand Theme'}
             className="h-10 w-10 rounded-xl flex-shrink-0 flex items-center justify-center transition-all overflow-hidden shadow-sm relative group cursor-pointer border border-slate-700/60"
             style={{ backgroundColor: currentThemeColor }}
           >
@@ -6206,7 +6213,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               </span>
             )}
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-xl">
-              <Sparkles className="h-4 w-4 text-white" />
+              {collapsed ? <ChevronRight className="h-4 w-4 text-white" /> : <Sparkles className="h-4 w-4 text-white" />}
             </div>
           </button>
           {!collapsed ? (
@@ -6231,9 +6238,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               type="button"
               onClick={() => setCollapsed(false)}
               title="Expand sidebar"
-              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors"
+              className="w-8 h-7 rounded-lg flex items-center justify-center text-slate-300 hover:text-white bg-slate-800/70 hover:bg-slate-700 border border-slate-700/70 transition-all shadow-sm group"
             >
-              <ChevronRight className="h-3.5 w-3.5" />
+              <ChevronRight className="h-4 w-4 text-blue-400 group-hover:text-white transition-colors" />
             </button>
           )}
         </div>

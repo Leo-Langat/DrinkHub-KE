@@ -4,14 +4,9 @@ import {
   Plus, Minus, X, ChevronRight, ChevronLeft, Sparkles, CheckCircle2,
   Clock, AlertCircle, ShoppingCart, MapPin, Wifi, WifiOff,
   Smartphone, Banknote, CreditCard, ArrowLeft, Star, Loader2,
-  User, Check, RefreshCw, Flame, Gift, Tag, Copy, Zap, Timer,
+  User, Check, RefreshCw, Flame, Gift, Tag, Copy, Zap,
   Wine, ShieldCheck,
 } from 'lucide-react';
-import {
-  getSessionExpiredNotice,
-  getLastActivityTime,
-  isIdleExpired,
-} from '@drinkhub/shared';
 
 /* ─────────────────────────────────────────────
    API CONFIG
@@ -157,19 +152,6 @@ export const DigitalStorefrontPage: React.FC = () => {
     return () => clearInterval(timer);
   }, [offers.length]);
 
-  // Session Inactivity Notice
-  const [sessionExpiredMsg, setSessionExpiredMsg] = useState<string | null>(() => {
-    const lastActivityMs = getLastActivityTime(false);
-    if (isIdleExpired(lastActivityMs)) {
-      try {
-        localStorage.removeItem('drinkhub_active_order_uuid');
-      } catch {
-        /* ignore */
-      }
-      return 'Your Customer session has expired due to 20 minutes of inactivity. Please refresh or scan your table QR code to start a new session.';
-    }
-    return getSessionExpiredNotice();
-  });
 
   // Active Order Live Tracking
   const [activeOrderUuid, setActiveOrderUuid] = useState<string | null>(() => {
@@ -1219,28 +1201,6 @@ export const DigitalStorefrontPage: React.FC = () => {
           </div>
         </div>
 
-        {/* ── SESSION INACTIVITY TIMEOUT NOTICE BANNER ── */}
-        {sessionExpiredMsg && (
-          <div className="px-4 pt-3 fade-up">
-            <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-300 bg-red-50 dark:bg-red-950/70 dark:border-red-800 p-3.5 text-xs text-red-900 dark:text-red-200 shadow-sm animate-in fade-in">
-              <div className="flex items-start gap-3 min-w-0">
-                <Timer className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
-                <div>
-                  <span className="font-extrabold block text-red-800 dark:text-red-300">Session Expired</span>
-                  <span className="text-red-700 dark:text-red-300/90">{sessionExpiredMsg}</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSessionExpiredMsg(null)}
-                className="text-red-400 hover:text-red-700 dark:text-red-400 p-0.5 transition-colors"
-                title="Dismiss"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* ── CLOSED NOTICE BANNER ── */}
         {!venueOpen && (

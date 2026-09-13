@@ -1,10 +1,8 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useParams } from 'react-router-dom';
 import { DigitalStorefrontPage } from './pages/DigitalStorefrontPage';
-import { useTheme, useSessionTimeout, SessionTimeoutBanner } from '@drinkhub/ui';
+import { useTheme, ThemeToggleSimple } from '@drinkhub/ui';
 import type { ClubBranding } from '@drinkhub/ui';
-import { ThemeToggleSimple } from '@drinkhub/ui';
-import { setSessionExpiredNotice } from '@drinkhub/shared';
 
 // ─── Mock Club Registry ──────────────────────────────────────────────────────
 // In production this would come from GET /api/v1/clubs/:slug/branding
@@ -100,47 +98,6 @@ const ClubBrandingEngine: React.FC<{ children: React.ReactNode }> = ({ children 
   return <>{children}</>;
 };
 
-// ─── Customer Session Inactivity Timeout Wrapper ─────────────────────────────
-const CustomerSessionWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const handleCustomerLogout = React.useCallback(() => {
-    try {
-      localStorage.removeItem('drinkhub_active_order_uuid');
-    } catch {
-      /* ignore */
-    }
-    setSessionExpiredNotice(
-      'Your Customer session has expired due to 20 minutes of inactivity. Please refresh or scan your table QR code to start a new session.'
-    );
-    window.location.reload();
-  }, []);
-
-  const {
-    idleWarning,
-    countdownFormatted,
-    stayActive,
-    logoutNow,
-  } = useSessionTimeout({
-    isAuthenticated: true,
-    onLogout: handleCustomerLogout,
-    roleName: 'Customer',
-    expiredMessage:
-      'Your Customer session has expired due to 20 minutes of inactivity. Please refresh or scan your table QR code to start a new session.',
-  });
-
-  return (
-    <>
-      <SessionTimeoutBanner
-        show={idleWarning}
-        countdownFormatted={countdownFormatted}
-        roleName="Customer"
-        onStayLoggedIn={stayActive}
-        onLogoutNow={logoutNow}
-      />
-      {children}
-    </>
-  );
-};
-
 // ─── Theme Toggle (floating, Customer PWA) ───────────────────────────────────
 const FloatingThemeToggle: React.FC = () => (
   <div className="fixed top-4 right-4 z-50">
@@ -152,46 +109,44 @@ const FloatingThemeToggle: React.FC = () => (
 export const App: React.FC = () => {
   return (
     <Router>
-      <CustomerSessionWrapper>
-        <FloatingThemeToggle />
-        <Routes>
-          {/* Default: apply Quiver Kilimani branding */}
-          <Route
-            path="/"
-            element={
-              <ClubBrandingEngine>
-                <DigitalStorefrontPage />
-              </ClubBrandingEngine>
-            }
-          />
-          {/* Club-specific: branding loaded from slug */}
-          <Route
-            path="/v/:venueSlug"
-            element={
-              <ClubBrandingEngine>
-                <DigitalStorefrontPage />
-              </ClubBrandingEngine>
-            }
-          />
-          <Route
-            path="/v/:venueSlug/t/:tableNum"
-            element={
-              <ClubBrandingEngine>
-                <DigitalStorefrontPage />
-              </ClubBrandingEngine>
-            }
-          />
-          {/* Legacy short URL: /quiver-kilimani/table/12 */}
-          <Route
-            path="/:venueSlug/table/:tableNum"
-            element={
-              <ClubBrandingEngine>
-                <DigitalStorefrontPage />
-              </ClubBrandingEngine>
-            }
-          />
-        </Routes>
-      </CustomerSessionWrapper>
+      <FloatingThemeToggle />
+      <Routes>
+        {/* Default: apply Quiver Kilimani branding */}
+        <Route
+          path="/"
+          element={
+            <ClubBrandingEngine>
+              <DigitalStorefrontPage />
+            </ClubBrandingEngine>
+          }
+        />
+        {/* Club-specific: branding loaded from slug */}
+        <Route
+          path="/v/:venueSlug"
+          element={
+            <ClubBrandingEngine>
+              <DigitalStorefrontPage />
+            </ClubBrandingEngine>
+          }
+        />
+        <Route
+          path="/v/:venueSlug/t/:tableNum"
+          element={
+            <ClubBrandingEngine>
+              <DigitalStorefrontPage />
+            </ClubBrandingEngine>
+          }
+        />
+        {/* Legacy short URL: /quiver-kilimani/table/12 */}
+        <Route
+          path="/:venueSlug/table/:tableNum"
+          element={
+            <ClubBrandingEngine>
+              <DigitalStorefrontPage />
+            </ClubBrandingEngine>
+          }
+        />
+      </Routes>
     </Router>
   );
 };

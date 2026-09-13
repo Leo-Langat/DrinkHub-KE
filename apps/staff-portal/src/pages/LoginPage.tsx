@@ -233,44 +233,42 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               </span>
               <button
                 type="button"
-                onClick={() => {
-                  if (apiTarget === 'cloud') {
-                    if (role === 'admin') {
-                      setUsername('admin@alchemist.co.ke');
-                    } else if (role === 'manager') {
-                      setUsername('tonny@gmail.com');
-                    } else {
-                      setUsername('waiter.kamau@alchemist.co.ke');
-                    }
-                    setPassword('Password123!');
-                  } else {
-                    if (role === 'admin') {
-                      setUsername('lionellangat2000@gmail.com');
-                    } else if (role === 'manager') {
-                      setUsername('tonny@gmail.com');
-                    } else {
-                      setUsername('johndoe@gmail.com');
-                    }
-                    setPassword('Password123!');
-                  }
-                }}
+               onClick={() => {
+  if (apiTarget === 'cloud') {
+    if (role === 'admin') {
+      setUsername('john123@gmail.com');
+      setPassword('john1234');
+    } else if (role === 'manager') {
+      setUsername('tonnykim@gmail.com');
+      setPassword('Tonny1234');
+    } else {
+      setUsername('jane@gmail.com');
+      setPassword('Jane1234');
+    }
+  } else {
+    if (role === 'admin') {
+      setUsername('john123@gmail.com');
+      setPassword('john1234');
+    } else if (role === 'manager') {
+      setUsername('tonnykim@gmail.com');
+      setPassword('Tonny1234');
+    } else {
+      setUsername('jane@gmail.com');
+      setPassword('Jane1234');
+    }
+  }
+}}
                 className="text-blue-600 hover:underline font-bold"
               >
                 Auto-fill ⚡
               </button>
             </div>
             <p className="text-[11px] text-blue-700">
-              {apiTarget === 'cloud'
-                ? role === 'admin'
-                  ? 'admin@alchemist.co.ke / Password123! (Alchemist Admin)'
-                  : role === 'manager'
-                  ? 'tonny@gmail.com / Password123! (Roco Mamas Manager)'
-                  : 'waiter.kamau@alchemist.co.ke / Password123! (Alchemist Waiter)'
-                : role === 'admin'
-                ? 'lionellangat2000@gmail.com / Password123! (Roco Mamas Admin)'
+              {role === 'admin'
+                ? 'john123@gmail.com / john1234 (Admin)'
                 : role === 'manager'
-                ? 'tonny@gmail.com / Password123! (Roco Mamas Manager)'
-                : 'johndoe@gmail.com / Password123! (Roco Mamas Waiter)'}
+                ? 'tonnykim@gmail.com / Tonny1234 (Manager)'
+                : 'jane@gmail.com / Jane1234 (Waiter)'}
             </p>
           </div>
 

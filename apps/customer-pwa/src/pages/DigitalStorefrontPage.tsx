@@ -7,6 +7,7 @@ import {
   User, Check, RefreshCw, Flame, Gift, Tag, Copy, Zap,
   Wine, ShieldCheck,
 } from 'lucide-react';
+import { ThemeToggleSimple } from '@drinkhub/ui';
 
 /* ─────────────────────────────────────────────
    API CONFIG
@@ -695,6 +696,7 @@ export const DigitalStorefrontPage: React.FC = () => {
                 <img src={resolveImageUrl(brand.logoUrl)} alt={brand.name} className="h-6 w-6 rounded-lg object-cover border border-white/10" />
               )}
               <span className="text-xs font-bold" style={{ color: 'var(--text)' }}>{brand.name}</span>
+              <ThemeToggleSimple />
             </div>
           </div>
 
@@ -870,14 +872,17 @@ export const DigitalStorefrontPage: React.FC = () => {
   if (screen === 'checkout') {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-        <div className="sticky top-0 z-20 flex items-center gap-3 px-4 py-4 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
-          <button onClick={() => setScreen('cart')} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--surface)' }}>
-            <ArrowLeft className="w-5 h-5" style={{ color: 'var(--text)' }} />
-          </button>
-          <div>
-            <h2 className="font-black text-base leading-none" style={{ color: 'var(--text)' }}>Checkout</h2>
-            {table && <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Table #{table}</p>}
+        <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-4 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setScreen('cart')} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--surface)' }}>
+              <ArrowLeft className="w-5 h-5" style={{ color: 'var(--text)' }} />
+            </button>
+            <div>
+              <h2 className="font-black text-base leading-none" style={{ color: 'var(--text)' }}>Checkout</h2>
+              {table && <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Table #{table}</p>}
+            </div>
           </div>
+          <ThemeToggleSimple />
         </div>
 
         <div className="max-w-md mx-auto px-4 py-6 space-y-5">
@@ -1026,14 +1031,17 @@ export const DigitalStorefrontPage: React.FC = () => {
   if (screen === 'cart') {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-        <div className="sticky top-0 z-20 flex items-center gap-3 px-4 py-4 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
-          <button onClick={() => setScreen('menu')} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--surface)' }}>
-            <ArrowLeft className="w-5 h-5" style={{ color: 'var(--text)' }} />
-          </button>
-          <div>
-            <h2 className="font-black text-base leading-none" style={{ color: 'var(--text)' }}>Your Order</h2>
-            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{table ? `Table #${table} · ` : ''}{cartCount} item{cartCount !== 1 ? 's' : ''}</p>
+        <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-4 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setScreen('menu')} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--surface)' }}>
+              <ArrowLeft className="w-5 h-5" style={{ color: 'var(--text)' }} />
+            </button>
+            <div>
+              <h2 className="font-black text-base leading-none" style={{ color: 'var(--text)' }}>Your Order</h2>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{table ? `Table #${table} · ` : ''}{cartCount} item{cartCount !== 1 ? 's' : ''}</p>
+            </div>
           </div>
+          <ThemeToggleSimple />
         </div>
 
         <div className="max-w-md mx-auto px-4 py-6 space-y-3 pb-40">
@@ -1138,18 +1146,21 @@ export const DigitalStorefrontPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Online status chip */}
-            {venueOpen ? (
-              <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase backdrop-blur-md shadow-lg" style={{ background: 'rgba(10,10,15,0.7)', color: '#34D399', border: '1px solid rgba(52,211,153,0.3)' }}>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
-                Open Now
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase backdrop-blur-md shadow-lg" style={{ background: 'rgba(10,10,15,0.7)', color: '#F87171', border: '1px solid rgba(248,113,113,0.3)' }}>
-                <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
-                Closed
-              </div>
-            )}
+            {/* Right: Online status chip + Theme Toggle */}
+            <div className="flex items-center gap-2">
+              {venueOpen ? (
+                <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase backdrop-blur-md shadow-lg" style={{ background: 'rgba(10,10,15,0.7)', color: '#34D399', border: '1px solid rgba(52,211,153,0.3)' }}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
+                  Open Now
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase backdrop-blur-md shadow-lg" style={{ background: 'rgba(10,10,15,0.7)', color: '#F87171', border: '1px solid rgba(248,113,113,0.3)' }}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
+                  Closed
+                </div>
+              )}
+              <ThemeToggleSimple className="!bg-[rgba(10,10,15,0.7)] !border-[rgba(255,255,255,0.15)] !text-white !p-1.5 !rounded-full backdrop-blur-md shadow-lg hover:!bg-black/80" />
+            </div>
           </div>
 
           {/* Club identity row */}

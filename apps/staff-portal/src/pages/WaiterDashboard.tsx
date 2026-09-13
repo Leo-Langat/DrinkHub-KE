@@ -7,7 +7,7 @@ import {
   Loader2, RefreshCcw, WifiOff, Lock, Key, Eye, EyeOff, X, Check,
 } from 'lucide-react';
 import { resolveImageUrl } from '../config/api';
-import { useTheme } from '@drinkhub/ui';
+import { useTheme, ThemeToggle } from '@drinkhub/ui';
 
 /* ─── API config ─── */
 const getApiUrl = (path: string): string => {
@@ -472,6 +472,8 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
             <Key className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Change Password</span>
           </button>
+
+          <ThemeToggle />
 
           <div className="flex items-center gap-2 rounded-lg bg-white/10 px-2.5 py-1.5">
             <div className="h-6 w-6 rounded-full bg-white/30 flex items-center justify-center">

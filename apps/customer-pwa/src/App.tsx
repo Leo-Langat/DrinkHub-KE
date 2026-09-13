@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useParams } from 'react-router-dom';
 import { DigitalStorefrontPage } from './pages/DigitalStorefrontPage';
-import { useTheme, ThemeToggleSimple } from '@drinkhub/ui';
+import { useTheme } from '@drinkhub/ui';
 import type { ClubBranding } from '@drinkhub/ui';
 
 // ─── Mock Club Registry ──────────────────────────────────────────────────────
@@ -98,18 +98,10 @@ const ClubBrandingEngine: React.FC<{ children: React.ReactNode }> = ({ children 
   return <>{children}</>;
 };
 
-// ─── Theme Toggle (floating, Customer PWA) ───────────────────────────────────
-const FloatingThemeToggle: React.FC = () => (
-  <div className="fixed top-4 right-4 z-50">
-    <ThemeToggleSimple />
-  </div>
-);
-
 // ─── App ─────────────────────────────────────────────────────────────────────
 export const App: React.FC = () => {
   return (
     <Router>
-      <FloatingThemeToggle />
       <Routes>
         {/* Default: apply Quiver Kilimani branding */}
         <Route

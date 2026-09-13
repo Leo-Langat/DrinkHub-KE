@@ -5529,8 +5529,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           </div>
         )}
 
-        {/* ── Tab 3: Operating Schedule ── */}
+        {/* ── Tab 3: Operating Schedule & Regional ── */}
         {settingsTab === 'hours' && (
+          <>
           <form onSubmit={handleSaveOperatingSchedule} className="p-6 rounded-2xl border space-y-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
             <div>
               <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>
@@ -5617,6 +5618,69 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               </button>
             </div>
           </form>
+
+          {/* ── Regional Settings ── */}
+          <form
+            onSubmit={handleSaveRegional}
+            className="p-6 rounded-2xl border space-y-5"
+            style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}
+          >
+            <div>
+              <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>
+                Regional Settings
+              </h3>
+              <p className="text-xs text-slate-500">
+                Set the timezone used for reports and scheduling, and your venue's default billing currency.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {/* Timezone */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500">Timezone</label>
+                <select
+                  value={settingTimezone}
+                  onChange={(e) => setSettingTimezone(e.target.value)}
+                  className="w-full rounded-xl border p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                >
+                  {COMMON_TIMEZONES.map(({ value, label }) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Currency */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500">Currency</label>
+                <select
+                  value={settingCurrency}
+                  onChange={(e) => setSettingCurrency(e.target.value)}
+                  className="w-full rounded-xl border p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                >
+                  {COMMON_CURRENCIES.map(({ code, label }) => (
+                    <option key={code} value={code}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="pt-1 flex justify-end">
+              <button
+                type="submit"
+                disabled={settingsSaving}
+                className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition disabled:opacity-60"
+              >
+                {settingsSaving ? 'Saving...' : 'Save Regional Settings'}
+              </button>
+            </div>
+          </form>
+          </>
         )}
         </div>
       </div>

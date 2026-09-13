@@ -2699,78 +2699,30 @@ const ReportsPage = ({ showToast }: { showToast: (m: string, type?: 'success' | 
 };
 
 /* --- Settings Page --- */
-const ManagerSettingsPage = ({ showToast, user, onSettingsSaved }: { showToast: (m: string, type?: 'success' | 'error') => void; user?: any; onSettingsSaved?: (oh: string, ch: string) => void }) => {
-  const [openingTime, setOpeningTime] = React.useState('18:00');
-  const [closingTime, setClosingTime] = React.useState('02:00');
-  const [orderNotifs, setOrderNotifs] = React.useState(true);
-  const [soundAlerts, setSoundAlerts] = React.useState(true);
+const ManagerSettingsPage = ({ showToast }: { showToast: (m: string, type?: 'success' | 'error') => void; user?: any; onSettingsSaved?: (oh: string, ch: string) => void }) => {
+  const [orderNotifs, setOrderNotifs] = React.useState(() => {
+    try {
+      const saved = localStorage.getItem('drinkhub_manager_notifs');
+      return saved ? JSON.parse(saved).orderNotifs ?? true : true;
+    } catch {
+      return true;
+    }
+  });
+  const [soundAlerts, setSoundAlerts] = React.useState(() => {
+    try {
+      const saved = localStorage.getItem('drinkhub_manager_notifs');
+      return saved ? JSON.parse(saved).soundAlerts ?? true : true;
+    } catch {
+      return true;
+    }
+  });
   const [saving, setSaving] = React.useState(false);
-
-  // Load current settings from backend on mount
-  React.useEffect(() => {
-    const load = async () => {
-      try {
-        const userStr = localStorage.getItem('drinkhub_user');
-        if (!userStr) return;
-        const u = JSON.parse(userStr);
-        // Try club data from localStorage first (fast path)
-        const oh = u.club?.openingHours;
-        const ch = u.club?.closingHours;
-        if (oh) setOpeningTime(oh);
-        if (ch) setClosingTime(ch);
-
-        // Also fetch fresh from API
-        const clubUuid = u.clubUuid || u.tenantId || u.club?.clubUuid;
-        const slug = u.club?.slug || u.clubSlug;
-        if (slug) {
-          const res = await fetch(getApiUrl(`/tenants/${slug}`));
-          if (res.ok) {
-            const data = await res.json();
-            const club = data.data?.club ?? data.data ?? data;
-            if (club.openingHours) setOpeningTime(club.openingHours);
-            if (club.closingHours) setClosingTime(club.closingHours);
-            // Update cached user
-            if (clubUuid) {
-              try {
-                const updated = { ...u, club: { ...(u.club || {}), openingHours: club.openingHours || oh, closingHours: club.closingHours || ch } };
-                localStorage.setItem('drinkhub_user', JSON.stringify(updated));
-              } catch {}
-            }
-          }
-        }
-      } catch {}
-    };
-    load();
-  }, []);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const userStr = localStorage.getItem('drinkhub_user');
-      if (!userStr) { showToast('User session not found', 'error'); return; }
-      const u = JSON.parse(userStr);
-      const clubUuid = u.clubUuid || u.tenantId || u.club?.clubUuid;
-      if (!clubUuid) { showToast('Club not found in your session', 'error'); return; }
-
-      const res = await fetch(getApiUrl(`/tenants/${clubUuid}`), {
-        method: 'PUT',
-        headers: authHeaders(),
-        body: JSON.stringify({ openingHours: openingTime, closingHours: closingTime }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error?.message || 'Failed to save settings');
-      }
-
-      // Update cached user in localStorage with new hours
-      try {
-        const updated = { ...u, club: { ...(u.club || {}), openingHours: openingTime, closingHours: closingTime } };
-        localStorage.setItem('drinkhub_user', JSON.stringify(updated));
-      } catch {}
-
-      // Notify parent to update the header chip
-      onSettingsSaved?.(openingTime, closingTime);
-      showToast('✅ Operating hours saved! The club status is now live.', 'success');
+      localStorage.setItem('drinkhub_manager_notifs', JSON.stringify({ orderNotifs, soundAlerts }));
+      showToast('✅ Settings saved successfully!', 'success');
     } catch (e: any) {
       showToast(e.message || 'Failed to save settings', 'error');
     } finally {
@@ -2781,38 +2733,6 @@ const ManagerSettingsPage = ({ showToast, user, onSettingsSaved }: { showToast: 
   return (
     <div className="space-y-6 max-w-2xl">
       <SectionHeader title="Club Settings" subtitle="Venue configuration" />
-
-      {/* Operating Hours */}
-      <div className="rounded-xl border p-5 space-y-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-        <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>Operating Hours</h3>
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>These hours control the Open / Closed status shown to customers on the storefront.</p>
-        <div className="grid grid-cols-2 gap-4">
-          <div><FL>Opening Time</FL><SI type="time" value={openingTime} onChange={e => setOpeningTime(e.target.value)} /></div>
-          <div><FL>Closing Time</FL><SI type="time" value={closingTime} onChange={e => setClosingTime(e.target.value)} /></div>
-        </div>
-
-        {/* Live preview chip */}
-        <div className="flex items-center gap-2 pt-1">
-          <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Preview:</span>
-          {(() => {
-            const now = new Date();
-            const [oH, oM] = openingTime.split(':').map(Number);
-            const [cH, cM] = closingTime.split(':').map(Number);
-            const nowMins = now.getHours() * 60 + now.getMinutes();
-            const openMins = oH * 60 + oM;
-            const closeMins = cH * 60 + cM;
-            const isOpen = closeMins <= openMins
-              ? (nowMins >= openMins || nowMins < closeMins)
-              : (nowMins >= openMins && nowMins < closeMins);
-            return (
-              <span className={`flex items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold ${isOpen ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${isOpen ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                {isOpen ? 'Open Now' : 'Closed Now'} · {openingTime} – {closingTime}
-              </span>
-            );
-          })()}
-        </div>
-      </div>
 
       {/* Notification Toggles */}
       {[{ label: 'Order Notifications', desc: 'Get notified when new orders arrive.', val: orderNotifs, set: setOrderNotifs }, { label: 'Sound Alerts', desc: 'Play a chime when an order status changes.', val: soundAlerts, set: setSoundAlerts }].map(item => (

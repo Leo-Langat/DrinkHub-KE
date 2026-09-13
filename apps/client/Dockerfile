@@ -1,7 +1,11 @@
 # Multi-Stage Build for Client Vite PWA
 FROM node:20-alpine AS builder
 
+RUN apk add --no-cache openssl libc6-compat python3 make g++
+
 WORKDIR /app
+
+ENV CI=true
 
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages ./packages

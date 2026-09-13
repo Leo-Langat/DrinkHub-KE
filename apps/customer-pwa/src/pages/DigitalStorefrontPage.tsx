@@ -37,6 +37,13 @@ const resolveImageUrl = (url?: string | null): string => {
 /* ─────────────────────────────────────────────
    TYPES
 ───────────────────────────────────────────── */
+interface DaySchedule {
+  isOpen: boolean;
+  openingTime: string;
+  closingTime: string;
+  crossesMidnight?: boolean;
+}
+
 interface BrandingConfig {
   name: string;
   tagline: string;
@@ -50,6 +57,7 @@ interface BrandingConfig {
   accent: string;
   openingHours: string;
   closingHours: string;
+  operatingSchedule?: Record<string, DaySchedule> | null;
 }
 
 interface MenuItem {
@@ -93,6 +101,7 @@ const DEFAULT_BRAND: BrandingConfig = {
   accent: '#F59E0B',
   openingHours: '14:00',
   closingHours: '04:00',
+  operatingSchedule: null,
 };
 
 /* ─────────────────────────────────────────────
@@ -254,6 +263,7 @@ export const DigitalStorefrontPage: React.FC = () => {
           accent: '#F59E0B',
           openingHours: club.openingHours ?? '14:00',
           closingHours: club.closingHours ?? '04:00',
+          operatingSchedule: club.operatingSchedule ?? null,
         });
 
         // Resolve table UUID from venueTables/tables array
@@ -453,14 +463,53 @@ export const DigitalStorefrontPage: React.FC = () => {
   const isVenueOpen = useCallback((): boolean => {
     try {
       const now = new Date();
+      const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const todayIndex = now.getDay();
+      const todayKey = DAY_KEYS[todayIndex];
+      const yesterdayIndex = (todayIndex + 6) % 7;
+      const yesterdayKey = DAY_KEYS[yesterdayIndex];
+
+      const nowMins = now.getHours() * 60 + now.getMinutes();
+
+      // 1. Prefer per-day operatingSchedule set in admin
+      const schedule = brand.operatingSchedule;
+      if (schedule) {
+        // A. Check if yesterday had an overnight shift that is still open right now (e.g. closes at 02:00, now is 01:15)
+        const yesterdayConfig = schedule[yesterdayKey];
+        if (yesterdayConfig && yesterdayConfig.isOpen && yesterdayConfig.openingTime && yesterdayConfig.closingTime) {
+          const [yOh, yOm] = yesterdayConfig.openingTime.split(':').map(Number);
+          const [yCh, yCm] = yesterdayConfig.closingTime.split(':').map(Number);
+          const yOpenMins = yOh * 60 + yOm;
+          const yCloseMins = yCh * 60 + yCm;
+          // If yesterday crossed midnight (closingTime <= openingTime) and now is before closing:
+          if (yCloseMins <= yOpenMins && nowMins < yCloseMins) {
+            return true;
+          }
+        }
+
+        // B. Check today's schedule
+        const dayConfig = schedule[todayKey];
+        if (dayConfig) {
+          if (!dayConfig.isOpen) return false;
+          const [oH, oM] = (dayConfig.openingTime || '00:00').split(':').map(Number);
+          const [cH, cM] = (dayConfig.closingTime || '23:59').split(':').map(Number);
+          const openMins = oH * 60 + oM;
+          const closeMins = cH * 60 + cM;
+          // Handle overnight (e.g. 08:00 – 01:00 closes next day)
+          if (closeMins <= openMins) {
+            return nowMins >= openMins || nowMins < closeMins;
+          }
+          return nowMins >= openMins && nowMins < closeMins;
+        }
+      }
+
+      // 2. Fallback: legacy global openingHours / closingHours
       const oh = brand.openingHours || '00:00';
       const ch = brand.closingHours || '23:59';
       const [oH, oM] = oh.split(':').map(Number);
       const [cH, cM] = ch.split(':').map(Number);
-      const nowMins = now.getHours() * 60 + now.getMinutes();
       const openMins = oH * 60 + oM;
       const closeMins = cH * 60 + cM;
-      // Handle overnight hours (e.g. 18:00 – 02:00)
       if (closeMins <= openMins) {
         return nowMins >= openMins || nowMins < closeMins;
       }
@@ -468,9 +517,39 @@ export const DigitalStorefrontPage: React.FC = () => {
     } catch {
       return true;
     }
-  }, [brand.openingHours, brand.closingHours]);
+  }, [brand.openingHours, brand.closingHours, brand.operatingSchedule]);
 
   const venueOpen = isVenueOpen();
+
+  /* ── Compute active hours text for today ── */
+  const todayHours = useMemo(() => {
+    try {
+      const now = new Date();
+      const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const todayKey = DAY_KEYS[now.getDay()];
+      const schedule = brand.operatingSchedule;
+      if (schedule && schedule[todayKey]) {
+        const d = schedule[todayKey];
+        if (!d.isOpen) {
+          return {
+            open: d.openingTime || '08:00',
+            close: d.closingTime || '23:00',
+            displayText: 'Closed Today',
+          };
+        }
+        return {
+          open: d.openingTime || '08:00',
+          close: d.closingTime || '23:00',
+          displayText: `${d.openingTime || '08:00'} to ${d.closingTime || '23:00'}`,
+        };
+      }
+    } catch {}
+    return {
+      open: brand.openingHours || '08:00',
+      close: brand.closingHours || '23:00',
+      displayText: `${brand.openingHours || '08:00'} to ${brand.closingHours || '23:00'}`,
+    };
+  }, [brand.operatingSchedule, brand.openingHours, brand.closingHours]);
 
   /* ── Offer Matcher & Item Pricing Helper ──── */
   const getOfferForItem = useCallback((item: MenuItem): Offer | null => {
@@ -1011,7 +1090,7 @@ export const DigitalStorefrontPage: React.FC = () => {
 
           {!venueOpen && (
             <div className="flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-bold mb-1" style={{ background: 'rgba(239,68,68,0.1)', color: '#F87171', border: '1px solid rgba(239,68,68,0.25)' }}>
-              🔒 <span>{brand.name} is currently closed. Opens at {brand.openingHours}.</span>
+              🔒 <span>{brand.name} is currently closed. Opens at {todayHours.open}.</span>
             </div>
           )}
 
@@ -1029,7 +1108,7 @@ export const DigitalStorefrontPage: React.FC = () => {
                 Placing Order…
               </span>
             ) : !venueOpen ? (
-              <>🔒 Closed · Opens at {brand.openingHours}</>
+              <>🔒 Closed · Opens at {todayHours.open}</>
             ) : (
               <>Confirm Order · KES {cartFinalTotal.toLocaleString()}</>
             )}
@@ -1257,7 +1336,9 @@ export const DigitalStorefrontPage: React.FC = () => {
               <div className="flex-1 min-w-0">
                 <p className="font-black text-sm" style={{ color: '#F87171' }}>We're Currently Closed</p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                  {brand.name} is open from {brand.openingHours} to {brand.closingHours}. You can still browse the menu.
+                  {todayHours.displayText === 'Closed Today'
+                    ? `${brand.name} is closed today. You can still browse the menu.`
+                    : `${brand.name} is open today from ${todayHours.open} to ${todayHours.close}. You can still browse the menu.`}
                 </p>
               </div>
             </div>
@@ -1816,7 +1897,7 @@ export const DigitalStorefrontPage: React.FC = () => {
               </div>
               <div>
                 <span className="text-sm font-bold block leading-tight">{venueOpen ? 'View Order' : 'Venue Closed'}</span>
-                {!venueOpen && <span className="text-[10px] opacity-70">Opens {brand.openingHours}</span>}
+                {!venueOpen && <span className="text-[10px] opacity-70">Opens {todayHours.open}</span>}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -1921,7 +2002,7 @@ export const DigitalStorefrontPage: React.FC = () => {
                   <span>Hours</span>
                 </div>
                 <p className="font-bold text-xs" style={{ color: 'var(--text)' }}>
-                  {brand.openingHours} – {brand.closingHours}
+                  {todayHours.displayText}
                 </p>
               </div>
               <div

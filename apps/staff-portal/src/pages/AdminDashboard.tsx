@@ -5108,17 +5108,32 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
 
     try {
       setScheduleSaving(true);
+
+      // Derive opening and closing hours from today's schedule (or first open day)
+      // so legacy clients reading openingHours/closingHours stay in sync with the weekly schedule
+      const now = new Date();
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const currentDayKey = dayNames[now.getDay()];
+      const todaySchedule = operatingSchedule[currentDayKey];
+      const fallbackDay = days.find((d) => operatingSchedule[d]?.isOpen) || 'monday';
+      const fallbackSchedule = operatingSchedule[fallbackDay] || operatingSchedule.monday;
+      const resolvedSchedule = (todaySchedule && todaySchedule.isOpen) ? todaySchedule : fallbackSchedule;
+      const computedOpening = resolvedSchedule?.openingTime || settingOpening || '08:00';
+      const computedClosing = resolvedSchedule?.closingTime || settingClosing || '23:00';
+
       const res = await authFetch('/business/settings', {
         method: 'PATCH',
         body: JSON.stringify({
           operatingSchedule,
-          openingHours: settingOpening,
-          closingHours: settingClosing,
+          openingHours: computedOpening,
+          closingHours: computedClosing,
         }),
       });
 
       if (res.success && res.data?.profile) {
         setBusinessProfile(res.data.profile);
+        setSettingOpening(computedOpening);
+        setSettingClosing(computedClosing);
         showToast('Operating hours updated successfully!', 'success');
         loadDashboardData();
       }
@@ -5126,33 +5141,6 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       showToast(err.message || 'Failed to update operating hours', 'error');
     } finally {
       setScheduleSaving(false);
-    }
-  };
-
-  /**
-   * Save Regional & Currency Settings via PATCH /api/v1/business/settings
-   */
-  const handleSaveRegional = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setSettingsSaving(true);
-      const res = await authFetch('/business/settings', {
-        method: 'PATCH',
-        body: JSON.stringify({
-          timezone: settingTimezone,
-          currency: settingCurrency,
-        }),
-      });
-
-      if (res.success && res.data?.profile) {
-        setBusinessProfile(res.data.profile);
-        showToast('Regional settings saved successfully!', 'success');
-        loadDashboardData();
-      }
-    } catch (err: any) {
-      showToast(err.message || 'Failed to save regional settings', 'error');
-    } finally {
-      setSettingsSaving(false);
     }
   };
 
@@ -5205,30 +5193,6 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       { key: 'friday', label: 'Friday' },
       { key: 'saturday', label: 'Saturday' },
       { key: 'sunday', label: 'Sunday' },
-    ];
-
-    const COMMON_TIMEZONES = [
-      { value: 'Africa/Nairobi', label: 'East Africa Time (Africa/Nairobi, UTC+3)' },
-      { value: 'Africa/Cairo', label: 'Egypt Standard Time (Africa/Cairo, UTC+2)' },
-      { value: 'Africa/Johannesburg', label: 'South Africa Time (Africa/Johannesburg, UTC+2)' },
-      { value: 'Africa/Lagos', label: 'West Africa Time (Africa/Lagos, UTC+1)' },
-      { value: 'Europe/London', label: 'Greenwich Mean Time (Europe/London, UTC+0/+1)' },
-      { value: 'Europe/Paris', label: 'Central European Time (Europe/Paris, UTC+1/+2)' },
-      { value: 'America/New_York', label: 'Eastern Time (America/New_York, UTC-5/-4)' },
-      { value: 'Asia/Dubai', label: 'Gulf Standard Time (Asia/Dubai, UTC+4)' },
-      { value: 'UTC', label: 'Coordinated Universal Time (UTC)' },
-    ];
-
-    const COMMON_CURRENCIES = [
-      { code: 'KES', label: 'KES — Kenyan Shilling' },
-      { code: 'USD', label: 'USD — US Dollar' },
-      { code: 'EUR', label: 'EUR — Euro' },
-      { code: 'GBP', label: 'GBP — British Pound' },
-      { code: 'TZS', label: 'TZS — Tanzanian Shilling' },
-      { code: 'UGX', label: 'UGX — Ugandan Shilling' },
-      { code: 'RWF', label: 'RWF — Rwandan Franc' },
-      { code: 'ZAR', label: 'ZAR — South African Rand' },
-      { code: 'AED', label: 'AED — UAE Dirham' },
     ];
 
     return (
@@ -5529,9 +5493,8 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           </div>
         )}
 
-        {/* ── Tab 3: Operating Schedule & Regional ── */}
+        {/* ── Tab 3: Operating Schedule ── */}
         {settingsTab === 'hours' && (
-          <>
           <form onSubmit={handleSaveOperatingSchedule} className="p-6 rounded-2xl border space-y-5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
             <div>
               <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>
@@ -5618,69 +5581,6 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               </button>
             </div>
           </form>
-
-          {/* ── Regional Settings ── */}
-          <form
-            onSubmit={handleSaveRegional}
-            className="p-6 rounded-2xl border space-y-5"
-            style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}
-          >
-            <div>
-              <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>
-                Regional Settings
-              </h3>
-              <p className="text-xs text-slate-500">
-                Set the timezone used for reports and scheduling, and your venue's default billing currency.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {/* Timezone */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500">Timezone</label>
-                <select
-                  value={settingTimezone}
-                  onChange={(e) => setSettingTimezone(e.target.value)}
-                  className="w-full rounded-xl border p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
-                  style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                >
-                  {COMMON_TIMEZONES.map(({ value, label }) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Currency */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500">Currency</label>
-                <select
-                  value={settingCurrency}
-                  onChange={(e) => setSettingCurrency(e.target.value)}
-                  className="w-full rounded-xl border p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
-                  style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                >
-                  {COMMON_CURRENCIES.map(({ code, label }) => (
-                    <option key={code} value={code}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="pt-1 flex justify-end">
-              <button
-                type="submit"
-                disabled={settingsSaving}
-                className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition disabled:opacity-60"
-              >
-                {settingsSaving ? 'Saving...' : 'Save Regional Settings'}
-              </button>
-            </div>
-          </form>
-          </>
         )}
         </div>
       </div>

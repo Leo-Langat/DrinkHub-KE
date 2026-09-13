@@ -5,7 +5,7 @@ import {
   Clock, AlertCircle, ShoppingCart, MapPin, Wifi, WifiOff,
   Smartphone, Banknote, CreditCard, ArrowLeft, Star, Loader2,
   User, Check, RefreshCw, Flame, Gift, Tag, Copy, Zap,
-  Wine, ShieldCheck,
+  Wine, ShieldCheck, ChevronDown, Info,
 } from 'lucide-react';
 import { ThemeToggleSimple } from '@drinkhub/ui';
 
@@ -40,6 +40,9 @@ const resolveImageUrl = (url?: string | null): string => {
 interface BrandingConfig {
   name: string;
   tagline: string;
+  description?: string | null;
+  address?: string | null;
+  phone?: string | null;
   logoUrl: string | null;
   bannerUrl: string | null;
   primary: string;
@@ -80,6 +83,9 @@ type CartMap = Record<string, number>;
 const DEFAULT_BRAND: BrandingConfig = {
   name: 'OrderUp Venue',
   tagline: 'Nairobi, Kenya',
+  description: null,
+  address: null,
+  phone: null,
   logoUrl: null,
   bannerUrl: null,
   primary: '#DC2626',
@@ -143,6 +149,10 @@ export const DigitalStorefrontPage: React.FC = () => {
   // Offers Banner Carousel
   const [activeOfferIdx, setActiveOfferIdx] = useState(0);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  // Optional Venue Description & About states
+  const [descExpanded, setDescExpanded] = useState(false);
+  const [showAboutModal, setShowAboutModal] = useState(false);
 
   // Auto-rotate offers every 5 seconds if multiple offers exist
   useEffect(() => {
@@ -234,6 +244,9 @@ export const DigitalStorefrontPage: React.FC = () => {
         setBrand({
           name: club.name ?? 'OrderUp Venue',
           tagline: club.tagline ?? club.county ?? 'Kenya',
+          description: club.description ?? null,
+          address: club.address ?? null,
+          phone: club.phone ?? null,
           logoUrl: club.logoUrl || fallbackLogo,
           bannerUrl: club.bannerUrl ?? null,
           primary: club.brandColor ?? club.themeColor ?? '#DC2626',
@@ -1196,9 +1209,26 @@ export const DigitalStorefrontPage: React.FC = () => {
                     <Check className="w-2.5 h-2.5" /> Verified
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5 mt-1.5">
-                  <MapPin className="w-3 h-3 opacity-60 text-amber-400" />
-                  <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{brand.tagline}</span>
+                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-3 h-3 opacity-60 text-amber-400" />
+                    <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{brand.tagline}</span>
+                  </div>
+                  {brand.description && (
+                    <button
+                      onClick={() => setShowAboutModal(true)}
+                      className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all hover:bg-white/20 active:scale-95"
+                      style={{
+                        background: 'rgba(255,255,255,0.12)',
+                        borderColor: 'rgba(255,255,255,0.25)',
+                        color: '#FFFFFF',
+                      }}
+                      title="View venue info & description"
+                    >
+                      <Info className="w-2.5 h-2.5 text-amber-400" />
+                      About
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1573,6 +1603,77 @@ export const DigitalStorefrontPage: React.FC = () => {
         </div>
       )}
 
+      {/* ── OPTIONAL ADDITIONAL VENUE DESCRIPTION CARD ── */}
+      {brand.description && (
+        <div className="px-4 pt-3.5 fade-up">
+          <div
+            className="rounded-2xl p-4 border transition-all shadow-sm relative overflow-hidden group"
+            style={{
+              background: 'var(--surface)',
+              borderColor: 'var(--border)',
+            }}
+          >
+            {/* Brand decorative left accent line */}
+            <div
+              className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
+              style={{ background: brand.primary }}
+            />
+            <div className="flex items-start gap-3 pl-1">
+              <div
+                className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-sm shadow-sm"
+                style={{
+                  background: `${brand.primary}18`,
+                  color: brand.primary,
+                }}
+              >
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-xs font-black uppercase tracking-wider" style={{ color: 'var(--text)' }}>
+                    About {brand.name}
+                  </h4>
+                  <button
+                    onClick={() => setShowAboutModal(true)}
+                    className="text-[10px] font-bold px-2 py-0.5 rounded-full transition-all hover:opacity-80 flex items-center gap-1"
+                    style={{
+                      background: `${brand.primary}15`,
+                      color: brand.primary,
+                      border: `1px solid ${brand.primary}30`,
+                    }}
+                  >
+                    <span>Venue Details</span>
+                    <ChevronRight className="w-2.5 h-2.5" />
+                  </button>
+                </div>
+                <p
+                  className={`text-xs mt-1.5 leading-relaxed ${
+                    descExpanded ? '' : 'line-clamp-2'
+                  }`}
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  {brand.description}
+                </p>
+                {brand.description.length > 120 && (
+                  <button
+                    onClick={() => setDescExpanded(!descExpanded)}
+                    className="text-[11px] font-bold mt-1.5 flex items-center gap-1 transition-opacity hover:opacity-80"
+                    style={{ color: brand.primary }}
+                  >
+                    <span>{descExpanded ? 'Show less' : 'Read more'}</span>
+                    <ChevronDown
+                      className={`w-3 h-3 transition-transform duration-200 ${
+                        descExpanded ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── MENU ITEMS ───────────────────────── */}
       <div ref={menuSectionRef} className="px-4 pt-3 space-y-3 fade-up-delay-2">
         {/* Special Header when in Deals Tab */}
@@ -1726,6 +1827,123 @@ export const DigitalStorefrontPage: React.FC = () => {
               <ChevronRight className="w-4 h-4 opacity-70" />
             </div>
           </button>
+        </div>
+      )}
+
+      {/* ── ABOUT VENUE MODAL ── */}
+      {showAboutModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm fade-up"
+          onClick={() => setShowAboutModal(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl p-6 border shadow-2xl space-y-4 relative overflow-hidden"
+            style={{
+              background: 'var(--surface)',
+              borderColor: 'var(--border)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              onClick={() => setShowAboutModal(false)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center transition-colors border"
+              style={{
+                background: 'var(--bg)',
+                borderColor: 'var(--border)',
+                color: 'var(--text-secondary)',
+              }}
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Header */}
+            <div className="flex items-center gap-3 pt-1">
+              {brand.logoUrl ? (
+                <div
+                  className="w-12 h-12 rounded-2xl overflow-hidden border flex-shrink-0 shadow-md"
+                  style={{ borderColor: 'var(--border)' }}
+                >
+                  <img src={brand.logoUrl} alt={brand.name} className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-black text-white flex-shrink-0 shadow-md"
+                  style={{ background: brand.primary }}
+                >
+                  {brand.name.charAt(0)}
+                </div>
+              )}
+              <div className="min-w-0 pr-8">
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-base font-black truncate" style={{ color: 'var(--text)' }}>
+                    {brand.name}
+                  </h3>
+                  <span className="inline-flex items-center gap-0.5 text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    <Check className="w-2 h-2" /> Verified
+                  </span>
+                </div>
+                <p className="text-xs truncate flex items-center gap-1 mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                  <MapPin className="w-3 h-3 text-amber-400 shrink-0" />
+                  <span>{brand.address || brand.tagline}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Description Body */}
+            {brand.description && (
+              <div
+                className="p-3.5 rounded-2xl border space-y-1.5"
+                style={{
+                  background: 'var(--bg)',
+                  borderColor: 'var(--border)',
+                }}
+              >
+                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider" style={{ color: brand.primary }}>
+                  <Sparkles className="w-3 h-3" />
+                  <span>About & Atmosphere</span>
+                </div>
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--text)' }}>
+                  {brand.description}
+                </p>
+              </div>
+            )}
+
+            {/* Hours & Contact */}
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div
+                className="p-3 rounded-xl border space-y-0.5"
+                style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}
+              >
+                <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase">
+                  <Clock className="w-3 h-3 text-amber-400" />
+                  <span>Hours</span>
+                </div>
+                <p className="font-bold text-xs" style={{ color: 'var(--text)' }}>
+                  {brand.openingHours} – {brand.closingHours}
+                </p>
+              </div>
+              <div
+                className="p-3 rounded-xl border space-y-0.5"
+                style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}
+              >
+                <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase">
+                  <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                  <span>Service</span>
+                </div>
+                <p className="font-bold text-xs" style={{ color: 'var(--text)' }}>
+                  {venueOpen ? 'Open Now' : 'Closed'}
+                </p>
+              </div>
+            </div>
+
+            {brand.phone && (
+              <p className="text-[11px] text-center" style={{ color: 'var(--text-muted)' }}>
+                Questions or reservations? Call <span className="font-bold" style={{ color: 'var(--text)' }}>{brand.phone}</span>
+              </p>
+            )}
+          </div>
         </div>
       )}
 

@@ -19,23 +19,39 @@ interface ThemeToggleProps {
   /** 'icon' shows only icons; 'label' shows icon + text */
   variant?: 'icon' | 'label';
   className?: string;
+  /** 'default' uses var(--bg-card) & var(--border); 'on-brand' uses frosted white styling for vibrant headers */
+  colorScheme?: 'default' | 'on-brand';
+  /** Optional theme color to tint the active button icon when in on-brand mode */
+  brandColor?: string;
 }
 
 export const ThemeToggle: React.FC<ThemeToggleProps> = ({
   variant = 'icon',
   className = '',
+  colorScheme = 'default',
+  brandColor,
 }) => {
   const { theme, resolvedTheme, setTheme } = useTheme();
+  const isOnBrand = colorScheme === 'on-brand';
 
   return (
     <div
       role="group"
       aria-label="Theme selector"
-      className={`inline-flex items-center gap-0.5 rounded-lg border p-1 transition-colors ${className}`}
-      style={{
-        background:   'var(--bg-card)',
-        borderColor:  'var(--border)',
-      }}
+      className={`inline-flex items-center gap-0.5 rounded-lg border p-1 transition-colors ${
+        isOnBrand ? 'backdrop-blur-sm' : ''
+      } ${className}`}
+      style={
+        isOnBrand
+          ? {
+              background: 'rgba(255, 255, 255, 0.14)',
+              borderColor: 'rgba(255, 255, 255, 0.25)',
+            }
+          : {
+              background: 'var(--bg-card)',
+              borderColor: 'var(--border)',
+            }
+      }
     >
       {OPTIONS.map(opt => {
         const active = theme === opt.value;
@@ -45,14 +61,24 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
             onClick={() => setTheme(opt.value)}
             title={opt.label}
             aria-pressed={active}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
-            style={{
-              background: active
-                ? resolvedTheme === 'dark' ? '#1E293B' : '#FFFFFF'
-                : 'transparent',
-              color: active ? 'var(--text-primary)' : 'var(--text-muted)',
-              boxShadow: active ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
-            }}
+            className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
+              isOnBrand && !active ? 'hover:bg-white/10 hover:text-white' : ''
+            }`}
+            style={
+              isOnBrand
+                ? {
+                    background: active ? '#FFFFFF' : 'transparent',
+                    color: active ? (brandColor || '#0F172A') : 'rgba(255, 255, 255, 0.8)',
+                    boxShadow: active ? '0 1px 3px rgba(0, 0, 0, 0.18)' : 'none',
+                  }
+                : {
+                    background: active
+                      ? resolvedTheme === 'dark' ? '#1E293B' : '#FFFFFF'
+                      : 'transparent',
+                    color: active ? 'var(--text-primary)' : 'var(--text-muted)',
+                    boxShadow: active ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+                  }
+            }
           >
             {opt.icon}
             {variant === 'label' && <span>{opt.label}</span>}
@@ -64,15 +90,35 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
 };
 
 // ─── Minimal single-button toggle (light ↔ dark) ─────────────────────────────
-export const ThemeToggleSimple: React.FC<{ className?: string }> = ({ className = '' }) => {
+export const ThemeToggleSimple: React.FC<{
+  className?: string;
+  colorScheme?: 'default' | 'on-brand';
+  brandColor?: string;
+}> = ({ className = '', colorScheme = 'default', brandColor }) => {
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
+  const isOnBrand = colorScheme === 'on-brand';
+
   return (
     <button
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
       title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-      className={`flex items-center justify-center rounded-lg border p-2 transition-colors hover:opacity-80 ${className}`}
-      style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+      className={`flex items-center justify-center rounded-lg border p-2 transition-colors hover:opacity-80 ${
+        isOnBrand ? 'hover:bg-white/20' : ''
+      } ${className}`}
+      style={
+        isOnBrand
+          ? {
+              background: 'rgba(255, 255, 255, 0.14)',
+              borderColor: 'rgba(255, 255, 255, 0.25)',
+              color: brandColor || '#FFFFFF',
+            }
+          : {
+              background: 'var(--bg-card)',
+              borderColor: 'var(--border)',
+              color: 'var(--text-secondary)',
+            }
+      }
     >
       {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
     </button>

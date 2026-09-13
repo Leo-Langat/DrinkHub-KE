@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { ThemeToggle } from '@drinkhub/ui';
+import { ThemeToggle, useTheme } from '@drinkhub/ui';
 import {
   LayoutDashboard,
   Building2,
@@ -456,6 +456,7 @@ const authFetch = async (endpoint: string, options: RequestInit = {}): Promise<a
    MAIN ADMIN DASHBOARD COMPONENT
 ───────────────────────────────────────────────────────────── */
 export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
+  const { applyClubBranding } = useTheme();
   const [page, setPage] = useState<AdminNavKey>('dashboard');
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -750,8 +751,14 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   useEffect(() => {
     if (currentThemeColor) {
       document.documentElement.style.setProperty('--brand-primary', currentThemeColor);
+      document.documentElement.style.setProperty('--primary', currentThemeColor);
+      document.documentElement.style.setProperty('--club-primary', currentThemeColor);
+      applyClubBranding({
+        primaryColor: currentThemeColor,
+        name: businessName,
+      });
     }
-  }, [currentThemeColor]);
+  }, [currentThemeColor, businessName, applyClubBranding]);
 
   /* ─────────────────────────────────────────────────────────────
      NAVIGATION MENU CONFIGURATION
@@ -6234,7 +6241,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                 <div className="text-sm font-black text-white truncate" title={businessName}>
                   {businessName}
                 </div>
-                <div className="text-[10px] text-blue-400 font-bold truncate">Business Admin Portal</div>
+                <div className="text-[10px] font-bold truncate" style={{ color: currentThemeColor }}>Business Admin Portal</div>
               </div>
               <button
                 type="button"
@@ -6265,9 +6272,10 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               title={collapsed ? item.label : undefined}
               className="w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-xs font-semibold transition-all"
               style={{
-                background: page === item.key ? '#1E293B' : 'transparent',
+                background: page === item.key ? currentThemeColor : 'transparent',
                 color: page === item.key ? '#FFFFFF' : '#94A3B8',
                 justifyContent: collapsed ? 'center' : 'flex-start',
+                boxShadow: page === item.key ? `0 4px 12px ${currentThemeColor}40` : 'none',
               }}
             >
               <span className="flex-shrink-0">{item.icon}</span>
@@ -6318,7 +6326,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           <div className="flex items-center gap-2 sm:gap-3">
             <ThemeToggle />
             <div className="h-8 px-2.5 sm:px-3 rounded-xl border flex items-center gap-1.5 sm:gap-2 text-xs font-bold" style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-              <Shield className="h-3.5 w-3.5 text-blue-600" />
+              <Shield className="h-3.5 w-3.5" style={{ color: currentThemeColor }} />
               <span className="hidden sm:inline">{user.fullName || 'Admin'}</span>
             </div>
           </div>
@@ -6327,7 +6335,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
         <main className="flex-1 p-3 sm:p-6 overflow-y-auto min-h-0 flex flex-col">
           {loading ? (
             <div className="h-96 flex flex-col items-center justify-center text-slate-400 space-y-3">
-              <Building2 className="h-10 w-10 animate-bounce text-blue-600" />
+              <Building2 className="h-10 w-10 animate-bounce" style={{ color: currentThemeColor }} />
               <p className="text-xs font-bold">Loading Business Dashboard...</p>
             </div>
           ) : (

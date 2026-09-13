@@ -7,6 +7,7 @@ import {
   Loader2, RefreshCcw, WifiOff, Lock, Key, Eye, EyeOff, X, Check,
 } from 'lucide-react';
 import { resolveImageUrl } from '../config/api';
+import { useTheme } from '@drinkhub/ui';
 
 /* ─── API config ─── */
 const getApiUrl = (path: string): string => {
@@ -98,6 +99,7 @@ const mapOrder = (o: any): Order => ({
 
 /* ─── Component ─── */
 export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
+  const { applyClubBranding } = useTheme();
   const [activeTab, setActiveTab] = useState<'available' | 'my-order' | 'history'>('available');
 
   /* Available orders fetched from API */
@@ -164,6 +166,18 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
   useEffect(() => {
     setLogoError(false);
   }, [clubLogoUrl]);
+
+  useEffect(() => {
+    if (clubThemeColor) {
+      document.documentElement.style.setProperty('--brand-primary', clubThemeColor);
+      document.documentElement.style.setProperty('--primary', clubThemeColor);
+      document.documentElement.style.setProperty('--club-primary', clubThemeColor);
+      applyClubBranding({
+        primaryColor: clubThemeColor,
+        name: clubName,
+      });
+    }
+  }, [clubThemeColor, clubName, applyClubBranding]);
   const fullName = user.fullName || 'Waiter';
   const nameParts = fullName.trim().split(' ');
   const firstName = nameParts[0] || 'Waiter';
@@ -413,13 +427,13 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--bg-body)' }}>
       {/* Top Nav */}
-      <nav className="border-b flex items-center justify-between px-4 sm:px-6 py-3 flex-shrink-0 z-30 shadow-sm"
-        style={{ background: '#2563EB', borderColor: '#1D4ED8' }}>
+      <nav className="border-b flex items-center justify-between px-4 sm:px-6 py-3 flex-shrink-0 z-30 shadow-sm transition-colors duration-200"
+        style={{ background: clubThemeColor, borderColor: 'rgba(0,0,0,0.12)' }}>
         <div className="flex items-center gap-3">
           <div
             title={clubName}
             className="h-10 w-10 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden shadow-sm border border-white/20"
-            style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
+            style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
           >
             {clubLogoUrl && !logoError ? (
               <img
@@ -436,7 +450,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
           </div>
           <div>
             <div className="font-black text-white text-sm leading-tight">{clubName}</div>
-            <div className="text-blue-100 text-xs font-semibold">{displayName} <span className="opacity-75 font-normal">(Waiter Portal)</span></div>
+            <div className="text-white/80 text-xs font-semibold">{displayName} <span className="opacity-75 font-normal">(Waiter Portal)</span></div>
           </div>
         </div>
 
@@ -480,7 +494,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
           <div className="grid grid-cols-3 gap-3 sm:gap-4">
             {[
               { label: 'Completed Shift', value: String(completedCount), icon: <CheckCircle2 className="h-5 w-5 text-emerald-500" /> },
-              { label: 'Currently Active', value: myOrder ? `Table #${myOrder.tableNumber}` : 'None', icon: <Circle className="h-5 w-5 text-blue-500" /> },
+              { label: 'Currently Active', value: myOrder ? `Table #${myOrder.tableNumber}` : 'None', icon: <Circle className="h-5 w-5" style={{ color: clubThemeColor }} /> },
               { label: 'Available Orders', value: String(availableOrders.length), icon: <Clock className="h-5 w-5 text-amber-500" /> },
             ].map((kpi) => (
               <div key={kpi.label} className="rounded-xl border p-3 sm:p-4 flex items-center gap-3 sm:gap-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
@@ -497,20 +511,26 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
 
           {/* ── PINNED ACTIVE PROCESSING ORDER CARD (Always visible when waiter has an active order) ── */}
           {myOrder && (
-            <div className="rounded-2xl border-2 border-blue-500 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 dark:from-blue-950/40 dark:to-indigo-950/40 p-4 sm:p-5 shadow-lg shadow-blue-500/10 space-y-3 sm:space-y-4">
+            <div
+              className="rounded-2xl border-2 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 dark:from-blue-950/40 dark:to-indigo-950/40 p-4 sm:p-5 shadow-lg space-y-3 sm:space-y-4"
+              style={{ borderColor: clubThemeColor, boxShadow: `0 8px 24px ${clubThemeColor}20` }}
+            >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-blue-200 dark:border-blue-800/60 pb-3">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-blue-600 text-white flex items-center justify-center flex-shrink-0 shadow-md">
+                  <div
+                    className="h-10 w-10 rounded-xl text-white flex items-center justify-center flex-shrink-0 shadow-md"
+                    style={{ backgroundColor: clubThemeColor }}
+                  >
                     <ClipboardList className="h-5 w-5" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                      <span className="text-xs font-black uppercase tracking-wider" style={{ color: clubThemeColor }}>
                         Currently Processing
                       </span>
                       <span className="flex h-2 w-2 relative">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: clubThemeColor }}></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: clubThemeColor }}></span>
                       </span>
                     </div>
                     <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">
@@ -606,7 +626,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                   onClick={advanceOrderStatus}
                   disabled={actionLoading || myOrder.status === 'DELIVERED'}
                   className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white transition-all shadow-md shadow-blue-500/20 disabled:opacity-50 hover:brightness-110 active:scale-[0.98]"
-                  style={{ background: myOrder.status === 'READY' ? '#059669' : '#2563EB' }}
+                  style={{ background: myOrder.status === 'READY' ? '#059669' : clubThemeColor, boxShadow: `0 4px 12px ${clubThemeColor}30` }}
                 >
                   {actionLoading ? (
                     <><Loader2 className="h-4 w-4 animate-spin" /> Updating Status…</>
@@ -644,15 +664,21 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                   onClick={() => setActiveTab(tab.key)}
                   className="flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-bold transition-all border-b-2 -mb-px"
                   style={{
-                    borderBottomColor: activeTab === tab.key ? '#2563EB' : 'transparent',
-                    color: activeTab === tab.key ? '#2563EB' : 'var(--text-secondary)',
+                    borderBottomColor: activeTab === tab.key ? clubThemeColor : 'transparent',
+                    color: activeTab === tab.key ? clubThemeColor : 'var(--text-secondary)',
                     background: 'transparent',
                   }}
                 >
                   {tab.icon}
                   {tab.label}
                   {'count' in tab && tab.count > 0 && (
-                    <span className="rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-[10px] font-black px-1.5 py-0.5">
+                    <span
+                      className="rounded-full text-[10px] font-black px-1.5 py-0.5"
+                      style={{
+                        backgroundColor: `${clubThemeColor}20`,
+                        color: clubThemeColor,
+                      }}
+                    >
                       {tab.count}
                     </span>
                   )}
@@ -732,7 +758,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                         <div className="text-xs space-y-1 font-medium" style={{ color: 'var(--text-secondary)' }}>
                           {order.items.map((i, idx) => (
                             <div key={idx} className="flex items-center gap-2">
-                              <span className="font-bold text-blue-600 dark:text-blue-400">×{i.quantity}</span>
+                              <span className="font-bold" style={{ color: clubThemeColor }}>×{i.quantity}</span>
                               <span>{i.name}</span>
                               {i.notes && <span className="text-[11px] text-amber-600 font-normal">({i.notes})</span>}
                             </div>
@@ -754,8 +780,8 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                       <button
                         onClick={() => claimOrder(order)}
                         disabled={!!myOrder || actionLoading}
-                        className="flex items-center justify-center gap-1.5 rounded-xl px-5 py-2.5 text-xs font-bold text-white transition-all hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 shadow-md shadow-blue-500/20"
-                        style={{ background: '#2563EB' }}
+                        className="flex items-center justify-center gap-1.5 rounded-xl px-5 py-2.5 text-xs font-bold text-white transition-all hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 shadow-md"
+                        style={{ background: clubThemeColor, boxShadow: `0 4px 12px ${clubThemeColor}30` }}
                       >
                         {actionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <>Claim & Process <ArrowRight className="h-3.5 w-3.5" /></>}
                       </button>
@@ -850,11 +876,14 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                       {(['CLAIMED', 'PREPARING', 'READY', 'DELIVERED'] as const).map((s, i, arr) => (
                         <React.Fragment key={s}>
                           <div className="flex flex-col items-center gap-1">
-                            <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold border-2 ${
-                              statusFlow.indexOf(myOrder.status) >= i
-                                ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                                : 'border-slate-200 text-slate-400'
-                            }`}>
+                            <div
+                              className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all shadow-sm"
+                              style={{
+                                backgroundColor: statusFlow.indexOf(myOrder.status) >= i ? clubThemeColor : 'transparent',
+                                borderColor: statusFlow.indexOf(myOrder.status) >= i ? clubThemeColor : 'var(--border)',
+                                color: statusFlow.indexOf(myOrder.status) >= i ? '#FFFFFF' : 'var(--text-muted)',
+                              }}
+                            >
                               {i + 1}
                             </div>
                             <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{s}</span>
@@ -869,8 +898,8 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                     <button
                       onClick={advanceOrderStatus}
                       disabled={actionLoading || myOrder.status === 'DELIVERED'}
-                      className="w-full py-3 rounded-xl text-xs sm:text-sm font-bold text-white transition-all shadow-md shadow-blue-500/20 hover:opacity-95 disabled:opacity-50"
-                      style={{ background: myOrder.status === 'READY' ? '#059669' : '#2563EB' }}
+                      className="w-full py-3 rounded-xl text-xs sm:text-sm font-bold text-white transition-all shadow-md hover:opacity-95 disabled:opacity-50"
+                      style={{ background: myOrder.status === 'READY' ? '#059669' : clubThemeColor, boxShadow: `0 4px 12px ${clubThemeColor}30` }}
                     >
                       {actionLoading
                         ? <span className="flex items-center justify-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Updating…</span>

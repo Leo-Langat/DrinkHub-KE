@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { ThemeToggle } from '@drinkhub/ui';
+import { ThemeToggle, useTheme } from '@drinkhub/ui';
 import {
   Wine, LayoutDashboard, ClipboardList, BookOpen, Users, TrendingUp,
   Settings, Bell, LogOut, ChevronDown, ChevronLeft, ChevronRight, Search, Plus, Download,
@@ -3325,6 +3325,7 @@ const INIT_MGR_NOTIFS: MgrNotif[] = [];
 
 /*           Main Export           */
 export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
+  const { applyClubBranding } = useTheme();
   const [page, setPage] = React.useState<NavKey>('dashboard');
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -3372,6 +3373,18 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
   React.useEffect(() => {
     setLogoError(false);
   }, [clubLogoUrl]);
+
+  React.useEffect(() => {
+    if (clubThemeColor) {
+      document.documentElement.style.setProperty('--brand-primary', clubThemeColor);
+      document.documentElement.style.setProperty('--primary', clubThemeColor);
+      document.documentElement.style.setProperty('--club-primary', clubThemeColor);
+      applyClubBranding({
+        primaryColor: clubThemeColor,
+        name: clubName,
+      });
+    }
+  }, [clubThemeColor, clubName, applyClubBranding]);
 
   // Compute open/closed status from current time vs stored hours
   const isOpenNow = React.useMemo(() => {
@@ -3488,7 +3501,7 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
                 <div className="text-sm font-black text-white truncate" title={clubName}>
                   {clubName}
                 </div>
-                <div className="text-[10px] text-blue-400 font-bold truncate">Manager Portal</div>
+                <div className="text-[10px] font-bold truncate" style={{ color: clubThemeColor }}>Manager Portal</div>
               </div>
               <button
                 type="button"
@@ -3514,7 +3527,12 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
           {NAV_ITEMS.map(item => (
             <button key={item.key} onClick={() => { setPage(item.key); setMobileOpen(false); }} title={collapsed ? item.label : undefined}
               className="w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm font-medium transition-all"
-              style={{ background: page === item.key ? '#1E293B' : 'transparent', color: page === item.key ? '#FFFFFF' : '#64748B', justifyContent: collapsed ? 'center' : 'flex-start' }}>
+              style={{
+                background: page === item.key ? clubThemeColor : 'transparent',
+                color: page === item.key ? '#FFFFFF' : '#94A3B8',
+                justifyContent: collapsed ? 'center' : 'flex-start',
+                boxShadow: page === item.key ? `0 4px 12px ${clubThemeColor}40` : 'none',
+              }}>
               <span className="flex-shrink-0">{item.icon}</span>
               {!collapsed && <span className="truncate">{item.label}</span>}
             </button>
@@ -3613,7 +3631,7 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
                 className="flex items-center gap-2 rounded-lg border px-2.5 py-1.5 transition-colors"
                 style={{ borderColor: 'var(--border)', background: profileOpen ? 'var(--bg-muted)' : 'transparent' }}
               >
-                <div className="h-6 w-6 rounded-full bg-blue-600 flex items-center justify-center"><span className="text-[10px] font-black text-white">{initials}</span></div>
+                <div className="h-6 w-6 rounded-full flex items-center justify-center" style={{ backgroundColor: clubThemeColor }}><span className="text-[10px] font-black text-white">{initials}</span></div>
                 <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{displayName}</span>
                 <ChevronDown className="h-3.5 w-3.5 transition-transform" style={{ color: 'var(--text-muted)', transform: profileOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} />
               </button>
@@ -3623,7 +3641,7 @@ export const ManagerDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout 
                   {/* Identity */}
                   <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0"><span className="text-sm font-black text-white">{initials}</span></div>
+                      <div className="h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: clubThemeColor }}><span className="text-sm font-black text-white">{initials}</span></div>
                       <div className="min-w-0">
                         <div className="text-sm font-black truncate" style={{ color: 'var(--text-primary)' }}>{fullName}</div>
                         <div className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{userEmail}</div>

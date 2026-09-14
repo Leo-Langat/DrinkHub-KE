@@ -5,7 +5,7 @@ import {
   Clock, AlertCircle, ShoppingCart, MapPin, Wifi, WifiOff,
   Smartphone, Banknote, CreditCard, ArrowLeft, Star, Loader2,
   User, Check, RefreshCw, Flame, Gift, Tag, Copy, Zap,
-  Wine, ShieldCheck, ChevronDown, Info,
+  Wine, ShieldCheck, ChevronDown, Info, MessageSquare,
 } from 'lucide-react';
 import { ThemeToggleSimple } from '@drinkhub/ui';
 
@@ -148,6 +148,7 @@ export const DigitalStorefrontPage: React.FC = () => {
   const [screen, setScreen] = useState<'menu' | 'cart' | 'checkout' | 'success'>('menu');
   const [payment, setPayment] = useState<'mpesa' | 'card' | 'cash'>('mpesa');
   const [phone, setPhone] = useState('');
+  const [customerNotes, setCustomerNotes] = useState('');
   const [placing, setPlacing] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -687,10 +688,16 @@ export const DigitalStorefrontPage: React.FC = () => {
         if (parsedTableNum && !isNaN(parsedTableNum)) {
           body.tableNumber = parsedTableNum;
         }
-        body.notes = `Table #${table} | Payment: ${resolvedPaymentMethod}`;
-      } else {
-        body.notes = `Payment: ${resolvedPaymentMethod}`;
       }
+
+      // Include customer's additional instructions alongside table & payment
+      const trimmedNotes = customerNotes.trim();
+      const metaParts: string[] = [];
+      if (table) metaParts.push(`Table #${table}`);
+      metaParts.push(`Payment: ${resolvedPaymentMethod}`);
+      if (trimmedNotes) metaParts.push(`Note: ${trimmedNotes}`);
+      body.notes = metaParts.join(' | ');
+
       if (formattedPhone) body.phoneNumber = formattedPhone;
       if (appliedOffer) body.offerUuid = appliedOffer.id;
 
@@ -711,6 +718,7 @@ export const DigitalStorefrontPage: React.FC = () => {
       setActiveOrder(placedOrder);
       localStorage.setItem('drinkhub_active_order_uuid', resolvedUuid);
       setCart({});
+      setCustomerNotes('');
       setScreen('success');
     } catch (err: any) {
       setPlaceError(err.message || 'Failed to place order. Please try again.');
@@ -922,6 +930,28 @@ export const DigitalStorefrontPage: React.FC = () => {
               </div>
             )}
 
+            {/* Confirmed instructions / notes */}
+            {(() => {
+              const rawNotes = activeOrder?.notes || '';
+              const customerInstruction = rawNotes.includes('Note: ')
+                ? rawNotes.split('Note: ')[1]
+                : (!rawNotes.includes('Table #') && !rawNotes.startsWith('Payment: '))
+                  ? rawNotes
+                  : null;
+              if (!customerInstruction) return null;
+              return (
+                <div className="pt-2.5 border-t text-xs space-y-1" style={{ borderColor: 'var(--border)' }}>
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-blue-400">
+                    <MessageSquare className="w-3 h-3" />
+                    <span>Special Instructions</span>
+                  </div>
+                  <p className="font-medium italic" style={{ color: 'var(--text-secondary)' }}>
+                    "{customerInstruction}"
+                  </p>
+                </div>
+              );
+            })()}
+
             <div className="flex justify-between pt-3 border-t font-bold" style={{ borderColor: 'var(--border)' }}>
               <span style={{ color: 'var(--text)' }}>Total Amount</span>
               <span className="text-base font-black" style={{ color: brand.accent }}>
@@ -1034,6 +1064,35 @@ export const DigitalStorefrontPage: React.FC = () => {
               </p>
             </div>
           )}
+
+          {/* ── Additional Information / Instructions Description Box ── */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+                <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
+                <span>Additional Information / Instructions</span>
+              </label>
+              <span className="text-[10px] font-semibold text-slate-400">Optional</span>
+            </div>
+            <div
+              className="rounded-2xl border transition-all focus-within:ring-2 focus-within:ring-blue-500 overflow-hidden"
+              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+            >
+              <textarea
+                value={customerNotes}
+                onChange={(e) => setCustomerNotes(e.target.value)}
+                placeholder="Specify any special requests, dietary needs, table location, or delivery instructions..."
+                rows={3}
+                maxLength={300}
+                className="w-full bg-transparent p-3.5 text-xs outline-none resize-none placeholder:opacity-40"
+                style={{ color: 'var(--text)' }}
+              />
+              <div className="flex justify-between items-center px-3.5 py-1.5 border-t text-[10px]" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+                <span>Passed directly to your server & bartender</span>
+                <span>{customerNotes.length}/300</span>
+              </div>
+            </div>
+          </div>
 
           {/* Order summary */}
           <div className="card p-5 space-y-3">
@@ -1179,6 +1238,30 @@ export const DigitalStorefrontPage: React.FC = () => {
                 </div>
               </div>
             ))}
+
+            {/* Special Instructions / Additional Information */}
+            <div className="rounded-2xl border p-4 space-y-2 mt-2" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
+                  <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Special Instructions / Requests</span>
+                </span>
+                <span className="text-[10px] font-semibold text-slate-400">Optional</span>
+              </div>
+              <textarea
+                value={customerNotes}
+                onChange={(e) => setCustomerNotes(e.target.value)}
+                placeholder="e.g. Less ice, extra lime, table location preferences, allergies..."
+                rows={2}
+                maxLength={300}
+                className="w-full bg-transparent text-xs outline-none resize-none placeholder:opacity-40 rounded-xl p-3 border"
+                style={{ color: 'var(--text)', borderColor: 'var(--border)', background: 'var(--bg)' }}
+              />
+              <div className="flex justify-between items-center text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                <span>Passed directly to your server</span>
+                {customerNotes.length > 0 && <span>{customerNotes.length}/300</span>}
+              </div>
+            </div>
           </div>
         </div>
 

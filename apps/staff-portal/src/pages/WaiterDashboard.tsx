@@ -634,7 +634,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                   {actionLoading ? (
                     <><Loader2 className="h-4 w-4 animate-spin" /> Updating Status…</>
                   ) : myOrder.status === 'CLAIMED' ? (
-                    <>Mark as Preparing in Bar/Kitchen →</>
+                    <>Mark as Preparing Order →</>
                   ) : myOrder.status === 'PREPARING' ? (
                     <>Mark as Ready for Delivery →</>
                   ) : myOrder.status === 'READY' ? (

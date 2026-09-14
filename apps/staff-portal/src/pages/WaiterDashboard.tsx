@@ -571,6 +571,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                         <input
                           type="checkbox"
                           checked={!!checkedItems[idx]}
+                          onClick={(e) => e.stopPropagation()}
                           onChange={() => toggleItemChecked(idx)}
                           className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                         />

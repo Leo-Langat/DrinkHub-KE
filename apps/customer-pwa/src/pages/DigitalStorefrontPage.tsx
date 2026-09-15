@@ -779,7 +779,7 @@ export const DigitalStorefrontPage: React.FC = () => {
     const displayTable = activeOrder?.table?.tableNumber ?? table;
 
     return (
-      <div className="min-h-screen flex flex-col justify-between py-6 px-4 fade-up" style={{ background: 'var(--bg)' }}>
+      <div className="h-screen overflow-y-auto flex flex-col justify-between py-6 px-4 fade-up" style={{ background: 'var(--bg)', scrollbarWidth: 'thin' }}>
         <div className="max-w-md mx-auto w-full space-y-6">
           
           {/* Header */}
@@ -993,8 +993,8 @@ export const DigitalStorefrontPage: React.FC = () => {
   /* ────── CHECKOUT SCREEN ────── */
   if (screen === 'checkout') {
     return (
-      <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-        <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-4 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+      <div className="h-screen overflow-y-auto flex flex-col" style={{ background: 'var(--bg)', scrollbarWidth: 'thin' }}>
+        <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-4 border-b flex-shrink-0" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-3">
             <button onClick={() => setScreen('cart')} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--surface)' }}>
               <ArrowLeft className="w-5 h-5" style={{ color: 'var(--text)' }} />
@@ -1007,7 +1007,7 @@ export const DigitalStorefrontPage: React.FC = () => {
           <ThemeToggleSimple />
         </div>
 
-        <div className="max-w-md mx-auto px-4 py-6 space-y-5">
+        <div className="max-w-md mx-auto w-full px-4 py-6 space-y-5 pb-36 flex-1">
           {/* Payment method */}
           <div>
             <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>Payment Method</p>
@@ -1181,8 +1181,8 @@ export const DigitalStorefrontPage: React.FC = () => {
   /* ────── CART SCREEN ────── */
   if (screen === 'cart') {
     return (
-      <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-        <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-4 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+      <div className="h-screen overflow-y-auto flex flex-col" style={{ background: 'var(--bg)', scrollbarWidth: 'thin' }}>
+        <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-4 border-b flex-shrink-0" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-3">
             <button onClick={() => setScreen('menu')} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--surface)' }}>
               <ArrowLeft className="w-5 h-5" style={{ color: 'var(--text)' }} />
@@ -1195,7 +1195,7 @@ export const DigitalStorefrontPage: React.FC = () => {
           <ThemeToggleSimple />
         </div>
 
-        <div className="max-w-md mx-auto px-4 py-6 space-y-3 pb-40">
+        <div className="max-w-md mx-auto w-full px-4 py-6 space-y-3 pb-40 flex-1">
           {/* Active offer banner in cart */}
           {appliedOffer && (
             <div className="flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-bold" style={{ background: 'rgba(251,191,36,0.12)', color: '#F59E0B', border: '1px solid rgba(251,191,36,0.3)' }}>

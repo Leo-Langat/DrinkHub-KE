@@ -449,9 +449,9 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
   ] as const;
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--bg-body)' }}>
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg-body)' }}>
       {/* Top Nav */}
-      <nav className="border-b flex items-center justify-between px-4 sm:px-6 py-3 flex-shrink-0 z-30 shadow-sm transition-colors duration-200"
+      <nav className="sticky top-0 z-30 border-b flex items-center justify-between px-4 sm:px-6 py-3 flex-shrink-0 shadow-sm transition-colors duration-200"
         style={{ background: clubThemeColor, borderColor: 'rgba(0,0,0,0.12)' }}>
         <div className="flex items-center gap-3">
           <div
@@ -513,9 +513,9 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
       </nav>
 
       {/* Main Content */}
-      <div className="flex-1 max-w-4xl mx-auto w-full p-4 sm:p-6 flex flex-col min-h-0 overflow-hidden space-y-4">
-        {/* Top Sticky Header Section: KPI metrics & active orders */}
-        <div className="flex-shrink-0 space-y-3 sm:space-y-4">
+      <div className="flex-1 max-w-4xl mx-auto w-full p-4 sm:p-6 space-y-4 pb-28">
+        {/* Top Header Section: KPI metrics & active orders */}
+        <div className="space-y-3 sm:space-y-4">
           {/* KPI Row */}
           <div className="grid grid-cols-3 gap-3 sm:gap-4">
             {[
@@ -715,7 +715,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
         </div>
 
         {/* Tabs & Table */}
-        <div className="flex-1 min-h-[300px] rounded-xl border overflow-hidden shadow-sm flex flex-col" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+        <div className="rounded-xl border shadow-sm flex flex-col" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
           {/* Header with live auto-refresh radar */}
           <div className="flex-shrink-0 flex flex-col sm:flex-row sm:items-center justify-between border-b px-4 py-2.5 sm:py-3 gap-2" style={{ borderColor: 'var(--border)', background: 'var(--bg-body)' }}>
             <div className="flex border-b sm:border-b-0 -mb-px" style={{ borderColor: 'var(--border)' }}>
@@ -762,7 +762,7 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
             </div>
           </div>
 
-          <div className="p-4 sm:p-5 flex-1 min-h-0 overflow-y-auto">
+          <div className="p-4 sm:p-5">
             {/* ── INCOMING / AVAILABLE ORDERS TAB ── */}
             {activeTab === 'available' && (
               <div className="space-y-3">

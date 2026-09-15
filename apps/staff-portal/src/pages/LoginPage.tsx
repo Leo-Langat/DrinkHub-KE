@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Wine, Eye, EyeOff, ChevronRight, Loader2, User, Briefcase, Shield, Timer, Server, Globe } from 'lucide-react';
-import { getApiUrl, getApiTarget, setApiTarget, ApiTarget } from '../config/api';
+import { Wine, Eye, EyeOff, ChevronRight, Loader2, User, Briefcase, Shield, Timer } from 'lucide-react';
+import { getApiUrl } from '../config/api';
 import { getSessionExpiredNotice } from '@drinkhub/shared';
 
 type StaffRole = 'waiter' | 'manager' | 'admin';
@@ -11,7 +11,7 @@ interface LoginPageProps {
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [role, setRole] = useState<StaffRole>('admin');
-  const [apiTarget, setApiTargetState] = useState<ApiTarget>(() => getApiTarget());
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -94,7 +94,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
       if (isNetworkError) {
         setError(
-          `Cannot connect to the ${apiTarget === 'cloud' ? 'Cloud Server (Render)' : 'Local Server (port 5000)'}. Please verify the server is running or try switching servers below.`
+          `Cannot connect to the server. Please verify the server is running and try again.`
         );
       } else {
         setError(err.message || 'Authentication failed. Invalid credentials.');
@@ -104,11 +104,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     }
   };
 
-  const handleSwitchTarget = (newTarget: ApiTarget) => {
-    setApiTarget(newTarget);
-    setApiTargetState(newTarget);
-    setError('');
-  };
 
   const handlePasswordChangeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,25 +179,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             </div>
           )}
 
-          {/* Server Environment Selector */}
-          <div className="rounded-xl p-2.5 flex items-center justify-between border text-xs" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-            <div className="flex items-center gap-2">
-              <span className={`h-2.5 w-2.5 rounded-full ${apiTarget === 'local' ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-blue-500 shadow-sm shadow-blue-500/50'}`} />
-              <div className="flex flex-col">
-                <span className="text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>Server Target</span>
-                <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
-                  {apiTarget === 'local' ? 'Localhost (Port 5000)' : 'Render Cloud'}
-                </span>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleSwitchTarget(apiTarget === 'local' ? 'cloud' : 'local')}
-              className="px-2.5 py-1 rounded-md text-[11px] font-bold border transition-colors hover:bg-blue-50 text-blue-600 border-blue-200"
-            >
-              Switch to {apiTarget === 'local' ? 'Cloud' : 'Local'}
-            </button>
-          </div>
 
           {/* Role Selector */}
           <div className="rounded-xl p-1 flex gap-1 border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
@@ -229,33 +205,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-xs text-blue-900">
             <div className="flex items-center justify-between font-semibold mb-1">
               <span>
-                Demo {role === 'admin' ? 'Business Admin' : role === 'manager' ? 'Manager' : 'Waiter'} ({apiTarget === 'cloud' ? 'Render' : 'Local'}):
+                Demo {role === 'admin' ? 'Business Admin' : role === 'manager' ? 'Manager' : 'Waiter'}:
               </span>
               <button
                 type="button"
                onClick={() => {
-  if (apiTarget === 'cloud') {
-    if (role === 'admin') {
-      setUsername('john123@gmail.com');
-      setPassword('john1234');
-    } else if (role === 'manager') {
-      setUsername('tonnykim@gmail.com');
-      setPassword('Tonny1234');
-    } else {
-      setUsername('jane@gmail.com');
-      setPassword('Jane1234');
-    }
+  if (role === 'admin') {
+    setUsername('john123@gmail.com');
+    setPassword('john1234');
+  } else if (role === 'manager') {
+    setUsername('tonnykim@gmail.com');
+    setPassword('Tonny1234');
   } else {
-    if (role === 'admin') {
-      setUsername('john123@gmail.com');
-      setPassword('john1234');
-    } else if (role === 'manager') {
-      setUsername('tonnykim@gmail.com');
-      setPassword('Tonny1234');
-    } else {
-      setUsername('jane@gmail.com');
-      setPassword('Jane1234');
-    }
+    setUsername('jane@gmail.com');
+    setPassword('Jane1234');
   }
 }}
                 className="text-blue-600 hover:underline font-bold"

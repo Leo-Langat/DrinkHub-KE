@@ -99,6 +99,24 @@ export class OrderRepository implements IOrderRepository {
     return this.formatOrder(order);
   }
 
+  async findAllActiveOrdersByWaiter(waiterUuid: string): Promise<Order[]> {
+    const orders = await prisma.order.findMany({
+      where: {
+        waiterUuid,
+        status: { in: ['CLAIMED', 'PREPARING', 'READY'] },
+      },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        table: true,
+        waiter: true,
+        customerSession: { include: { table: true } },
+        orderItems: { include: { product: true } },
+        payments: true,
+      },
+    });
+    return orders.map((o) => this.formatOrder(o));
+  }
+
   async createOrder(businessUuid: string, data: any): Promise<Order> {
     const { tableUuid, items, notes, customerSessionUuid, offerUuid, ageVerified } = data;
 

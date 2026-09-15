@@ -109,11 +109,11 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
   const [ordersError, setOrdersError] = useState<string | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
 
-  /* My currently claimed order */
-  const [myOrder, setMyOrder] = useState<Order | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
+  /* My currently claimed active orders (Option B: up to 2 concurrent orders) */
+  const [myOrders, setMyOrders] = useState<Order[]>([]);
+  const [actionLoadingOrderUuid, setActionLoadingOrderUuid] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
+  const [checkedItems, setCheckedItems] = useState<Record<string, Record<number, boolean>>>({});
 
   /* Completed count for this session */
   const [completedCount, setCompletedCount] = useState(0);
@@ -243,15 +243,17 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
         setAvailableOrders(raw.map(mapOrder));
       }
 
-      // 2. Fetch my current active claimed order
+      // 2. Fetch my current active claimed orders
       const resActive = await fetch(getApiUrl('/orders/my-active'), { headers: authHeaders() });
       if (resActive.ok) {
         const dataActive = await resActive.json();
         const activeRaw = dataActive.data;
-        if (activeRaw && (activeRaw.orderUuid || activeRaw.id)) {
-          setMyOrder(mapOrder(activeRaw));
+        if (Array.isArray(activeRaw)) {
+          setMyOrders(activeRaw.map(mapOrder));
+        } else if (activeRaw && (activeRaw.orderUuid || activeRaw.id)) {
+          setMyOrders([mapOrder(activeRaw)]);
         } else {
-          setMyOrder(null);
+          setMyOrders([]);
         }
       }
 
@@ -346,17 +348,29 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
     }
   };
 
+  const canClaimOrder = myOrders.length === 0 || (myOrders.length === 1 && myOrders[0].status === 'PREPARING');
+
   /* ── Claim an order ── */
   const claimOrder = async (order: Order) => {
     if (!order.id || order.id === 'undefined') {
       setActionError('Invalid order ID.');
       return;
     }
-    if (myOrder) {
-      alert('You already have an active order in progress. Complete it before claiming another.');
+    if (myOrders.length >= 2) {
+      alert('You already have 2 active orders in progress. Complete and deliver them before claiming another.');
       return;
     }
-    setActionLoading(true);
+    if (myOrders.length === 1) {
+      if (myOrders[0].status === 'CLAIMED') {
+        alert('Please mark your current order as Preparing Order before claiming a second order.');
+        return;
+      }
+      if (myOrders[0].status === 'READY') {
+        alert('Your current order is ready for delivery! Please deliver it before claiming a new order.');
+        return;
+      }
+    }
+    setActionLoadingOrderUuid(order.id);
     setActionError(null);
     try {
       const res = await fetch(getApiUrl(`/orders/${order.id}/claim`), {
@@ -368,27 +382,28 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
       if (!res.ok) throw new Error(data?.error?.message || 'Failed to claim order.');
       const claimed = mapOrder(data.data?.order ?? data.data ?? { ...order, status: 'CLAIMED' });
       setAvailableOrders((prev) => prev.filter((o) => o.id !== order.id));
-      setMyOrder(claimed);
-      setCheckedItems({});
+      setMyOrders((prev) => [...prev, claimed]);
+      setCheckedItems((prev) => ({ ...prev, [claimed.id]: {} }));
       setActiveTab('my-order');
     } catch (err: any) {
       setActionError(err.message || 'Failed to claim order.');
       fetchOrders(false);
     } finally {
-      setActionLoading(false);
+      setActionLoadingOrderUuid(null);
     }
   };
 
   /* ── Advance order status ── */
-  const advanceOrderStatus = async () => {
-    if (!myOrder) return;
-    const nextIndex = statusFlow.indexOf(myOrder.status) + 1;
+  const advanceOrderStatus = async (orderId: string) => {
+    const targetOrder = myOrders.find((o) => o.id === orderId);
+    if (!targetOrder) return;
+    const nextIndex = statusFlow.indexOf(targetOrder.status) + 1;
     if (nextIndex >= statusFlow.length) return;
     const nextStatus = statusFlow[nextIndex];
-    setActionLoading(true);
+    setActionLoadingOrderUuid(orderId);
     setActionError(null);
     try {
-      const res = await fetch(getApiUrl(`/orders/${myOrder.id}/status`), {
+      const res = await fetch(getApiUrl(`/orders/${orderId}/status`), {
         method: 'PATCH',
         headers: authHeaders(),
         body: JSON.stringify({ status: nextStatus }),
@@ -396,31 +411,40 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message || 'Failed to update order.');
       if (nextStatus === 'DELIVERED') {
-        setMyOrder(null);
-        setCheckedItems({});
+        setMyOrders((prev) => prev.filter((o) => o.id !== orderId));
+        setCheckedItems((prev) => {
+          const copy = { ...prev };
+          delete copy[orderId];
+          return copy;
+        });
         setCompletedCount((c) => c + 1);
         setActiveTab('history');
         fetchOrders(false);
       } else {
-        setMyOrder((prev) => prev ? { ...prev, status: nextStatus } : null);
+        setMyOrders((prev) =>
+          prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o))
+        );
       }
     } catch (err: any) {
       setActionError(err.message || 'Failed to update status.');
     } finally {
-      setActionLoading(false);
+      setActionLoadingOrderUuid(null);
     }
   };
 
-  const toggleItemChecked = (index: number) => {
-    setCheckedItems(prev => ({
+  const toggleItemChecked = (orderId: string, index: number) => {
+    setCheckedItems((prev) => ({
       ...prev,
-      [index]: !prev[index],
+      [orderId]: {
+        ...(prev[orderId] || {}),
+        [index]: !prev[orderId]?.[index],
+      },
     }));
   };
 
   const tabs = [
     { key: 'available', label: 'Incoming Orders', icon: <Package className="h-4 w-4" />, count: availableOrders.length },
-    { key: 'my-order', label: 'Processing Order', icon: <ClipboardList className="h-4 w-4" />, count: myOrder ? 1 : 0 },
+    { key: 'my-order', label: 'Processing Orders', icon: <ClipboardList className="h-4 w-4" />, count: myOrders.length },
     { key: 'history', label: 'Delivered History', icon: <History className="h-4 w-4" />, count: historyOrders.length },
   ] as const;
 
@@ -496,7 +520,13 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
           <div className="grid grid-cols-3 gap-3 sm:gap-4">
             {[
               { label: 'Completed Shift', value: String(completedCount), icon: <CheckCircle2 className="h-5 w-5 text-emerald-500" /> },
-              { label: 'Currently Active', value: myOrder ? `Table #${myOrder.tableNumber}` : 'None', icon: <Circle className="h-5 w-5" style={{ color: clubThemeColor }} /> },
+              {
+                label: 'Currently Active',
+                value: myOrders.length === 0
+                  ? 'None'
+                  : myOrders.map((o) => `Table #${o.tableNumber}`).join(' & '),
+                icon: <Circle className="h-5 w-5" style={{ color: clubThemeColor }} />,
+              },
               { label: 'Available Orders', value: String(availableOrders.length), icon: <Clock className="h-5 w-5 text-amber-500" /> },
             ].map((kpi) => (
               <div key={kpi.label} className="rounded-xl border p-3 sm:p-4 flex items-center gap-3 sm:gap-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
@@ -511,139 +541,167 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
             ))}
           </div>
 
-          {/* ── PINNED ACTIVE PROCESSING ORDER CARD (Always visible when waiter has an active order) ── */}
-          {myOrder && (
-            <div
-              className="rounded-2xl border-2 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 dark:from-blue-950/40 dark:to-indigo-950/40 p-4 sm:p-5 shadow-lg space-y-3 sm:space-y-4"
-              style={{ borderColor: clubThemeColor, boxShadow: `0 8px 24px ${clubThemeColor}20` }}
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-blue-200 dark:border-blue-800/60 pb-3">
-                <div className="flex items-center gap-3">
+          {/* ── PINNED ACTIVE PROCESSING ORDER CARDS (Up to 2 in Option B) ── */}
+          {myOrders.length > 0 && (
+            <div className="space-y-3">
+              {myOrders.map((order, orderIdx) => {
+                const isSecondary = orderIdx > 0;
+                const isActionLoading = actionLoadingOrderUuid === order.id;
+                const orderChecked = checkedItems[order.id] || {};
+
+                return (
                   <div
-                    className="h-10 w-10 rounded-xl text-white flex items-center justify-center flex-shrink-0 shadow-md"
-                    style={{ backgroundColor: clubThemeColor }}
+                    key={order.id}
+                    className="rounded-2xl border-2 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 dark:from-blue-950/40 dark:to-indigo-950/40 p-4 sm:p-5 shadow-lg space-y-3 sm:space-y-4"
+                    style={{
+                      borderColor: isSecondary ? '#F59E0B' : clubThemeColor,
+                      boxShadow: `0 8px 24px ${isSecondary ? '#F59E0B20' : `${clubThemeColor}20`}`,
+                    }}
                   >
-                    <ClipboardList className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-black uppercase tracking-wider" style={{ color: clubThemeColor }}>
-                        Currently Processing
-                      </span>
-                      <span className="flex h-2 w-2 relative">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: clubThemeColor }}></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: clubThemeColor }}></span>
-                      </span>
-                    </div>
-                    <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">
-                      {String(myOrder.tableNumber).startsWith('ORD') || String(myOrder.tableNumber).startsWith('#') ? myOrder.tableNumber : `Table #${myOrder.tableNumber}`}
-                      {myOrder.sectionName ? ` • ${myOrder.sectionName}` : ''}
-                    </h2>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className={`rounded-full border px-3 py-1 text-xs font-bold ${statusColors[myOrder.status] ?? ''}`}>
-                    ● {myOrder.status}
-                  </span>
-                  <span className="text-xs font-semibold text-slate-500">
-                    #{myOrder.orderNumber || (myOrder.id ? myOrder.id.slice(0, 8).toUpperCase() : '')}
-                  </span>
-                </div>
-              </div>
-
-              {/* Itemized checklist showing exact order items to collect */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider px-1">
-                  <span>Items in this Order (Tick as prepared)</span>
-                  <span>Qty & Price</span>
-                </div>
-                <div className="bg-white dark:bg-slate-900 rounded-xl border border-blue-100 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden max-h-36 overflow-y-auto">
-                  {myOrder.items.map((item, idx) => (
-                    <div
-                      key={idx}
-                      onClick={() => toggleItemChecked(idx)}
-                      className={`p-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
-                        checkedItems[idx] ? 'bg-emerald-50/60 dark:bg-emerald-950/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                      }`}
-                    >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-blue-200 dark:border-blue-800/60 pb-3">
                       <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={!!checkedItems[idx]}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={() => toggleItemChecked(idx)}
-                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                        />
+                        <div
+                          className="h-10 w-10 rounded-xl text-white flex items-center justify-center flex-shrink-0 shadow-md"
+                          style={{ backgroundColor: isSecondary ? '#F59E0B' : clubThemeColor }}
+                        >
+                          <ClipboardList className="h-5 w-5" />
+                        </div>
                         <div>
-                          <span className={`text-sm font-semibold ${checkedItems[idx] ? 'line-through text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}>
-                            {item.name}
-                          </span>
-                          {item.notes && (
-                            <div className="text-xs text-amber-600 font-medium">
-                              Note: "{item.notes}"
-                            </div>
-                          )}
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="text-xs font-black uppercase tracking-wider"
+                              style={{ color: isSecondary ? '#D97706' : clubThemeColor }}
+                            >
+                              {isSecondary ? 'Secondary Order' : 'Currently Processing'}
+                            </span>
+                            <span className="flex h-2 w-2 relative">
+                              <span
+                                className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                                style={{ backgroundColor: isSecondary ? '#F59E0B' : clubThemeColor }}
+                              ></span>
+                              <span
+                                className="relative inline-flex rounded-full h-2 w-2"
+                                style={{ backgroundColor: isSecondary ? '#F59E0B' : clubThemeColor }}
+                              ></span>
+                            </span>
+                          </div>
+                          <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">
+                            {String(order.tableNumber).startsWith('ORD') || String(order.tableNumber).startsWith('#')
+                              ? order.tableNumber
+                              : `Table #${order.tableNumber}`}
+                            {order.sectionName ? ` • ${order.sectionName}` : ''}
+                          </h2>
                         </div>
                       </div>
 
-                      <div className="text-right flex-shrink-0">
-                        <span className="inline-block px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 font-black text-xs">
-                          × {item.quantity}
+                      <div className="flex items-center gap-2">
+                        <span className={`rounded-full border px-3 py-1 text-xs font-bold ${statusColors[order.status] ?? ''}`}>
+                          ● {order.status}
                         </span>
-                        {item.subtotal ? (
-                          <div className="text-xs text-slate-500 font-mono mt-0.5">
-                            KES {item.subtotal.toLocaleString()}
-                          </div>
-                        ) : null}
+                        <span className="text-xs font-semibold text-slate-500">
+                          #{order.orderNumber || (order.id ? order.id.slice(0, 8).toUpperCase() : '')}
+                        </span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
 
-              {/* Customer Special Note */}
-              {myOrder.customerNote && (
-                <div className="flex items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 p-2.5">
-                  <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-xs text-amber-900 dark:text-amber-200">
-                    <span className="font-bold">Customer Instruction:</span> "{myOrder.customerNote}"
+                    {/* Itemized checklist showing exact order items to collect */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider px-1">
+                        <span>Items in this Order (Tick as prepared)</span>
+                        <span>Qty & Price</span>
+                      </div>
+                      <div className="bg-white dark:bg-slate-900 rounded-xl border border-blue-100 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden max-h-36 overflow-y-auto">
+                        {order.items.map((item, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => toggleItemChecked(order.id, idx)}
+                            className={`p-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
+                              orderChecked[idx] ? 'bg-emerald-50/60 dark:bg-emerald-950/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="checkbox"
+                                checked={!!orderChecked[idx]}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={() => toggleItemChecked(order.id, idx)}
+                                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                              <div>
+                                <span className={`text-sm font-semibold ${orderChecked[idx] ? 'line-through text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}>
+                                  {item.name}
+                                </span>
+                                {item.notes && (
+                                  <div className="text-xs text-amber-600 font-medium">
+                                    Note: "{item.notes}"
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="text-right flex-shrink-0">
+                              <span className="inline-block px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 font-black text-xs">
+                                × {item.quantity}
+                              </span>
+                              {item.subtotal ? (
+                                <div className="text-xs text-slate-500 font-mono mt-0.5">
+                                  KES {item.subtotal.toLocaleString()}
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Customer Special Note */}
+                    {order.customerNote && (
+                      <div className="flex items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 p-2.5">
+                        <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                        <div className="text-xs text-amber-900 dark:text-amber-200">
+                          <span className="font-bold">Customer Instruction:</span> "{order.customerNote}"
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Total and Advance Action Bar */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-blue-200 dark:border-blue-800/60">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 font-medium">
+                          {paymentIcons[order.paymentMethod]}
+                          <span>Paid via {order.paymentMethod}</span>
+                        </div>
+                        <span className="text-slate-300">•</span>
+                        <span className="text-base font-black text-emerald-600">
+                          Total: KES {order.totalAmount.toLocaleString()}
+                        </span>
+                      </div>
+
+                      <button
+                        onClick={() => advanceOrderStatus(order.id)}
+                        disabled={isActionLoading || order.status === 'DELIVERED'}
+                        className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white transition-all shadow-md shadow-blue-500/20 disabled:opacity-50 hover:brightness-110 active:scale-[0.98]"
+                        style={{
+                          background: order.status === 'READY' ? '#059669' : (isSecondary ? '#F59E0B' : clubThemeColor),
+                          boxShadow: `0 4px 12px ${order.status === 'READY' ? '#05966930' : `${clubThemeColor}30`}`,
+                        }}
+                      >
+                        {isActionLoading ? (
+                          <><Loader2 className="h-4 w-4 animate-spin" /> Updating Status…</>
+                        ) : order.status === 'CLAIMED' ? (
+                          <>Mark as Preparing Order →</>
+                        ) : order.status === 'PREPARING' ? (
+                          <>Mark as Ready for Delivery →</>
+                        ) : order.status === 'READY' ? (
+                          <>✓ Confirm Delivered to Table</>
+                        ) : (
+                          'Delivered'
+                        )}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-
-              {/* Total and Advance Action Bar */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-blue-200 dark:border-blue-800/60">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 font-medium">
-                    {paymentIcons[myOrder.paymentMethod]}
-                    <span>Paid via {myOrder.paymentMethod}</span>
-                  </div>
-                  <span className="text-slate-300">•</span>
-                  <span className="text-base font-black text-emerald-600">
-                    Total: KES {myOrder.totalAmount.toLocaleString()}
-                  </span>
-                </div>
-
-                <button
-                  onClick={advanceOrderStatus}
-                  disabled={actionLoading || myOrder.status === 'DELIVERED'}
-                  className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white transition-all shadow-md shadow-blue-500/20 disabled:opacity-50 hover:brightness-110 active:scale-[0.98]"
-                  style={{ background: myOrder.status === 'READY' ? '#059669' : clubThemeColor, boxShadow: `0 4px 12px ${clubThemeColor}30` }}
-                >
-                  {actionLoading ? (
-                    <><Loader2 className="h-4 w-4 animate-spin" /> Updating Status…</>
-                  ) : myOrder.status === 'CLAIMED' ? (
-                    <>Mark as Preparing Order →</>
-                  ) : myOrder.status === 'PREPARING' ? (
-                    <>Mark as Ready for Delivery →</>
-                  ) : myOrder.status === 'READY' ? (
-                    <>✓ Confirm Delivered to Table</>
-                  ) : (
-                    'Delivered'
-                  )}
-                </button>
-              </div>
+                );
+              })}
             </div>
           )}
 
@@ -708,6 +766,23 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
             {/* ── INCOMING / AVAILABLE ORDERS TAB ── */}
             {activeTab === 'available' && (
               <div className="space-y-3">
+                {myOrders.length === 1 && myOrders[0].status === 'PREPARING' && (
+                  <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/80 dark:bg-blue-950/40 p-3.5 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-2 w-2 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                      </span>
+                      <span className="font-bold text-blue-900 dark:text-blue-200">
+                        Second Order Slot Unlocked!
+                      </span>
+                      <span className="text-blue-700 dark:text-blue-300 hidden sm:inline">
+                        Table #{myOrders[0].tableNumber} is preparing in the kitchen/bar. You can claim 1 more order while you wait.
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 {loadingOrders && availableOrders.length === 0 ? (
                   <div className="text-center py-16">
                     <Loader2 className="h-8 w-8 mx-auto animate-spin text-blue-500" />
@@ -782,11 +857,24 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
 
                       <button
                         onClick={() => claimOrder(order)}
-                        disabled={!!myOrder || actionLoading}
+                        disabled={!canClaimOrder || actionLoadingOrderUuid !== null}
+                        title={
+                          myOrders.length >= 2
+                            ? 'Max 2 active orders reached'
+                            : myOrders.length === 1 && myOrders[0].status === 'CLAIMED'
+                              ? 'Mark current order as Preparing Order to unlock claiming a second order'
+                              : myOrders.length === 1 && myOrders[0].status === 'READY'
+                                ? 'Deliver current ready order first'
+                                : 'Claim and start processing this order'
+                        }
                         className="flex items-center justify-center gap-1.5 rounded-xl px-5 py-2.5 text-xs font-bold text-white transition-all hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 shadow-md"
                         style={{ background: clubThemeColor, boxShadow: `0 4px 12px ${clubThemeColor}30` }}
                       >
-                        {actionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <>Claim & Process <ArrowRight className="h-3.5 w-3.5" /></>}
+                        {actionLoadingOrderUuid === order.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <>Claim & Process <ArrowRight className="h-3.5 w-3.5" /></>
+                        )}
                       </button>
                     </div>
                   ))
@@ -797,10 +885,10 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
             {/* ── PROCESSING ORDER TAB ── */}
             {activeTab === 'my-order' && (
               <div>
-                {!myOrder ? (
+                {myOrders.length === 0 ? (
                   <div className="text-center py-16 space-y-3">
                     <LayoutDashboard className="h-12 w-12 mx-auto" style={{ color: 'var(--text-muted)' }} />
-                    <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>No active order claimed yet</p>
+                    <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>No active orders claimed yet</p>
                     <p className="text-xs text-slate-400 max-w-sm mx-auto">
                       Go to the Incoming Orders tab to claim a new table order and start processing it.
                     </p>
@@ -812,105 +900,146 @@ export const WaiterDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                     </button>
                   </div>
                 ) : (
-                  <div className="space-y-4 max-w-lg mx-auto">
-                    <div className="rounded-xl border p-5 space-y-4 shadow-sm" style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="text-lg font-black" style={{ color: 'var(--text-primary)' }}>
-                            {String(myOrder.tableNumber).startsWith('ORD') || String(myOrder.tableNumber).startsWith('#') ? myOrder.tableNumber : `Table #${myOrder.tableNumber}`}
-                            {myOrder.sectionName ? ` • ${myOrder.sectionName}` : ''}
-                          </h3>
-                          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                            Order #{myOrder.orderNumber || (myOrder.id ? myOrder.id.slice(0, 8).toUpperCase() : '')}
-                          </p>
-                        </div>
-                        <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusColors[myOrder.status] ?? ''}`}>
-                          {myOrder.status}
-                        </span>
-                      </div>
+                  <div className="space-y-6 max-w-lg mx-auto">
+                    {myOrders.map((order, orderIdx) => {
+                      const isSecondary = orderIdx > 0;
+                      const isActionLoading = actionLoadingOrderUuid === order.id;
+                      const orderChecked = checkedItems[order.id] || {};
 
-                      {/* Itemized checklist */}
-                      <div className="space-y-1.5 border-t border-b py-3" style={{ borderColor: 'var(--border)' }}>
-                        <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                          Exact Items List (Check as collected)
-                        </div>
-                        {myOrder.items.map((item, i) => (
-                          <div
-                            key={i}
-                            onClick={() => toggleItemChecked(i)}
-                            className={`text-xs flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
-                              checkedItems[i] ? 'bg-emerald-50 text-emerald-800' : 'hover:bg-slate-50'
-                            }`}
-                            style={{ color: checkedItems[i] ? undefined : 'var(--text-secondary)' }}
-                          >
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={!!checkedItems[i]}
-                                onChange={() => toggleItemChecked(i)}
-                                className="h-3.5 w-3.5 rounded text-blue-600 focus:ring-blue-500"
-                              />
-                              <span className={checkedItems[i] ? 'line-through opacity-70' : 'font-medium'}>
-                                {item.quantity}× {item.name}
+                      return (
+                        <div
+                          key={order.id}
+                          className="rounded-xl border p-5 space-y-4 shadow-sm"
+                          style={{
+                            background: 'var(--bg-body)',
+                            borderColor: isSecondary ? '#F59E0B' : 'var(--border)',
+                          }}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <span
+                                className="text-[10px] font-black uppercase tracking-wider block mb-0.5"
+                                style={{ color: isSecondary ? '#D97706' : clubThemeColor }}
+                              >
+                                {isSecondary ? 'Secondary Order #2' : 'Primary Order #1'}
                               </span>
+                              <h3 className="text-lg font-black" style={{ color: 'var(--text-primary)' }}>
+                                {String(order.tableNumber).startsWith('ORD') || String(order.tableNumber).startsWith('#')
+                                  ? order.tableNumber
+                                  : `Table #${order.tableNumber}`}
+                                {order.sectionName ? ` • ${order.sectionName}` : ''}
+                              </h3>
+                              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                                Order #{order.orderNumber || (order.id ? order.id.slice(0, 8).toUpperCase() : '')}
+                              </p>
                             </div>
-                            {item.subtotal ? (
-                              <span className="font-mono text-[11px] text-slate-400">
-                                KES {item.subtotal.toLocaleString()}
-                              </span>
-                            ) : null}
+                            <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusColors[order.status] ?? ''}`}>
+                              {order.status}
+                            </span>
                           </div>
-                        ))}
-                      </div>
 
-                      <div className="flex items-center gap-2 pt-1">
-                        {paymentIcons[myOrder.paymentMethod]}
-                        <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                          Payment via {myOrder.paymentMethod}
-                        </span>
-                        <span className="ml-auto font-black text-emerald-600">
-                          KES {myOrder.totalAmount.toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Progress Steps */}
-                    <div className="flex items-center gap-2 px-2">
-                      {(['CLAIMED', 'PREPARING', 'READY', 'DELIVERED'] as const).map((s, i, arr) => (
-                        <React.Fragment key={s}>
-                          <div className="flex flex-col items-center gap-1">
-                            <div
-                              className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all shadow-sm"
-                              style={{
-                                backgroundColor: statusFlow.indexOf(myOrder.status) >= i ? clubThemeColor : 'transparent',
-                                borderColor: statusFlow.indexOf(myOrder.status) >= i ? clubThemeColor : 'var(--border)',
-                                color: statusFlow.indexOf(myOrder.status) >= i ? '#FFFFFF' : 'var(--text-muted)',
-                              }}
-                            >
-                              {i + 1}
+                          {/* Itemized checklist */}
+                          <div className="space-y-1.5 border-t border-b py-3" style={{ borderColor: 'var(--border)' }}>
+                            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                              Exact Items List (Check as collected)
                             </div>
-                            <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{s}</span>
+                            {order.items.map((item, i) => (
+                              <div
+                                key={i}
+                                onClick={() => toggleItemChecked(order.id, i)}
+                                className={`text-xs flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
+                                  orderChecked[i] ? 'bg-emerald-50 text-emerald-800' : 'hover:bg-slate-50'
+                                }`}
+                                style={{ color: orderChecked[i] ? undefined : 'var(--text-secondary)' }}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={!!orderChecked[i]}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onChange={() => toggleItemChecked(order.id, i)}
+                                    className="h-3.5 w-3.5 rounded text-blue-600 focus:ring-blue-500"
+                                  />
+                                  <span className={orderChecked[i] ? 'line-through opacity-70' : 'font-medium'}>
+                                    {item.quantity}× {item.name}
+                                  </span>
+                                </div>
+                                {item.subtotal ? (
+                                  <span className="font-mono text-[11px] text-slate-400">
+                                    KES {item.subtotal.toLocaleString()}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ))}
                           </div>
-                          {i < arr.length - 1 && (
-                            <div className="flex-1 h-px mb-4" style={{ background: 'var(--border)' }} />
+
+                          {order.customerNote && (
+                            <div className="flex items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 p-2.5">
+                              <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                              <div className="text-xs text-amber-900 dark:text-amber-200">
+                                <span className="font-bold">Customer Instruction:</span> "{order.customerNote}"
+                              </div>
+                            </div>
                           )}
-                        </React.Fragment>
-                      ))}
-                    </div>
 
-                    <button
-                      onClick={advanceOrderStatus}
-                      disabled={actionLoading || myOrder.status === 'DELIVERED'}
-                      className="w-full py-3 rounded-xl text-xs sm:text-sm font-bold text-white transition-all shadow-md hover:opacity-95 disabled:opacity-50"
-                      style={{ background: myOrder.status === 'READY' ? '#059669' : clubThemeColor, boxShadow: `0 4px 12px ${clubThemeColor}30` }}
-                    >
-                      {actionLoading
-                        ? <span className="flex items-center justify-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Updating…</span>
-                        : myOrder.status === 'CLAIMED' ? 'Mark as Preparing in Bar/Kitchen →'
-                        : myOrder.status === 'PREPARING' ? 'Mark as Ready for Delivery →'
-                        : myOrder.status === 'READY' ? 'Confirm Delivered to Table ✓'
-                        : 'Delivered'}
-                    </button>
+                          <div className="flex items-center gap-2 pt-1">
+                            {paymentIcons[order.paymentMethod]}
+                            <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                              Payment via {order.paymentMethod}
+                            </span>
+                            <span className="ml-auto font-black text-emerald-600">
+                              Total: KES {order.totalAmount.toLocaleString()}
+                            </span>
+                          </div>
+
+                          {/* Progress Steps */}
+                          <div className="flex items-center gap-2 px-2 pt-2">
+                            {(['CLAIMED', 'PREPARING', 'READY', 'DELIVERED'] as const).map((s, i, arr) => (
+                              <React.Fragment key={s}>
+                                <div className="flex flex-col items-center gap-1">
+                                  <div
+                                    className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all shadow-sm"
+                                    style={{
+                                      backgroundColor: statusFlow.indexOf(order.status) >= i ? (isSecondary ? '#F59E0B' : clubThemeColor) : 'transparent',
+                                      borderColor: statusFlow.indexOf(order.status) >= i ? (isSecondary ? '#F59E0B' : clubThemeColor) : 'var(--border)',
+                                      color: statusFlow.indexOf(order.status) >= i ? '#FFFFFF' : 'var(--text-muted)',
+                                    }}
+                                  >
+                                    {i + 1}
+                                  </div>
+                                  <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{s}</span>
+                                </div>
+                                {i < arr.length - 1 && (
+                                  <div className="flex-1 h-px mb-4" style={{ background: 'var(--border)' }} />
+                                )}
+                              </React.Fragment>
+                            ))}
+                          </div>
+
+                          <button
+                            onClick={() => advanceOrderStatus(order.id)}
+                            disabled={isActionLoading || order.status === 'DELIVERED'}
+                            className="w-full py-3 rounded-xl text-xs sm:text-sm font-bold text-white transition-all shadow-md hover:opacity-95 disabled:opacity-50"
+                            style={{
+                              background: order.status === 'READY' ? '#059669' : (isSecondary ? '#F59E0B' : clubThemeColor),
+                              boxShadow: `0 4px 12px ${clubThemeColor}30`,
+                            }}
+                          >
+                            {isActionLoading ? (
+                              <span className="flex items-center justify-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Updating…</span>
+                            ) : order.status === 'CLAIMED' ? (
+                              'Mark as Preparing Order →'
+                            ) : order.status === 'PREPARING' ? (
+                              'Mark as Ready for Delivery →'
+                            ) : order.status === 'READY' ? (
+                              'Confirm Delivered to Table ✓'
+                            ) : (
+                              'Delivered'
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

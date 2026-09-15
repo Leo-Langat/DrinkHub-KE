@@ -34,6 +34,10 @@ export class OrderService {
     return this.orderRepository.findActiveClaimedOrderByWaiter(waiterUuid);
   }
 
+  async getActiveClaimedOrdersByWaiter(waiterUuid: string): Promise<Order[]> {
+    return this.orderRepository.findAllActiveOrdersByWaiter(waiterUuid);
+  }
+
   async createOrder(businessUuid: string, data: any): Promise<Order> {
     const order = await this.orderRepository.createOrder(businessUuid, data);
 
@@ -56,12 +60,29 @@ export class OrderService {
       throw new BadRequestError(`Order cannot be claimed because its status is '${order.status}'`);
     }
 
-    // ENFORCE RULE: Waiter can claim ONLY ONE active order at a time
-    const activeClaimedOrder = await this.orderRepository.findActiveClaimedOrderByWaiter(waiterUuid);
-    if (activeClaimedOrder) {
+    // ENFORCE OPTION B: Waiter can claim up to 2 concurrent orders,
+    // but the second order is only unlocked once the first is in PREPARING status.
+    const activeOrders = await this.orderRepository.findAllActiveOrdersByWaiter(waiterUuid);
+    if (activeOrders.length >= 2) {
       throw new BadRequestError(
-        `You already have an active order (#${activeClaimedOrder.orderNumber} at Table #${(activeClaimedOrder as any).table?.tableNumber || 'N/A'}). Complete or deliver it before claiming another!`,
+        'You already have 2 active orders in progress. Please complete and deliver them before claiming another!',
       );
+    }
+
+    if (activeOrders.length === 1) {
+      const current = activeOrders[0];
+      if (current.status === 'CLAIMED') {
+        const tableStr = (current as any).table?.tableNumber ? `at Table #${(current as any).table.tableNumber}` : '';
+        throw new BadRequestError(
+          `Please mark your current order ${tableStr} as Preparing Order before claiming a second order!`,
+        );
+      }
+      if (current.status === 'READY') {
+        const tableStr = (current as any).table?.tableNumber ? `at Table #${(current as any).table.tableNumber}` : '';
+        throw new BadRequestError(
+          `Your order ${tableStr} is ready for delivery! Please deliver it before claiming a new order.`,
+        );
+      }
     }
 
     let claimedOrder: Order;

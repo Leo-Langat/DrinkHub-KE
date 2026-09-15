@@ -52,15 +52,15 @@ export class OrderController {
       if (!waiterUuid) {
         res.json({
           success: true,
-          data: null,
+          data: [],
           meta: { timestamp: new Date().toISOString(), version: 'v1' },
         });
         return;
       }
-      const order = await this.orderService.getActiveClaimedOrderByWaiter(waiterUuid);
+      const orders = await this.orderService.getActiveClaimedOrdersByWaiter(waiterUuid);
       res.json({
         success: true,
-        data: order,
+        data: orders,
         meta: { timestamp: new Date().toISOString(), version: 'v1' },
       });
     } catch (error) {

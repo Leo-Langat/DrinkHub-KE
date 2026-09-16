@@ -4136,18 +4136,18 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
         </div>
 
         {/* Payments Table */}
-        <div className="p-5 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          <div className="overflow-x-auto w-full">
-            <table className="w-full min-w-[780px] text-left text-xs">
-              <thead>
-                <tr className="border-b text-slate-400 font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)' }}>
-                  <th className="pb-3 whitespace-nowrap">Receipt / Ref</th>
-                  <th className="pb-3 whitespace-nowrap">Order Ref</th>
-                  <th className="pb-3 whitespace-nowrap">Amount</th>
-                  <th className="pb-3 whitespace-nowrap">Method</th>
-                  <th className="pb-3 whitespace-nowrap">Status</th>
-                  <th className="pb-3 whitespace-nowrap">Customer Phone / Waiter</th>
-                  <th className="pb-3 whitespace-nowrap">Timestamp</th>
+        <div className="p-5 rounded-2xl border flex flex-col" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          <div className="max-h-[calc(100vh-300px)] min-h-[300px] overflow-x-auto overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+            <table className="w-full min-w-[780px] text-left text-xs border-separate border-spacing-0">
+              <thead className="sticky top-0 z-20">
+                <tr className="font-bold whitespace-nowrap">
+                  <th className="py-3 pr-3 whitespace-nowrap border-b sticky top-0 z-20 backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>Receipt / Ref</th>
+                  <th className="py-3 pr-3 whitespace-nowrap border-b sticky top-0 z-20 backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>Order Ref</th>
+                  <th className="py-3 pr-3 whitespace-nowrap border-b sticky top-0 z-20 backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>Amount</th>
+                  <th className="py-3 pr-3 whitespace-nowrap border-b sticky top-0 z-20 backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>Method</th>
+                  <th className="py-3 pr-3 whitespace-nowrap border-b sticky top-0 z-20 backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>Status</th>
+                  <th className="py-3 pr-3 whitespace-nowrap border-b sticky top-0 z-20 backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>Customer Phone / Waiter</th>
+                  <th className="py-3 whitespace-nowrap border-b sticky top-0 z-20 backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>Timestamp</th>
                 </tr>
               </thead>
               <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>
@@ -4273,14 +4273,14 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
             Waiter Order Handling Metrics
           </h4>
           <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 w-full">
-            <table className="w-full min-w-[650px] text-left text-xs border-collapse">
-              <thead className="sticky top-0 z-10 shadow-sm" style={{ background: 'var(--bg-card)' }}>
-                <tr className="border-b font-bold whitespace-nowrap" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
-                  <th className="py-2.5 px-3 whitespace-nowrap bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm">Waiter Name</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm">Orders Served</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm">Revenue Collected</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm">Avg Fulfillment Time</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm">Efficiency</th>
+            <table className="w-full min-w-[650px] text-left text-xs border-separate border-spacing-0">
+              <thead className="sticky top-0 z-10 shadow-sm">
+                <tr className="border-b font-bold whitespace-nowrap" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+                  <th className="py-2.5 px-3 whitespace-nowrap border-b sticky top-0 z-10 backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>Waiter Name</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap border-b sticky top-0 z-10 backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>Orders Served</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap border-b sticky top-0 z-10 backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>Revenue Collected</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap border-b sticky top-0 z-10 backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>Avg Fulfillment Time</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap border-b sticky top-0 z-10 backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>Efficiency</th>
                 </tr>
               </thead>
               <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>

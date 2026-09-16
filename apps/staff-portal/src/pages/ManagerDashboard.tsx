@@ -35,10 +35,10 @@ const Modal = ({ open, onClose, title, size = 'md', zIndex = 'z-50', children }:
   const w = size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-2xl' : 'max-w-md';
   return (
     <div className={`fixed inset-0 ${zIndex} flex items-center justify-center bg-black/50 backdrop-blur-sm`} onClick={onClose}>
-      <div className={`w-full ${w} rounded-2xl bg-white p-6 shadow-2xl mx-4 max-h-[90vh] overflow-y-auto`} onClick={ev => ev.stopPropagation()}>
+      <div className={`w-full ${w} rounded-2xl p-6 shadow-2xl mx-4 max-h-[90vh] overflow-y-auto`} style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }} onClick={ev => ev.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-black text-slate-900">{title}</h3>
-          <button onClick={onClose} className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-slate-100 transition-colors"><X className="h-4 w-4 text-slate-500" /></button>
+          <h3 className="text-base font-black" style={{ color: 'var(--text-primary)' }}>{title}</h3>
+          <button onClick={onClose} className="h-7 w-7 rounded-lg flex items-center justify-center transition-colors" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-body)')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}><X className="h-4 w-4" /></button>
         </div>
         {children}
       </div>
@@ -48,7 +48,7 @@ const Modal = ({ open, onClose, title, size = 'md', zIndex = 'z-50', children }:
 
 /*           Form Primitives           */
 const FL = ({ children, required }: { children: React.ReactNode; required?: boolean }) => (
-  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+  <label className="text-xs font-bold uppercase tracking-wide block mb-1.5" style={{ color: 'var(--text-muted)' }}>
     {children}{required && <span className="text-red-500 ml-0.5">*</span>}
   </label>
 );
@@ -3828,7 +3828,7 @@ const QrCodesPage = ({
         <Modal open={addModalOpen} onClose={() => setAddModalOpen(false)} title="Add Single Table QR Code" size="sm">
           <form onSubmit={handleAddSingleTable} className="space-y-4">
             <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Table Number</label>
+              <label className="text-xs font-bold uppercase tracking-wider block mb-1" style={{ color: 'var(--text-muted)' }}>Table Number</label>
               <input
                 type="number"
                 min={1}
@@ -3838,19 +3838,21 @@ const QrCodesPage = ({
                 placeholder="e.g. 15"
                 required
                 autoFocus
-                className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-xl border px-3.5 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
               />
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Section / Area</label>
+              <label className="text-xs font-bold uppercase tracking-wider block mb-1" style={{ color: 'var(--text-muted)' }}>Section / Area</label>
               <input
                 type="text"
                 value={singleTableSection}
                 onChange={e => setSingleTableSection(e.target.value)}
                 placeholder="e.g. VIP, Terrace"
                 required
-                className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-xl border px-3.5 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500"
+                style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
               />
               <div className="flex gap-1.5 flex-wrap mt-2">
                 {distinctSections.map(sec => (
@@ -3858,7 +3860,8 @@ const QrCodesPage = ({
                     key={sec}
                     type="button"
                     onClick={() => setSingleTableSection(sec)}
-                    className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                    className="text-[11px] font-bold px-2 py-0.5 rounded-md transition-colors"
+                    style={{ background: 'var(--bg-body)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
                   >
                     {sec}
                   </button>
@@ -3866,11 +3869,14 @@ const QrCodesPage = ({
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t">
+            <div className="flex items-center justify-end gap-2 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
               <button
                 type="button"
                 onClick={() => setAddModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 transition-colors"
+                className="px-4 py-2 rounded-xl text-xs font-bold transition-colors"
+                style={{ color: 'var(--text-muted)' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-body)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
                 Cancel
               </button>

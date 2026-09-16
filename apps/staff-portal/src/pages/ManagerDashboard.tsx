@@ -345,15 +345,38 @@ const AddWaiterModal = ({ open, onClose, onAdd }: {
   const [showPwd, setShowPwd] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
 
-  const set = (k: keyof WaiterForm, v: string | boolean) => { setForm(p => ({ ...p, [k]: v })); setErrors(p => ({ ...p, [k]: '' })); };
+  const validateField = (k: keyof WaiterForm, v: string): string => {
+    if (k === 'firstName' || k === 'lastName') {
+      if (!String(v).trim()) return 'Required';
+      if (!/^[a-zA-Z\s]+$/.test(String(v))) return 'Letters only';
+      if (String(v).trim().length < 2) return 'Min 2 characters';
+    }
+    if (k === 'phone') {
+      if (!String(v).trim()) return 'Required';
+      if (!/^\d+$/.test(String(v).trim())) return 'Numbers only';
+    }
+    if (k === 'email') {
+      if (!String(v).trim()) return 'Email is required for login';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v))) return 'Enter a valid email address';
+    }
+    return '';
+  };
+
+  const set = (k: keyof WaiterForm, v: string | boolean) => {
+    setForm(p => ({ ...p, [k]: v }));
+    if (typeof v === 'string') {
+      setErrors(p => ({ ...p, [k]: validateField(k, v) }));
+    } else {
+      setErrors(p => ({ ...p, [k]: '' }));
+    }
+  };
 
   const validate = () => {
     const e: Partial<Record<keyof WaiterForm, string>> = {};
-    if (!form.firstName.trim()) e.firstName = 'Required';
-    if (!form.lastName.trim()) e.lastName = 'Required';
-    if (!form.phone.trim()) e.phone = 'Required';
-    if (!form.email.trim()) e.email = 'Email is required for login';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Enter a valid email address';
+    const fnErr = validateField('firstName', form.firstName); if (fnErr) e.firstName = fnErr;
+    const lnErr = validateField('lastName', form.lastName); if (lnErr) e.lastName = lnErr;
+    const phErr = validateField('phone', form.phone); if (phErr) e.phone = phErr;
+    const emErr = validateField('email', form.email); if (emErr) e.email = emErr;
     if (form.tempPwd.length < 8) e.tempPwd = 'Min. 8 characters';
     setErrors(e); return Object.keys(e).length === 0;
   };

@@ -172,7 +172,7 @@ export class AuthService {
       : null;
 
     // Audit: fire-and-forget
-    prisma.auditLog.create({
+    prisma?.auditLog?.create?.({
       data: {
         businessUuid: user.businessUuid || null,
         userUuid: user.userUuid,
@@ -182,7 +182,7 @@ export class AuthService {
         newValues: { role: effectiveRole, email: user.email },
         ipAddress: ipAddress || null,
       },
-    }).catch(() => {/* non-fatal */});
+    })?.catch?.(() => {/* non-fatal */});
 
     return {
       accessToken,
@@ -309,7 +309,7 @@ export class AuthService {
     });
 
     // Audit: fire-and-forget
-    prisma.auditLog.create({
+    prisma?.auditLog?.create?.({
       data: {
         businessUuid: finalBusinessUuid || null,
         userUuid: data.actorUserUuid || user.userUuid,
@@ -319,7 +319,7 @@ export class AuthService {
         newValues: { email: user.email, fullName: user.fullName, role: user.role },
         ipAddress: data.ipAddress || null,
       },
-    }).catch(() => {/* non-fatal */});
+    })?.catch?.(() => {/* non-fatal */});
 
     return {
       id: user.userUuid,

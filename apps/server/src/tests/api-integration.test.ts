@@ -26,6 +26,9 @@ vi.mock('../config/prisma', () => ({
     notification: {
       create: vi.fn().mockResolvedValue({}),
     },
+    auditLog: {
+      create: vi.fn().mockResolvedValue({}),
+    },
   },
 }));
 

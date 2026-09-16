@@ -41,7 +41,7 @@ export class PaymentService {
     });
 
     // Audit: payment initiated
-    prisma.auditLog.create({
+    prisma?.auditLog?.create?.({
       data: {
         businessUuid: businessUuid || null,
         action: 'PAYMENT_INITIATED',
@@ -49,7 +49,7 @@ export class PaymentService {
         entityUuid: payment.paymentUuid,
         newValues: { orderUuid: params.orderUuid, amount: params.amount, method: 'MPESA_STK' },
       },
-    }).catch(() => {/* non-fatal */});
+    })?.catch?.(() => {/* non-fatal */});
 
     return {
       paymentUuid: payment.paymentUuid,
@@ -103,7 +103,7 @@ export class PaymentService {
       }
 
       // Audit: payment completed
-      prisma.auditLog.create({
+      prisma?.auditLog?.create?.({
         data: {
           businessUuid: (payment as any).businessUuid || null,
           action: 'PAYMENT_COMPLETED',
@@ -111,13 +111,13 @@ export class PaymentService {
           entityUuid: payment.paymentUuid,
           newValues: { amount: payment.amount, receiptNumber, method: 'MPESA_STK' },
         },
-      }).catch(() => {/* non-fatal */});
+      })?.catch?.(() => {/* non-fatal */});
     } else {
       // Payment Failed
       await this.paymentRepository.updateStatus(payment.paymentUuid, 'FAILED');
 
       // Audit: payment failed
-      prisma.auditLog.create({
+      prisma?.auditLog?.create?.({
         data: {
           businessUuid: (payment as any).businessUuid || null,
           action: 'PAYMENT_FAILED',
@@ -125,7 +125,7 @@ export class PaymentService {
           entityUuid: payment.paymentUuid,
           newValues: { resultCode, method: 'MPESA_STK' },
         },
-      }).catch(() => {/* non-fatal */});
+      })?.catch?.(() => {/* non-fatal */});
     }
   }
 
@@ -166,7 +166,7 @@ export class PaymentService {
     }
 
     // Audit: Card POS Request
-    prisma.auditLog.create({
+    prisma?.auditLog?.create?.({
       data: {
         businessUuid: businessUuid || null,
         userUuid: (params as any).actorUserUuid || null,
@@ -175,7 +175,7 @@ export class PaymentService {
         entityUuid: payment.paymentUuid,
         newValues: { orderUuid: params.orderUuid, amount: params.amount, tableNumber: params.tableNumber },
       },
-    }).catch(() => {/* non-fatal */});
+    })?.catch?.(() => {/* non-fatal */});
 
     return {
       paymentUuid: payment.paymentUuid,
@@ -248,7 +248,7 @@ export class PaymentService {
     }
 
     // Audit: Cash Request
-    prisma.auditLog.create({
+    prisma?.auditLog?.create?.({
       data: {
         businessUuid: businessUuid || null,
         userUuid: params.actorUserUuid || null,
@@ -264,7 +264,7 @@ export class PaymentService {
           changeDue,
         },
       },
-    }).catch(() => {/* non-fatal */});
+    })?.catch?.(() => {/* non-fatal */});
 
     return {
       paymentUuid: payment.paymentUuid,
@@ -282,7 +282,7 @@ export class PaymentService {
     const updated = await this.paymentRepository.updateStatus(paymentUuid, status);
 
     // Audit: payment status updated
-    prisma.auditLog.create({
+    prisma?.auditLog?.create?.({
       data: {
         businessUuid: (payment as any).businessUuid || null,
         userUuid: actorUserUuid || null,
@@ -292,7 +292,7 @@ export class PaymentService {
         oldValues: { status: (payment as any).paymentStatus },
         newValues: { status },
       },
-    }).catch(() => {/* non-fatal */});
+    })?.catch?.(() => {/* non-fatal */});
 
     return updated;
   }

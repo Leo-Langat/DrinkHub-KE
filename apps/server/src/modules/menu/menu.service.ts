@@ -33,7 +33,7 @@ export class MenuService {
       throw new BadRequestError('Category name is required');
     }
     const category = await this.menuRepository.createCategory(businessUuid, data);
-    prisma.auditLog.create({
+    prisma?.auditLog?.create?.({
       data: {
         businessUuid: businessUuid || null,
         action: 'MENU_CATEGORY_CREATED',
@@ -41,7 +41,7 @@ export class MenuService {
         entityUuid: category.categoryUuid,
         newValues: { name: category.name },
       },
-    }).catch(() => {/* non-fatal */});
+    })?.catch?.(() => {/* non-fatal */});
     return category;
   }
 
@@ -119,7 +119,7 @@ export class MenuService {
       categoryUuid,
       price: Number(data.price),
     });
-    prisma.auditLog.create({
+    prisma?.auditLog?.create?.({
       data: {
         businessUuid: businessUuid || null,
         action: 'MENU_PRODUCT_CREATED',
@@ -127,7 +127,7 @@ export class MenuService {
         entityUuid: product.productUuid,
         newValues: { name: product.name, price: product.price },
       },
-    }).catch(() => {/* non-fatal */});
+    })?.catch?.(() => {/* non-fatal */});
     return product;
   }
 
@@ -137,7 +137,7 @@ export class MenuService {
       throw new NotFoundError('Product not found');
     }
     const updated = await this.menuRepository.updateProduct(productUuid, data);
-    prisma.auditLog.create({
+    prisma?.auditLog?.create?.({
       data: {
         businessUuid: (product as any).businessUuid || null,
         action: 'MENU_PRODUCT_UPDATED',
@@ -146,7 +146,7 @@ export class MenuService {
         oldValues: { name: product.name, price: product.price, isAvailable: product.isAvailable },
         newValues: data as any,
       },
-    }).catch(() => {/* non-fatal */});
+    })?.catch?.(() => {/* non-fatal */});
     return updated;
   }
 
@@ -160,7 +160,7 @@ export class MenuService {
       throw new NotFoundError('Product not found');
     }
     const result = await this.menuRepository.archiveProduct(productUuid);
-    prisma.auditLog.create({
+    prisma?.auditLog?.create?.({
       data: {
         businessUuid: (product as any).businessUuid || null,
         action: 'MENU_PRODUCT_DELETED',
@@ -168,7 +168,7 @@ export class MenuService {
         entityUuid: productUuid,
         oldValues: { name: product.name },
       },
-    }).catch(() => {/* non-fatal */});
+    })?.catch?.(() => {/* non-fatal */});
     return result;
   }
 

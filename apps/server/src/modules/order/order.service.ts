@@ -51,7 +51,7 @@ export class OrderService {
     }
 
     // Audit: fire-and-forget
-    prisma.auditLog.create({
+    prisma?.auditLog?.create?.({
       data: {
         businessUuid: businessUuid || null,
         userUuid: actorUserUuid || data?.waiterUuid || null,
@@ -64,7 +64,7 @@ export class OrderService {
           status: (order as any).status,
         },
       },
-    }).catch(() => {/* non-fatal */});
+    })?.catch?.(() => {/* non-fatal */});
 
     return order;
   }
@@ -127,7 +127,7 @@ export class OrderService {
     }
 
     // Audit: fire-and-forget
-    prisma.auditLog.create({
+    prisma?.auditLog?.create?.({
       data: {
         businessUuid: ((order as any).businessUuid || (order as any).clubUuid) || null,
         userUuid: waiterUuid,
@@ -136,7 +136,7 @@ export class OrderService {
         entityUuid: orderUuid,
         newValues: { waiterUuid, orderNumber: (claimedOrder as any).orderNumber },
       },
-    }).catch(() => {/* non-fatal */});
+    })?.catch?.(() => {/* non-fatal */});
 
     return claimedOrder;
   }
@@ -159,7 +159,7 @@ export class OrderService {
     }
 
     // Audit: fire-and-forget
-    prisma.auditLog.create({
+    prisma?.auditLog?.create?.({
       data: {
         businessUuid: ((order as any).businessUuid || (order as any).clubUuid) || null,
         userUuid: actorUserUuid || null,
@@ -169,7 +169,7 @@ export class OrderService {
         oldValues: { status: order.status },
         newValues: { status },
       },
-    }).catch(() => {/* non-fatal */});
+    })?.catch?.(() => {/* non-fatal */});
 
     return updatedOrder;
   }

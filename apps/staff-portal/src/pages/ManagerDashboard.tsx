@@ -652,13 +652,13 @@ const StaffManagementPage = ({ showToast }: { showToast: (m: string) => void }) 
       </div>
 
       {/* Table */}
-      <div className="flex-1 min-h-[260px] rounded-xl border overflow-hidden shadow-sm flex flex-col" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
-        <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
-          <table className="w-full text-sm border-collapse">
-            <thead className="sticky top-0 z-10 shadow-sm" style={{ background: 'var(--bg-card)' }}>
-              <tr className="border-b" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+      <div className="flex-1 min-h-[300px] max-h-[calc(100vh-280px)] rounded-xl border overflow-hidden shadow-sm flex flex-col" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
+        <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0" style={{ scrollbarWidth: 'thin' }}>
+          <table className="w-full text-sm border-separate border-spacing-0">
+            <thead className="sticky top-0 z-20 shadow-sm">
+              <tr style={{ background: 'var(--bg-card)' }}>
                 {['Waiter', 'Username', 'Phone', 'Status', 'Online', 'Shift', 'Last Login', 'Actions'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-bold bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm" style={{ color: 'var(--text-muted)' }}>{h}</th>
+                  <th key={h} className="sticky top-0 z-20 px-4 py-3 text-left text-xs font-bold border-b backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -667,7 +667,7 @@ const StaffManagementPage = ({ showToast }: { showToast: (m: string) => void }) 
                 <tr><td colSpan={8} className="text-center py-10 text-sm" style={{ color: 'var(--text-muted)' }}>No staff members found.</td></tr>
               ) : filtered.map(w => (
                 <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors" style={{ background: 'var(--bg-card)' }}>
-                  <td className="px-4 py-3.5">
+                  <td className="px-4 py-3.5 border-b" style={{ borderColor: 'var(--border)' }}>
                     <div className="flex items-center gap-3">
                       <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0">
                         {w.firstName[0]}{w.lastName[0]}
@@ -678,10 +678,10 @@ const StaffManagementPage = ({ showToast }: { showToast: (m: string) => void }) 
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3.5 text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>@{w.username}</td>
-                  <td className="px-4 py-3.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{w.phone}</td>
-                  <td className="px-4 py-3.5"><StatusBadge status={w.status} /></td>
-                  <td className="px-4 py-3.5">
+                  <td className="px-4 py-3.5 text-xs font-mono border-b" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>@{w.username}</td>
+                  <td className="px-4 py-3.5 text-xs border-b" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>{w.phone}</td>
+                  <td className="px-4 py-3.5 border-b" style={{ borderColor: 'var(--border)' }}><StatusBadge status={w.status} /></td>
+                  <td className="px-4 py-3.5 border-b" style={{ borderColor: 'var(--border)' }}>
                     <div className="flex items-center gap-2">
                       <div className={`h-2.5 w-2.5 rounded-full ${w.onlineStatus === 'Online' ? 'bg-emerald-500 ring-4 ring-emerald-500/20 animate-pulse' : 'bg-slate-300'}`} />
                       <span className={`text-xs ${w.onlineStatus === 'Online' ? 'text-emerald-600 font-bold' : 'text-slate-400'}`}>
@@ -689,9 +689,9 @@ const StaffManagementPage = ({ showToast }: { showToast: (m: string) => void }) 
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-3.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{w.shift || '—'}</td>
-                  <td className="px-4 py-3.5 text-xs" style={{ color: 'var(--text-muted)' }}>{w.lastLogin}</td>
-                  <td className="px-4 py-3.5">
+                  <td className="px-4 py-3.5 text-xs border-b" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>{w.shift || '—'}</td>
+                  <td className="px-4 py-3.5 text-xs border-b" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>{w.lastLogin}</td>
+                  <td className="px-4 py-3.5 border-b" style={{ borderColor: 'var(--border)' }}>
                     <div className="flex items-center gap-1.5">
                       <button onClick={() => handleResetPassword(w)} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="Reset Password">
                         <Key className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} />
@@ -877,27 +877,27 @@ const OrdersPage = ({ showToast }: { showToast: (m: string) => void }) => {
           </div>
         </div>
       </div>
-      <div className="flex-1 min-h-[300px] rounded-xl border overflow-hidden flex flex-col shadow-sm" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
+      <div className="flex-1 min-h-[300px] max-h-[calc(100vh-260px)] rounded-xl border overflow-hidden flex flex-col shadow-sm" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
         <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 scrollbar-thin" style={{ scrollbarWidth: 'thin' }}>
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10 backdrop-blur-md shadow-sm" style={{ background: 'var(--bg-card)' }}>
-              <tr className="border-b" style={{ borderColor: 'var(--border)' }}>
+          <table className="w-full text-sm border-separate border-spacing-0">
+            <thead className="sticky top-0 z-20 shadow-sm">
+              <tr style={{ background: 'var(--bg-card)' }}>
                 {['Order ID', 'Table', 'Item', 'Waiter', 'Amount', 'Status', 'Time'].map(h => (
-                  <th key={h} className="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{h}</th>
+                  <th key={h} className="sticky top-0 z-20 px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider border-b backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>{filtered.length === 0 ? (
               <tr><td colSpan={7} className="text-center py-10 text-xs text-slate-400">No orders found</td></tr>
             ) : filtered.map(o => (
-              <tr key={o.id} className="border-b last:border-0 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
-                <td className="px-5 py-3.5 font-mono text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{o.id}</td>
-                <td className="px-5 py-3.5 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{o.table}</td>
-                <td className="px-5 py-3.5 text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{o.item}</td>
-                <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{o.waiter}</td>
-                <td className="px-5 py-3.5 text-xs font-bold text-emerald-600">KES {o.amount.toLocaleString()}</td>
-                <td className="px-5 py-3.5"><StatusBadge status={o.status} /></td>
-                <td className="px-5 py-3.5 text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{o.time}</td>
+              <tr key={o.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors" style={{ background: 'var(--bg-card)' }}>
+                <td className="px-5 py-3.5 font-mono text-xs font-bold border-b" style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}>{o.id}</td>
+                <td className="px-5 py-3.5 text-xs font-medium border-b" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>{o.table}</td>
+                <td className="px-5 py-3.5 text-xs font-medium border-b" style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}>{o.item}</td>
+                <td className="px-5 py-3.5 text-xs border-b" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>{o.waiter}</td>
+                <td className="px-5 py-3.5 text-xs font-bold text-emerald-600 border-b" style={{ borderColor: 'var(--border)' }}>KES {o.amount.toLocaleString()}</td>
+                <td className="px-5 py-3.5 border-b" style={{ borderColor: 'var(--border)' }}><StatusBadge status={o.status} /></td>
+                <td className="px-5 py-3.5 text-xs font-mono border-b" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>{o.time}</td>
               </tr>
             ))}</tbody>
           </table>
@@ -1596,13 +1596,13 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
       </div>
 
       {/* Menu Items Scrollable Table */}
-      <div className="flex-1 min-h-[300px] rounded-xl border overflow-hidden shadow-sm flex flex-col" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
-        <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
-          <table className="w-full text-sm border-collapse">
-            <thead className="sticky top-0 z-10 shadow-sm">
-              <tr className="border-b" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+      <div className="flex-1 min-h-[300px] max-h-[calc(100vh-280px)] rounded-xl border overflow-hidden shadow-sm flex flex-col" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
+        <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0" style={{ scrollbarWidth: 'thin' }}>
+          <table className="w-full text-sm border-separate border-spacing-0">
+            <thead className="sticky top-0 z-20 shadow-sm">
+              <tr style={{ background: 'var(--bg-card)' }}>
                 {['Item', 'Category', 'Price', 'Status', 'Actions'].map(h => (
-                  <th key={h} className="px-5 py-3 text-left text-xs font-bold whitespace-nowrap bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm" style={{ color: 'var(--text-muted)' }}>
+                  <th key={h} className="sticky top-0 z-20 px-5 py-3 text-left text-xs font-bold whitespace-nowrap border-b backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
                     {h}
                   </th>
                 ))}
@@ -1625,7 +1625,7 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
               ) : (
                 filteredItems.map(item => (
                   <tr key={item.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors" style={{ background: 'var(--bg-card)' }}>
-                    <td className="px-5 py-3.5">
+                    <td className="px-5 py-3.5 border-b" style={{ borderColor: 'var(--border)' }}>
                       <div className="flex items-center gap-3">
                         {item.imageUrl ? (
                           <img src={item.imageUrl} alt={item.name} className="h-10 w-10 rounded-xl object-cover border border-slate-200 dark:border-slate-700 flex-shrink-0 shadow-sm" />
@@ -1640,18 +1640,18 @@ const MenuPage = ({ showToast }: { showToast: (m: string) => void }) => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-3.5 text-xs whitespace-nowrap">
+                    <td className="px-5 py-3.5 text-xs whitespace-nowrap border-b" style={{ borderColor: 'var(--border)' }}>
                       <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-semibold text-[11px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                         <Tag className="h-2.5 w-2.5 text-slate-500" /> {item.category}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 font-bold text-xs text-emerald-600 dark:text-emerald-400 whitespace-nowrap">KES {item.price.toLocaleString()}</td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">
+                    <td className="px-5 py-3.5 font-bold text-xs text-emerald-600 dark:text-emerald-400 whitespace-nowrap border-b" style={{ borderColor: 'var(--border)' }}>KES {item.price.toLocaleString()}</td>
+                    <td className="px-5 py-3.5 whitespace-nowrap border-b" style={{ borderColor: 'var(--border)' }}>
                       <button onClick={() => toggle(item.id)} className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold border transition-all ${item.status === 'Available' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800 hover:bg-emerald-100' : 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800 hover:bg-red-100'}`}>
                         <div className={`h-1.5 w-1.5 rounded-full ${item.status === 'Available' ? 'bg-emerald-500' : 'bg-red-500'}`} />{item.status}
                       </button>
                     </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">
+                    <td className="px-5 py-3.5 whitespace-nowrap border-b" style={{ borderColor: 'var(--border)' }}>
                       <div className="flex items-center gap-1.5">
                         <button onClick={() => { setEditItemForm({ id: item.id, name: item.name, category: item.category, price: String(item.price), imageUrl: item.imageUrl || '', description: item.description || '' }); setShowEditItemModal(true); }} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Edit Item">
                           <Edit2 className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} />
@@ -2534,16 +2534,15 @@ const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
             Live Feed
           </span>
         </div>
-        <div className="overflow-x-auto overflow-y-auto max-h-80" style={{ scrollbarWidth: 'thin' }}>
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10 shadow-sm" style={{ background: 'var(--bg-card)' }}>
-              <tr className="border-b text-[11px] font-bold text-left uppercase tracking-wider" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
-                <th className="px-5 py-2.5">Order ID</th>
-                <th className="px-5 py-2.5">Table & Item</th>
-                <th className="px-5 py-2.5">Waiter</th>
-                <th className="px-5 py-2.5">Amount</th>
-                <th className="px-5 py-2.5">Status</th>
-                <th className="px-5 py-2.5">Time</th>
+        <div className="overflow-x-auto overflow-y-auto max-h-[440px] min-h-[260px]" style={{ scrollbarWidth: 'thin' }}>
+          <table className="w-full text-sm border-separate border-spacing-0">
+            <thead className="sticky top-0 z-20 shadow-sm">
+              <tr style={{ background: 'var(--bg-card)' }}>
+                {['Order ID', 'Table & Item', 'Waiter', 'Amount', 'Status', 'Time'].map(h => (
+                  <th key={h} className="sticky top-0 z-20 px-5 py-2.5 text-[11px] font-bold text-left uppercase tracking-wider border-b backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -2557,26 +2556,26 @@ const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
                 recentOrders.map(o => (
                   <tr
                     key={o.id}
-                    className="border-b last:border-0 hover:bg-slate-50/50 transition-colors"
-                    style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}
+                    className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors"
+                    style={{ background: 'var(--bg-card)' }}
                   >
-                    <td className="px-5 py-3 font-mono text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
+                    <td className="px-5 py-3 font-mono text-xs font-bold border-b" style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
                       #{o.id}
                     </td>
-                    <td className="px-5 py-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    <td className="px-5 py-3 text-xs border-b" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
                       <span className="font-bold text-slate-900 dark:text-slate-100 mr-1.5">{o.table}</span>
                       <span className="opacity-80">· {o.item}</span>
                     </td>
-                    <td className="px-5 py-3 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                    <td className="px-5 py-3 text-xs font-medium border-b" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
                       {o.waiter}
                     </td>
-                    <td className="px-5 py-3 text-xs font-bold text-emerald-600">
+                    <td className="px-5 py-3 text-xs font-bold text-emerald-600 border-b" style={{ borderColor: 'var(--border)' }}>
                       KES {o.amount.toLocaleString()}
                     </td>
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
                       <StatusBadge status={o.status} />
                     </td>
-                    <td className="px-5 py-3 text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
+                    <td className="px-5 py-3 text-xs font-mono border-b" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
                       {o.time}
                     </td>
                   </tr>
@@ -3709,18 +3708,18 @@ const QrCodesPage = ({
         ) : (
           /* Compact Table / List View */
           <div
-            className="rounded-2xl border overflow-hidden shadow-sm"
+            className="rounded-2xl border overflow-hidden shadow-sm flex flex-col"
             style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}
           >
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b" style={{ borderColor: 'var(--border)', background: 'var(--bg-body)' }}>
-                    <th className="py-3 px-4 font-black uppercase text-slate-400 text-[10px]">Table #</th>
-                    <th className="py-3 px-4 font-black uppercase text-slate-400 text-[10px]">Section / Area</th>
-                    <th className="py-3 px-4 font-black uppercase text-slate-400 text-[10px]">QR Preview</th>
-                    <th className="py-3 px-4 font-black uppercase text-slate-400 text-[10px]">Ordering Route</th>
-                    <th className="py-3 px-4 font-black uppercase text-slate-400 text-[10px] text-right">Actions</th>
+            <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-280px)] min-h-[300px]" style={{ scrollbarWidth: 'thin' }}>
+              <table className="w-full text-left text-xs border-separate border-spacing-0">
+                <thead className="sticky top-0 z-20 shadow-sm">
+                  <tr style={{ background: 'var(--bg-card)' }}>
+                    <th className="sticky top-0 z-20 py-3 px-4 font-black uppercase text-[10px] border-b backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>Table #</th>
+                    <th className="sticky top-0 z-20 py-3 px-4 font-black uppercase text-[10px] border-b backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>Section / Area</th>
+                    <th className="sticky top-0 z-20 py-3 px-4 font-black uppercase text-[10px] border-b backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>QR Preview</th>
+                    <th className="sticky top-0 z-20 py-3 px-4 font-black uppercase text-[10px] border-b backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>Ordering Route</th>
+                    <th className="sticky top-0 z-20 py-3 px-4 font-black uppercase text-[10px] text-right border-b backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>
@@ -3731,15 +3730,15 @@ const QrCodesPage = ({
 
                     return (
                       <tr key={t.id} className="hover:bg-slate-500/5 transition-colors">
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-4 border-b" style={{ borderColor: 'var(--border)' }}>
                           <span className="font-black text-sm text-blue-500">#{t.id}</span>
                         </td>
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-4 border-b" style={{ borderColor: 'var(--border)' }}>
                           <span className="font-bold px-2.5 py-1 rounded-full text-[11px] bg-blue-500/10 text-blue-500 border border-blue-500/20">
                             {t.section}
                           </span>
                         </td>
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-4 border-b" style={{ borderColor: 'var(--border)' }}>
                           <div
                             onClick={() =>
                               setZoomModalData({
@@ -3759,10 +3758,10 @@ const QrCodesPage = ({
                             </div>
                           </div>
                         </td>
-                        <td className="py-3 px-4 font-mono text-slate-400 text-[11px]">
+                        <td className="py-3 px-4 font-mono text-slate-400 text-[11px] border-b" style={{ borderColor: 'var(--border)' }}>
                           <span className="truncate max-w-xs block">{tableUrl}</span>
                         </td>
-                        <td className="py-3 px-4 text-right">
+                        <td className="py-3 px-4 text-right border-b" style={{ borderColor: 'var(--border)' }}>
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               type="button"

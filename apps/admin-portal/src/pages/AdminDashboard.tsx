@@ -795,7 +795,7 @@ const Step2 = ({ f, set, errors }: { f: BusinessFormState; set: (k: keyof Busine
         </div>
         <div className="col-span-2">
           <FL required>Admin Phone Number</FL>
-          <PhoneInput value={f.adminPhone} onChange={v => set('adminPhone', v)} />
+          <PhoneInput value={f.adminPhone} onChange={v => set('adminPhone', v)} error={errors.adminPhone} />
         </div>
         <div className="col-span-2">
           <FL required>Temporary Password</FL>
@@ -895,10 +895,33 @@ const CreateBusinessStepper = ({ onSuccess, onCancel }: { onSuccess: (b: Busines
   const [form, setForm] = useState<BusinessFormState>({ ...defaultBusinessForm, tempPwd: generatePassword() });
   const [errors, setErrors] = useState<Partial<Record<keyof BusinessFormState, string>>>({});
 
+  const validateAdminField = (k: keyof BusinessFormState, v: string): string => {
+    if (k === 'adminFirstName' || k === 'adminLastName') {
+      const label = k === 'adminFirstName' ? 'First name' : 'Last name';
+      if (!v.trim()) return `${label} is required`;
+      if (!/^[a-zA-Z\s]+$/.test(v)) return 'Name can only contain letters';
+      if (v.trim().length < 2) return 'Must be at least 2 characters';
+    }
+    if (k === 'adminEmail') {
+      if (!v.trim()) return 'Email is required';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return 'Enter a valid email address';
+    }
+    if (k === 'adminPhone') {
+      if (!v.trim()) return 'Phone number is required';
+      if (!/^\d+$/.test(v.trim())) return 'Phone must contain numbers only';
+    }
+    return '';
+  };
+
   const set = (k: keyof BusinessFormState, v: any) => {
     setForm(p => ({ ...p, [k]: v }));
-    setErrors(p => ({ ...p, [k]: '' }));
     setSubmitError(null);
+    if (k === 'adminFirstName' || k === 'adminLastName' || k === 'adminEmail' || k === 'adminPhone') {
+      const err = validateAdminField(k, String(v));
+      setErrors(p => ({ ...p, [k]: err }));
+    } else {
+      setErrors(p => ({ ...p, [k]: '' }));
+    }
   };
 
   const validate1 = () => {
@@ -910,11 +933,18 @@ const CreateBusinessStepper = ({ onSuccess, onCancel }: { onSuccess: (b: Busines
 
   const validate2 = () => {
     const e: Partial<Record<keyof BusinessFormState, string>> = {};
-    if (!form.adminFirstName.trim()) e.adminFirstName = 'First name required';
-    if (!form.adminLastName.trim()) e.adminLastName = 'Last name required';
-    if (!form.adminEmail.trim()) e.adminEmail = 'Email required';
-    else if (!/\S+@\S+\.\S+/.test(form.adminEmail)) e.adminEmail = 'Invalid email address';
-    if (!form.adminPhone.trim()) e.adminPhone = 'Phone required';
+    const fnErr = validateAdminField('adminFirstName', form.adminFirstName);
+    if (fnErr) e.adminFirstName = fnErr;
+    const lnErr = validateAdminField('adminLastName', form.adminLastName);
+    if (lnErr) e.adminLastName = lnErr;
+    const combinedName = `${form.adminFirstName} ${form.adminLastName}`.trim();
+    if (!fnErr && !lnErr && combinedName.replace(/\s+/g, '').length < 3) {
+      e.adminFirstName = 'Full name must be at least 3 letters';
+    }
+    const emErr = validateAdminField('adminEmail', form.adminEmail);
+    if (emErr) e.adminEmail = emErr;
+    const phErr = validateAdminField('adminPhone', form.adminPhone);
+    if (phErr) e.adminPhone = phErr;
     if (form.tempPwd.length < 8) e.tempPwd = 'Password must be at least 8 characters';
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -1935,6 +1965,7 @@ const CreateUserModal = ({
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<{ fullName?: string; email?: string; phone?: string }>({});
   const [role, setRole] = useState<'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'WAITER'>(defaultRole);
   const [businessUuid, setBusinessUuid] = useState(businesses[0]?.id || '');
   const [password, setPassword] = useState(generatePassword());
@@ -1943,10 +1974,29 @@ const CreateUserModal = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const validateUserField = (field: 'fullName' | 'email' | 'phone', value: string): string => {
+    if (field === 'fullName') {
+      if (!value.trim()) return 'Full name is required';
+      if (!/^[a-zA-Z\s]+$/.test(value)) return 'Name can only contain letters';
+      if (value.trim().length < 3) return 'Name must be at least 3 characters';
+    }
+    if (field === 'email') {
+      if (!value.trim()) return 'Email is required';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Enter a valid email address';
+    }
+    if (field === 'phone' && value.trim()) {
+      if (!/^\d+$/.test(value.trim())) return 'Phone must contain numbers only';
+    }
+    return '';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim() || !email.trim()) {
-      setError('Please fill in full name and email address.');
+    const nameErr = validateUserField('fullName', fullName);
+    const emailErr = validateUserField('email', email);
+    const phoneErr = validateUserField('phone', phone);
+    if (nameErr || emailErr || phoneErr) {
+      setFieldErrors({ fullName: nameErr, email: emailErr, phone: phoneErr });
       return;
     }
     if (role !== 'SUPER_ADMIN' && !businessUuid) {
@@ -2026,10 +2076,18 @@ const CreateUserModal = ({
                 type="text"
                 required
                 value={fullName}
-                onChange={e => setFullName(e.target.value)}
+                onChange={e => {
+                  setFullName(e.target.value);
+                  setFieldErrors(prev => ({ ...prev, fullName: validateUserField('fullName', e.target.value) }));
+                }}
                 placeholder="e.g. Peter Otieno"
-                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:border-orange-500 transition"
+                className={`w-full rounded-xl border ${
+                  fieldErrors.fullName
+                    ? 'border-red-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 bg-red-50/30 dark:bg-red-950/20'
+                    : 'border-slate-200 dark:border-slate-700 focus:border-orange-500 bg-slate-50/50 dark:bg-slate-800/50'
+                } px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none transition`}
               />
+              {fieldErrors.fullName && <p className="text-xs text-red-500 mt-1 font-medium">{fieldErrors.fullName}</p>}
             </div>
 
             <div>
@@ -2038,23 +2096,39 @@ const CreateUserModal = ({
                 type="email"
                 required
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={e => {
+                  setEmail(e.target.value);
+                  setFieldErrors(prev => ({ ...prev, email: validateUserField('email', e.target.value) }));
+                }}
                 placeholder="user@example.com"
-                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:border-orange-500 transition"
+                className={`w-full rounded-xl border ${
+                  fieldErrors.email
+                    ? 'border-red-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 bg-red-50/30 dark:bg-red-950/20'
+                    : 'border-slate-200 dark:border-slate-700 focus:border-orange-500 bg-slate-50/50 dark:bg-slate-800/50'
+                } px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none transition`}
               />
+              {fieldErrors.email && <p className="text-xs text-red-500 mt-1 font-medium">{fieldErrors.email}</p>}
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Phone Number</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Phone Number (Optional)</label>
               <input
                 type="tel"
                 value={phone}
-                onChange={e => setPhone(e.target.value)}
-                placeholder="+254 7..."
-                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:border-orange-500 transition"
+                onChange={e => {
+                  setPhone(e.target.value);
+                  setFieldErrors(prev => ({ ...prev, phone: validateUserField('phone', e.target.value) }));
+                }}
+                placeholder="07XX XXX XXX"
+                className={`w-full rounded-xl border ${
+                  fieldErrors.phone
+                    ? 'border-red-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 bg-red-50/30 dark:bg-red-950/20'
+                    : 'border-slate-200 dark:border-slate-700 focus:border-orange-500 bg-slate-50/50 dark:bg-slate-800/50'
+                } px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none transition`}
               />
+              {fieldErrors.phone && <p className="text-xs text-red-500 mt-1 font-medium">{fieldErrors.phone}</p>}
             </div>
 
             <div>

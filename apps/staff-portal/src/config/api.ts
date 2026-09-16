@@ -4,6 +4,9 @@ export const LOCAL_API_URL = 'http://localhost:5000/api/v1';
 export const CLOUD_API_URL = 'https://drinkhub-ke.onrender.com/api/v1';
 
 export const getApiTarget = (): ApiTarget => {
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return 'cloud';
+  }
   const stored = localStorage.getItem('drinkhub_api_target') as ApiTarget | null;
   if (stored === 'local' || stored === 'cloud') {
     return stored;

@@ -11,7 +11,6 @@ interface LoginPageProps {
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [role, setRole] = useState<StaffRole>('admin');
-
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -94,7 +93,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
       if (isNetworkError) {
         setError(
-          `Cannot connect to the server. Please verify the server is running and try again.`
+          'Cannot connect to the server. Please verify your internet connection or check if the server is running.'
         );
       } else {
         setError(err.message || 'Authentication failed. Invalid credentials.');
@@ -103,7 +102,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       setIsLoading(false);
     }
   };
-
 
   const handlePasswordChangeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,7 +177,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             </div>
           )}
 
-
           {/* Role Selector */}
           <div className="rounded-xl p-1 flex gap-1 border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
             {(['admin', 'manager', 'waiter'] as const).map((r) => (
@@ -209,18 +206,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               </span>
               <button
                 type="button"
-               onClick={() => {
-  if (role === 'admin') {
-    setUsername('john123@gmail.com');
-    setPassword('john1234');
-  } else if (role === 'manager') {
-    setUsername('tonnykim@gmail.com');
-    setPassword('Tonny1234');
-  } else {
-    setUsername('jane@gmail.com');
-    setPassword('Jane1234');
-  }
-}}
+                onClick={() => {
+                  if (role === 'admin') {
+                    setUsername('john123@gmail.com');
+                    setPassword('john1234');
+                  } else if (role === 'manager') {
+                    setUsername('tonnykim@gmail.com');
+                    setPassword('Tonny1234');
+                  } else {
+                    setUsername('jane@gmail.com');
+                    setPassword('Jane1234');
+                  }
+                }}
                 className="text-blue-600 hover:underline font-bold"
               >
                 Auto-fill ⚡

@@ -83,7 +83,8 @@ export type AdminNavKey =
   | 'staff'
   | 'reports'
   | 'settings'
-  | 'profile';
+  | 'profile'
+  | 'auditlogs';
 
 export interface BusinessDetails {
   businessUuid: string;
@@ -513,6 +514,13 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   const [reportError, setReportError] = useState<string | null>(null);
   const [exportingCsv, setExportingCsv] = useState(false);
 
+  /* ── Audit Logs state ── */
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [auditLogsLoading, setAuditLogsLoading] = useState(false);
+  const [auditLogsSearch, setAuditLogsSearch] = useState('');
+  const [auditLogsRoleFilter, setAuditLogsRoleFilter] = useState<'ALL' | 'ADMIN' | 'MANAGER' | 'WAITER' | 'SYSTEM'>('ALL');
+  const [auditLogsActionFilter, setAuditLogsActionFilter] = useState<string>('ALL');
+
   /* Modal state */
   const [createManagerOpen, setCreateManagerOpen] = useState(false);
   const [editBusinessOpen, setEditBusinessOpen] = useState(false);
@@ -695,6 +703,25 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     loadOverviewData();
   }, [loadOverviewData]);
 
+  const loadAuditLogsData = useCallback(async () => {
+    setAuditLogsLoading(true);
+    try {
+      const res = await authFetch('/notifications/audit-logs');
+      const raw = res?.data ?? [];
+      setAuditLogs(Array.isArray(raw) ? raw : []);
+    } catch (err: any) {
+      console.warn('Failed to load audit logs:', err);
+    } finally {
+      setAuditLogsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (page === 'auditlogs') {
+      loadAuditLogsData();
+    }
+  }, [page, loadAuditLogsData]);
+
   /* Formatters & Brand Identity */
   const formatKsh = (amount: number) => `KSh ${Number(amount || 0).toLocaleString('en-KE')}`;
   const getOrderTableDisplay = (o: any): string => {
@@ -770,6 +797,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     { key: 'sales', label: 'Sales & Revenue', icon: <TrendingUp className="h-4 w-4" /> },
     { key: 'staff', label: 'Staff Performance', icon: <Award className="h-4 w-4" /> },
     { key: 'reports', label: 'Reports', icon: <FileText className="h-4 w-4" /> },
+    { key: 'auditlogs', label: 'Audit Logs', icon: <Shield className="h-4 w-4" /> },
     { key: 'settings', label: 'Business Settings', icon: <Settings className="h-4 w-4" /> },
     { key: 'profile', label: 'Profile', icon: <User className="h-4 w-4" /> },
   ];
@@ -6194,6 +6222,319 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   };
 
   /* ─────────────────────────────────────────────────────────────
+     FEATURE 9: AUDIT LOGS VIEW
+     Comprehensive audit trail capturing events for Admin, Manager, and Waiter
+  ───────────────────────────────────────────────────────────── */
+  const renderAuditLogsView = () => {
+    const filteredLogs = auditLogs.filter(log => {
+      const actorName = log.user?.fullName || log.user?.email || 'System';
+      const actorRole = (log.user?.role || 'SYSTEM').toUpperCase();
+      const action = (log.action || '').toUpperCase();
+      const entity = (log.entityType || '').toUpperCase();
+      const ip = log.ipAddress || '';
+      const notes = JSON.stringify(log.newValues || '') + JSON.stringify(log.oldValues || '');
+
+      // Role filter
+      if (auditLogsRoleFilter !== 'ALL') {
+        if (auditLogsRoleFilter === 'ADMIN' && actorRole !== 'ADMIN') return false;
+        if (auditLogsRoleFilter === 'MANAGER' && actorRole !== 'MANAGER') return false;
+        if (auditLogsRoleFilter === 'WAITER' && actorRole !== 'WAITER') return false;
+        if (auditLogsRoleFilter === 'SYSTEM' && actorRole !== 'SYSTEM' && actorRole !== 'SUPER_ADMIN') return false;
+      }
+
+      // Action category filter
+      if (auditLogsActionFilter !== 'ALL') {
+        if (auditLogsActionFilter === 'ORDERS' && !action.includes('ORDER')) return false;
+        if (auditLogsActionFilter === 'PAYMENTS' && !action.includes('PAYMENT')) return false;
+        if (auditLogsActionFilter === 'USERS' && !action.includes('USER') && !action.includes('WAITER') && !action.includes('MANAGER')) return false;
+        if (auditLogsActionFilter === 'MENU' && !action.includes('MENU')) return false;
+        if (auditLogsActionFilter === 'BUSINESS' && !action.includes('BUSINESS')) return false;
+      }
+
+      // Search filter
+      if (auditLogsSearch.trim()) {
+        const q = auditLogsSearch.toLowerCase();
+        return (
+          action.toLowerCase().includes(q) ||
+          actorName.toLowerCase().includes(q) ||
+          actorRole.toLowerCase().includes(q) ||
+          entity.toLowerCase().includes(q) ||
+          ip.toLowerCase().includes(q) ||
+          notes.toLowerCase().includes(q)
+        );
+      }
+
+      return true;
+    });
+
+    const totalEvents = auditLogs.length;
+    const adminEvents = auditLogs.filter(l => (l.user?.role || '').toUpperCase() === 'ADMIN').length;
+    const managerEvents = auditLogs.filter(l => (l.user?.role || '').toUpperCase() === 'MANAGER').length;
+    const waiterEvents = auditLogs.filter(l => (l.user?.role || '').toUpperCase() === 'WAITER').length;
+
+    const handleExportAuditLogs = () => {
+      const rows = filteredLogs.map(l => [
+        l.action,
+        l.user?.fullName || l.user?.email || 'System Worker',
+        l.user?.role || 'SYSTEM',
+        l.entityType ? `${l.entityType} (${l.entityUuid || 'N/A'})` : 'N/A',
+        JSON.stringify(l.newValues || {}).replace(/"/g, '""'),
+        l.ipAddress || '127.0.0.1',
+        l.createdAt ? new Date(l.createdAt).toLocaleString() : 'N/A',
+      ]);
+      const headers = ['Action / Event', 'Actor', 'Role', 'Target Resource', 'Details', 'IP Address', 'Timestamp'];
+      const csvContent = [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `audit-logs-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Audit logs exported successfully');
+    };
+
+    const getActionBadgeColor = (action: string) => {
+      const act = (action || '').toUpperCase();
+      if (act.includes('DELETE') || act.includes('SUSPEND') || act.includes('CANCEL') || act.includes('FAILED')) {
+        return 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800';
+      }
+      if (act.includes('UPDATE') || act.includes('STATUS') || act.includes('RESET')) {
+        return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800';
+      }
+      if (act.includes('CREATE') || act.includes('CLAIM') || act.includes('LOGIN') || act.includes('PAID') || act.includes('COMPLETED')) {
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800';
+      }
+      return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800';
+    };
+
+    const getRoleBadgeColor = (role?: string) => {
+      const r = (role || '').toUpperCase();
+      if (r === 'ADMIN') return 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800';
+      if (r === 'MANAGER') return 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800';
+      if (r === 'WAITER') return 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800';
+      return 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700';
+    };
+
+    return (
+      <div className="flex-1 min-h-0 flex flex-col space-y-4">
+        {/* Top Header & Sticky Controls */}
+        <div className="flex-shrink-0 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
+                  Audit Logs & Activity Trail
+                </h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300">
+                  Compliance & Security
+                </span>
+              </div>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Real-time security events and staff operations across Admin (Owner), Managers, and Waiters in {businessName}.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={loadAuditLogsData}
+                disabled={auditLogsLoading}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border hover:bg-slate-500/10 transition shadow-sm"
+                style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                title="Refresh logs"
+              >
+                <RefreshCcw className={`h-3.5 w-3.5 ${auditLogsLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+              <button
+                onClick={handleExportAuditLogs}
+                disabled={filteredLogs.length === 0}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition shadow-sm disabled:opacity-50"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export CSV
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Metrics Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-3.5 rounded-xl border flex flex-col gap-1" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+              <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Total Audited Events</span>
+              <span className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>{totalEvents}</span>
+            </div>
+            <div className="p-3.5 rounded-xl border flex flex-col gap-1" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+              <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Admin Actions</span>
+              <span className="text-xl font-black text-indigo-600 dark:text-indigo-400">{adminEvents}</span>
+            </div>
+            <div className="p-3.5 rounded-xl border flex flex-col gap-1" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+              <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Manager Actions</span>
+              <span className="text-xl font-black text-purple-600 dark:text-purple-400">{managerEvents}</span>
+            </div>
+            <div className="p-3.5 rounded-xl border flex flex-col gap-1" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+              <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Waiter Actions</span>
+              <span className="text-xl font-black text-teal-600 dark:text-teal-400">{waiterEvents}</span>
+            </div>
+          </div>
+
+          {/* Search and Filters Bar */}
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <div className="flex-1 w-full flex items-center gap-2 rounded-xl border px-3.5 py-2" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+              <Search className="h-4 w-4 text-slate-400 flex-shrink-0" />
+              <input
+                value={auditLogsSearch}
+                onChange={e => setAuditLogsSearch(e.target.value)}
+                placeholder="Search audit trail by event, actor name, role, resource, or details..."
+                className="flex-1 bg-transparent text-xs sm:text-sm outline-none"
+                style={{ color: 'var(--text-primary)' }}
+              />
+              {auditLogsSearch && (
+                <button onClick={() => setAuditLogsSearch('')} className="text-slate-400 hover:text-slate-600">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <select
+                value={auditLogsRoleFilter}
+                onChange={e => setAuditLogsRoleFilter(e.target.value as any)}
+                className="text-xs font-medium px-3 py-2 rounded-xl border bg-transparent outline-none cursor-pointer"
+                style={{ borderColor: 'var(--border)', color: 'var(--text-primary)', background: 'var(--bg-card)' }}
+              >
+                <option value="ALL">All Roles</option>
+                <option value="ADMIN">Admin (Owner)</option>
+                <option value="MANAGER">Manager</option>
+                <option value="WAITER">Waiter</option>
+                <option value="SYSTEM">System / Worker</option>
+              </select>
+
+              <select
+                value={auditLogsActionFilter}
+                onChange={e => setAuditLogsActionFilter(e.target.value)}
+                className="text-xs font-medium px-3 py-2 rounded-xl border bg-transparent outline-none cursor-pointer"
+                style={{ borderColor: 'var(--border)', color: 'var(--text-primary)', background: 'var(--bg-card)' }}
+              >
+                <option value="ALL">All Event Types</option>
+                <option value="ORDERS">Orders</option>
+                <option value="PAYMENTS">Payments</option>
+                <option value="USERS">Staff & Users</option>
+                <option value="MENU">Menu Management</option>
+                <option value="BUSINESS">Business Settings</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Sticky and Scrollable Table Container */}
+        <div
+          className="flex-1 min-h-[350px] rounded-2xl border overflow-hidden shadow-sm flex flex-col"
+          style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}
+        >
+          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 w-full max-h-[600px]">
+            <table className="w-full text-left border-collapse">
+              <thead className="sticky top-0 z-10 shadow-sm backdrop-blur-sm" style={{ background: 'var(--bg-card)' }}>
+                <tr className="border-b" style={{ borderColor: 'var(--border)' }}>
+                  <th className="py-3 px-4 text-xs font-bold text-slate-500 whitespace-nowrap">Event / Action</th>
+                  <th className="py-3 px-4 text-xs font-bold text-slate-500 whitespace-nowrap">Actor</th>
+                  <th className="py-3 px-4 text-xs font-bold text-slate-500 whitespace-nowrap">Role</th>
+                  <th className="py-3 px-4 text-xs font-bold text-slate-500 whitespace-nowrap">Target Resource</th>
+                  <th className="py-3 px-4 text-xs font-bold text-slate-500 whitespace-nowrap">Details & Context</th>
+                  <th className="py-3 px-4 text-xs font-bold text-slate-500 whitespace-nowrap">IP Address</th>
+                  <th className="py-3 px-4 text-xs font-bold text-slate-500 whitespace-nowrap">Timestamp</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y text-xs" style={{ borderColor: 'var(--border)' }}>
+                {auditLogsLoading ? (
+                  <tr>
+                    <td colSpan={7} className="py-16 text-center text-slate-400">
+                      <RefreshCcw className="h-5 w-5 animate-spin inline mr-2" />
+                      Loading audit logs...
+                    </td>
+                  </tr>
+                ) : filteredLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-16 text-center text-slate-400">
+                      <Shield className="h-8 w-8 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+                      No audit events found matching your criteria.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredLogs.map((log, idx) => {
+                    const actorName = log.user?.fullName || log.user?.email || 'System Worker';
+                    const actorEmail = log.user?.email || '';
+                    const role = log.user?.role || 'SYSTEM';
+                    const newVals = log.newValues ? (typeof log.newValues === 'string' ? log.newValues : JSON.stringify(log.newValues)) : null;
+                    const oldVals = log.oldValues ? (typeof log.oldValues === 'string' ? log.oldValues : JSON.stringify(log.oldValues)) : null;
+
+                    return (
+                      <tr
+                        key={log.auditUuid || `log-${idx}`}
+                        className="hover:bg-slate-500/5 transition-colors border-b last:border-b-0"
+                        style={{ borderColor: 'var(--border)' }}
+                      >
+                        <td className="py-3 px-4 font-mono font-semibold whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${getActionBadgeColor(log.action)}`}>
+                            {log.action}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <div className="font-semibold text-xs" style={{ color: 'var(--text-primary)' }}>
+                            {actorName}
+                          </div>
+                          {actorEmail && actorEmail !== actorName && (
+                            <div className="text-[11px] text-slate-400 font-mono">
+                              {actorEmail}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${getRoleBadgeColor(role)}`}>
+                            {role}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                          {log.entityType ? (
+                            <span>
+                              <span className="font-semibold text-slate-700 dark:text-slate-300">{log.entityType}</span>
+                              {log.entityUuid && (
+                                <span className="text-[10px] text-slate-400 ml-1">
+                                  ({log.entityUuid.substring(0, 8)}...)
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            <span>General</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-[11px] text-slate-600 dark:text-slate-300 max-w-[280px] truncate" title={newVals || oldVals || ''}>
+                          {newVals ? (
+                            <span className="font-mono bg-slate-500/10 px-1.5 py-0.5 rounded text-[10px]">
+                              {newVals.length > 50 ? newVals.substring(0, 50) + '...' : newVals}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic">No value payload</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap font-mono text-[11px] text-slate-400">
+                          {log.ipAddress || '127.0.0.1'}
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap text-[11px] text-slate-400">
+                          {log.createdAt ? new Date(log.createdAt).toLocaleString() : 'N/A'}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /* ─────────────────────────────────────────────────────────────
      RENDER PAGE ROUTER
   ───────────────────────────────────────────────────────────── */
   const renderCurrentPage = () => {
@@ -6210,6 +6551,8 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
         return renderStaffPerformance();
       case 'reports':
         return renderReportsView();
+      case 'auditlogs':
+        return renderAuditLogsView();
       case 'settings':
         return renderBusinessSettings();
       case 'profile':

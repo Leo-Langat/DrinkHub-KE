@@ -3,6 +3,7 @@ import { MpesaAdapter } from './mpesa.adapter';
 import { getIO } from '../../config/socket';
 import { logger } from '../../config/logger';
 import { BadRequestError } from '../../common/errors/app-error';
+import { prisma } from '../../config/prisma';
 
 export class PaymentService {
   private mpesaAdapter: MpesaAdapter;
@@ -38,6 +39,17 @@ export class PaymentService {
       merchantRequestId: stkResponse.MerchantRequestID,
       checkoutRequestId: stkResponse.CheckoutRequestID,
     });
+
+    // Audit: payment initiated
+    prisma.auditLog.create({
+      data: {
+        businessUuid: businessUuid || null,
+        action: 'PAYMENT_INITIATED',
+        entityType: 'PAYMENT',
+        entityUuid: payment.paymentUuid,
+        newValues: { orderUuid: params.orderUuid, amount: params.amount, method: 'MPESA_STK' },
+      },
+    }).catch(() => {/* non-fatal */});
 
     return {
       paymentUuid: payment.paymentUuid,
@@ -89,9 +101,31 @@ export class PaymentService {
       } catch (_e) {
         logger.warn('Socket.IO instance not ready to dispatch payment alert.');
       }
+
+      // Audit: payment completed
+      prisma.auditLog.create({
+        data: {
+          businessUuid: (payment as any).businessUuid || null,
+          action: 'PAYMENT_COMPLETED',
+          entityType: 'PAYMENT',
+          entityUuid: payment.paymentUuid,
+          newValues: { amount: payment.amount, receiptNumber, method: 'MPESA_STK' },
+        },
+      }).catch(() => {/* non-fatal */});
     } else {
       // Payment Failed
       await this.paymentRepository.updateStatus(payment.paymentUuid, 'FAILED');
+
+      // Audit: payment failed
+      prisma.auditLog.create({
+        data: {
+          businessUuid: (payment as any).businessUuid || null,
+          action: 'PAYMENT_FAILED',
+          entityType: 'PAYMENT',
+          entityUuid: payment.paymentUuid,
+          newValues: { resultCode, method: 'MPESA_STK' },
+        },
+      }).catch(() => {/* non-fatal */});
     }
   }
 
@@ -131,6 +165,18 @@ export class PaymentService {
       logger.warn('Socket.IO not initialized to notify waiters.');
     }
 
+    // Audit: Card POS Request
+    prisma.auditLog.create({
+      data: {
+        businessUuid: businessUuid || null,
+        userUuid: (params as any).actorUserUuid || null,
+        action: 'PAYMENT_CARD_REQUESTED',
+        entityType: 'PAYMENT',
+        entityUuid: payment.paymentUuid,
+        newValues: { orderUuid: params.orderUuid, amount: params.amount, tableNumber: params.tableNumber },
+      },
+    }).catch(() => {/* non-fatal */});
+
     return {
       paymentUuid: payment.paymentUuid,
       status: 'PENDING',
@@ -147,6 +193,7 @@ export class PaymentService {
     tableNumber?: number;
     exactCash: boolean;
     customerCashAmount?: number;
+    actorUserUuid?: string;
   }) {
     const businessUuid = params.businessUuid || params.clubUuid!;
     let customerCashAmount = params.amount;
@@ -200,6 +247,25 @@ export class PaymentService {
       logger.warn('Socket.IO not initialized to notify waiters.');
     }
 
+    // Audit: Cash Request
+    prisma.auditLog.create({
+      data: {
+        businessUuid: businessUuid || null,
+        userUuid: params.actorUserUuid || null,
+        action: 'PAYMENT_CASH_REQUESTED',
+        entityType: 'PAYMENT',
+        entityUuid: payment.paymentUuid,
+        newValues: {
+          orderUuid: params.orderUuid,
+          amount: params.amount,
+          tableNumber: params.tableNumber,
+          exactCash: params.exactCash,
+          customerCashAmount,
+          changeDue,
+        },
+      },
+    }).catch(() => {/* non-fatal */});
+
     return {
       paymentUuid: payment.paymentUuid,
       status: 'PENDING',
@@ -210,10 +276,25 @@ export class PaymentService {
     };
   }
 
-  async updateStatus(paymentUuid: string, status: any) {
+  async updateStatus(paymentUuid: string, status: any, actorUserUuid?: string) {
     const payment = await this.paymentRepository.findById(paymentUuid);
     if (!payment) throw new BadRequestError('Payment record not found');
-    return this.paymentRepository.updateStatus(paymentUuid, status);
+    const updated = await this.paymentRepository.updateStatus(paymentUuid, status);
+
+    // Audit: payment status updated
+    prisma.auditLog.create({
+      data: {
+        businessUuid: (payment as any).businessUuid || null,
+        userUuid: actorUserUuid || null,
+        action: 'PAYMENT_STATUS_UPDATED',
+        entityType: 'PAYMENT',
+        entityUuid: paymentUuid,
+        oldValues: { status: (payment as any).paymentStatus },
+        newValues: { status },
+      },
+    }).catch(() => {/* non-fatal */});
+
+    return updated;
   }
 
   async getPaymentsForBusiness(options: {

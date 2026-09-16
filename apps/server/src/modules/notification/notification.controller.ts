@@ -66,12 +66,10 @@ export class NotificationController {
 
   getAuditLogs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const businessUuid =
-        (req.query.businessUuid as string) ||
-        (req.query.clubUuid as string) ||
-        req.businessUuid ||
-        req.user?.businessUuid ||
-        req.user?.tenantId;
+      const isSuperAdmin = (req.user?.role || '').toUpperCase() === 'SUPER_ADMIN';
+      const businessUuid = isSuperAdmin
+        ? ((req.query.businessUuid as string) || (req.query.clubUuid as string) || undefined)
+        : (req.user?.businessUuid || req.user?.tenantId || req.businessUuid);
 
       const auditLogs = await this.notificationService.getAuditLogs(businessUuid);
       res.json({

@@ -136,7 +136,11 @@ export class AuthController {
         return;
       }
 
-      const user = await this.authService.registerUser(body);
+      const user = await this.authService.registerUser({
+        ...body,
+        actorUserUuid: callerUserId,
+        ipAddress: req.ip,
+      });
       res.status(201).json({
         success: true,
         data: user,

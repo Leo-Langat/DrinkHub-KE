@@ -4,6 +4,7 @@ import { IAuthRepository } from './auth.interface';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../../common/utils/jwt';
 import { UnauthorizedError, BadRequestError, NotFoundError } from '../../common/errors/app-error';
 import { normalizeRole, UserRole } from '@drinkhub/shared';
+import { prisma } from '../../config/prisma';
 
 // OWASP: bcrypt cost factor ≥ 12
 const BCRYPT_ROUNDS = 12;
@@ -170,6 +171,19 @@ export class AuthService {
         }
       : null;
 
+    // Audit: fire-and-forget
+    prisma.auditLog.create({
+      data: {
+        businessUuid: user.businessUuid || null,
+        userUuid: user.userUuid,
+        action: 'USER_LOGIN',
+        entityType: 'USER',
+        entityUuid: user.userUuid,
+        newValues: { role: effectiveRole, email: user.email },
+        ipAddress: ipAddress || null,
+      },
+    }).catch(() => {/* non-fatal */});
+
     return {
       accessToken,
       refreshToken,
@@ -256,6 +270,8 @@ export class AuthService {
     businessUuid?: string;
     clubUuid?: string;
     mustChangePassword?: boolean;
+    actorUserUuid?: string;
+    ipAddress?: string;
   }) {
     const existing = await this.authRepository.findByEmail(data.email);
     if (existing) {
@@ -291,6 +307,19 @@ export class AuthService {
       mustChangePassword: data.mustChangePassword || false,
       emailVerificationToken,
     });
+
+    // Audit: fire-and-forget
+    prisma.auditLog.create({
+      data: {
+        businessUuid: finalBusinessUuid || null,
+        userUuid: data.actorUserUuid || user.userUuid,
+        action: 'USER_REGISTERED',
+        entityType: 'USER',
+        entityUuid: user.userUuid,
+        newValues: { email: user.email, fullName: user.fullName, role: user.role },
+        ipAddress: data.ipAddress || null,
+      },
+    }).catch(() => {/* non-fatal */});
 
     return {
       id: user.userUuid,

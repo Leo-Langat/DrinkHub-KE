@@ -38,7 +38,7 @@ export class OrderService {
     return this.orderRepository.findAllActiveOrdersByWaiter(waiterUuid);
   }
 
-  async createOrder(businessUuid: string, data: any): Promise<Order> {
+  async createOrder(businessUuid: string, data: any, actorUserUuid?: string): Promise<Order> {
     const order = await this.orderRepository.createOrder(businessUuid, data);
 
     // Emit Realtime Socket.IO Event for Kitchen & Waiters
@@ -49,6 +49,22 @@ export class OrderService {
     } catch (_e) {
       logger.warn('Socket.IO not ready for new_order broadcast.');
     }
+
+    // Audit: fire-and-forget
+    prisma.auditLog.create({
+      data: {
+        businessUuid: businessUuid || null,
+        userUuid: actorUserUuid || data?.waiterUuid || null,
+        action: 'ORDER_CREATED',
+        entityType: 'ORDER',
+        entityUuid: (order as any).orderUuid,
+        newValues: {
+          orderNumber: (order as any).orderNumber,
+          totalAmount: (order as any).totalAmount,
+          status: (order as any).status,
+        },
+      },
+    }).catch(() => {/* non-fatal */});
 
     return order;
   }
@@ -110,10 +126,22 @@ export class OrderService {
       logger.warn('Socket.IO not ready for order_claimed broadcast.');
     }
 
+    // Audit: fire-and-forget
+    prisma.auditLog.create({
+      data: {
+        businessUuid: ((order as any).businessUuid || (order as any).clubUuid) || null,
+        userUuid: waiterUuid,
+        action: 'ORDER_CLAIMED',
+        entityType: 'ORDER',
+        entityUuid: orderUuid,
+        newValues: { waiterUuid, orderNumber: (claimedOrder as any).orderNumber },
+      },
+    }).catch(() => {/* non-fatal */});
+
     return claimedOrder;
   }
 
-  async updateOrderStatus(orderUuid: string, status: OrderStatus): Promise<Order> {
+  async updateOrderStatus(orderUuid: string, status: OrderStatus, actorUserUuid?: string): Promise<Order> {
     const order = await this.getOrderById(orderUuid);
     const updatedOrder = await this.orderRepository.updateStatus(orderUuid, status);
 
@@ -129,6 +157,19 @@ export class OrderService {
     } catch (_e) {
       logger.warn('Socket.IO not ready for order_status_updated broadcast.');
     }
+
+    // Audit: fire-and-forget
+    prisma.auditLog.create({
+      data: {
+        businessUuid: ((order as any).businessUuid || (order as any).clubUuid) || null,
+        userUuid: actorUserUuid || null,
+        action: 'ORDER_STATUS_UPDATED',
+        entityType: 'ORDER',
+        entityUuid: orderUuid,
+        oldValues: { status: order.status },
+        newValues: { status },
+      },
+    }).catch(() => {/* non-fatal */});
 
     return updatedOrder;
   }

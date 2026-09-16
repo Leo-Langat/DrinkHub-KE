@@ -59,7 +59,8 @@ export class PaymentController {
         orderUuid,
         amount,
         tableNumber,
-      });
+        actorUserUuid: req.user?.userId,
+      } as any);
 
       res.json({
         success: true,
@@ -88,6 +89,7 @@ export class PaymentController {
         tableNumber,
         exactCash,
         customerCashAmount,
+        actorUserUuid: req.user?.userId,
       });
 
       res.json({
@@ -159,7 +161,7 @@ export class PaymentController {
     try {
       const { paymentUuid } = req.params;
       const { status } = req.body;
-      const payment = await this.paymentService.updateStatus(paymentUuid, status);
+      const payment = await this.paymentService.updateStatus(paymentUuid, status, req.user?.userId);
       res.json({
         success: true,
         data: payment,

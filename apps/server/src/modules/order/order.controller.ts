@@ -93,7 +93,7 @@ export class OrderController {
         req.body.businessUuid ||
         req.body.clubUuid;
 
-      const order = await this.orderService.createOrder(businessUuid, req.body);
+      const order = await this.orderService.createOrder(businessUuid, req.body, req.user?.userId);
       res.status(201).json({
         success: true,
         data: order,
@@ -123,7 +123,7 @@ export class OrderController {
     try {
       const { orderUuid } = req.params;
       const { status } = req.body;
-      const order = await this.orderService.updateOrderStatus(orderUuid, status);
+      const order = await this.orderService.updateOrderStatus(orderUuid, status, req.user?.userId);
       res.json({
         success: true,
         data: order,

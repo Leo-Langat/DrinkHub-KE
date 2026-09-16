@@ -32,7 +32,17 @@ export class MenuService {
     if (!data.name) {
       throw new BadRequestError('Category name is required');
     }
-    return this.menuRepository.createCategory(businessUuid, data);
+    const category = await this.menuRepository.createCategory(businessUuid, data);
+    prisma.auditLog.create({
+      data: {
+        businessUuid: businessUuid || null,
+        action: 'MENU_CATEGORY_CREATED',
+        entityType: 'MENU_CATEGORY',
+        entityUuid: category.categoryUuid,
+        newValues: { name: category.name },
+      },
+    }).catch(() => {/* non-fatal */});
+    return category;
   }
 
   async updateCategory(categoryUuid: string, data: Partial<MenuCategory>): Promise<MenuCategory> {
@@ -104,11 +114,21 @@ export class MenuService {
       categoryUuid = defaultCat.categoryUuid;
     }
 
-    return this.menuRepository.createProduct(businessUuid, {
+    const product = await this.menuRepository.createProduct(businessUuid, {
       ...data,
       categoryUuid,
       price: Number(data.price),
     });
+    prisma.auditLog.create({
+      data: {
+        businessUuid: businessUuid || null,
+        action: 'MENU_PRODUCT_CREATED',
+        entityType: 'MENU_PRODUCT',
+        entityUuid: product.productUuid,
+        newValues: { name: product.name, price: product.price },
+      },
+    }).catch(() => {/* non-fatal */});
+    return product;
   }
 
   async updateProduct(productUuid: string, data: Partial<Product>): Promise<Product> {
@@ -116,7 +136,18 @@ export class MenuService {
     if (!product) {
       throw new NotFoundError('Product not found');
     }
-    return this.menuRepository.updateProduct(productUuid, data);
+    const updated = await this.menuRepository.updateProduct(productUuid, data);
+    prisma.auditLog.create({
+      data: {
+        businessUuid: (product as any).businessUuid || null,
+        action: 'MENU_PRODUCT_UPDATED',
+        entityType: 'MENU_PRODUCT',
+        entityUuid: productUuid,
+        oldValues: { name: product.name, price: product.price, isAvailable: product.isAvailable },
+        newValues: data as any,
+      },
+    }).catch(() => {/* non-fatal */});
+    return updated;
   }
 
   async toggleAvailability(productUuid: string, isAvailable: boolean): Promise<Product> {
@@ -128,7 +159,17 @@ export class MenuService {
     if (!product) {
       throw new NotFoundError('Product not found');
     }
-    return this.menuRepository.archiveProduct(productUuid);
+    const result = await this.menuRepository.archiveProduct(productUuid);
+    prisma.auditLog.create({
+      data: {
+        businessUuid: (product as any).businessUuid || null,
+        action: 'MENU_PRODUCT_DELETED',
+        entityType: 'MENU_PRODUCT',
+        entityUuid: productUuid,
+        oldValues: { name: product.name },
+      },
+    }).catch(() => {/* non-fatal */});
+    return result;
   }
 
   async createOffer(businessUuid: string, data: any): Promise<Offer> {

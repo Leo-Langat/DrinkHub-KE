@@ -2252,7 +2252,6 @@ const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
   });
   const [revChart, setRevChart] = React.useState<{ day: string; rev: number }[]>([]);
   const [hourChart, setHourChart] = React.useState<{ h: number; n: number }[]>([]);
-  const [recentOrders, setRecentOrders] = React.useState<OrderRow[]>([]);
 
   const fetchDashboard = React.useCallback(async (isBackground = false) => {
     if (!isBackground) setRefreshing(true);
@@ -2337,16 +2336,6 @@ const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
           })));
         }
 
-        // 4. Populate Recent Orders with clean items list and waiter
-        setRecentOrders(raw.slice(0, 50).map((o: any) => ({
-          id: o.orderNumber ?? o.uuid?.slice(0, 8).toUpperCase() ?? '-',
-          table: getOrderTableDisplay(o),
-          item: (o.items ?? o.orderItems ?? []).map((i: any) => `${i.product?.name ?? i.name} x ${i.quantity ?? 1}`).join(', ') || 'Drink Order',
-          waiter: o.waiter?.fullName ? o.waiter.fullName.split(' ')[0] : 'Unassigned',
-          amount: Number(o.totalAmount ?? 0),
-          status: o.status ?? '-',
-          time: o.createdAt ? new Date(o.createdAt).toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' }) : '-',
-        })));
       }
     } catch {
       /* keep current state on error */
@@ -2519,70 +2508,6 @@ const DashboardPage = ({ showToast }: { showToast: (m: string) => void }) => {
               <Bar dataKey="n" name="Orders" fill="#10B981" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Recent Orders List - Scrollable */}
-      <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-        <div className="flex items-center justify-between px-5 py-3 border-b" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          <div>
-            <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>Recent Orders</h3>
-            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Live order feed (scroll to view all)</p>
-          </div>
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Live Feed
-          </span>
-        </div>
-        <div className="overflow-x-auto overflow-y-auto max-h-[440px] min-h-[260px]" style={{ scrollbarWidth: 'thin' }}>
-          <table className="w-full text-sm border-separate border-spacing-0">
-            <thead className="sticky top-0 z-20 shadow-sm">
-              <tr style={{ background: 'var(--bg-card)' }}>
-                {['Order ID', 'Table & Item', 'Waiter', 'Amount', 'Status', 'Time'].map(h => (
-                  <th key={h} className="sticky top-0 z-20 px-5 py-2.5 text-[11px] font-bold text-left uppercase tracking-wider border-b backdrop-blur-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {recentOrders.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="text-center py-8 text-xs text-slate-400">
-                    No recent orders found
-                  </td>
-                </tr>
-              ) : (
-                recentOrders.map(o => (
-                  <tr
-                    key={o.id}
-                    className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors"
-                    style={{ background: 'var(--bg-card)' }}
-                  >
-                    <td className="px-5 py-3 font-mono text-xs font-bold border-b" style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-                      #{o.id}
-                    </td>
-                    <td className="px-5 py-3 text-xs border-b" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-                      <span className="font-bold text-slate-900 dark:text-slate-100 mr-1.5">{o.table}</span>
-                      <span className="opacity-80">· {o.item}</span>
-                    </td>
-                    <td className="px-5 py-3 text-xs font-medium border-b" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-                      {o.waiter}
-                    </td>
-                    <td className="px-5 py-3 text-xs font-bold text-emerald-600 border-b" style={{ borderColor: 'var(--border)' }}>
-                      KES {o.amount.toLocaleString()}
-                    </td>
-                    <td className="px-5 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
-                      <StatusBadge status={o.status} />
-                    </td>
-                    <td className="px-5 py-3 text-xs font-mono border-b" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
-                      {o.time}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
         </div>
       </div>
     </div>

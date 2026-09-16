@@ -2989,102 +2989,89 @@ const QrCodesPage = ({
       `}</style>
 
       {/* Screen View */}
-      <div className="no-print space-y-5">
-        {/* Top Hero Command Center */}
+      <div className="no-print space-y-3">
+        {/* Sticky Top Header Section (Reduced Hero + Filters) */}
         <div
-          className="rounded-2xl border p-5 sm:p-6 transition-all shadow-sm relative overflow-hidden"
+          className="sticky top-0 z-20 space-y-2.5 pb-2 -mt-1 pt-1 backdrop-blur-md"
+          style={{ background: 'var(--bg-body)' }}
+        >
+          {/* Compact Top Hero Command Center */}
+          <div
+            className="rounded-2xl border px-4 py-3 sm:px-5 sm:py-3 transition-all shadow-sm relative"
           style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}
         >
-          <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-5">
-            {/* Left Info & Live Link */}
-            <div className="space-y-2 max-w-2xl">
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Live Table Ordering Active
-                </span>
-                <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
-                  {tables.length} Total Tables Assigned
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-lg sm:text-xl font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
+            {/* Left: Title + Status + Venue Link */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>
                   QR Code Table Ordering
                 </h3>
-                <p className="text-xs sm:text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                  Place printed QR stands on tables. Customers scan with their smartphone camera to browse {clubName}'s live menu and order directly to their seat.
-                </p>
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Live Active
+                </span>
+                <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+                  ({tables.length} tables)
+                </span>
               </div>
 
-              {/* URL Display Bar */}
-              <div className="pt-1 flex items-center gap-2 flex-wrap">
-                <div
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-mono font-medium max-w-full overflow-hidden"
-                  style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                >
-                  <QrCode className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
-                  <span className="truncate">{fullBaseUrl}</span>
-                </div>
-
+              {/* Compact URL & Actions */}
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => copyToClipboard(fullBaseUrl, 'Customer Storefront Link')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
-                  style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-primary)', background: 'var(--bg-body)' }}
+                  title={fullBaseUrl}
                 >
-                  {copiedVenueLink ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-slate-400" />}
-                  {copiedVenueLink ? 'Copied!' : 'Copy Venue Link'}
+                  {copiedVenueLink ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3 text-slate-400" />}
+                  <span className="truncate max-w-[130px] sm:max-w-[170px] font-mono text-[11px]">{fullBaseUrl.replace(/^https?:\/\//, '')}</span>
+                  <span className="text-[10px] text-blue-500">{copiedVenueLink ? 'Copied!' : 'Copy'}</span>
                 </button>
 
                 <a
                   href={fullBaseUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all hover:bg-slate-100 dark:hover:bg-slate-800 text-blue-600 dark:text-blue-400"
-                  style={{ borderColor: 'var(--border)' }}
+                  className="p-1.5 rounded-lg border text-xs font-bold transition-all hover:bg-slate-100 dark:hover:bg-slate-800 text-blue-500"
+                  style={{ borderColor: 'var(--border)', background: 'var(--bg-body)' }}
+                  title="Preview Digital Menu"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
-                  Preview Menu
                 </a>
               </div>
             </div>
 
-            {/* Venue Master QR Card (Instant Scan & Enlarge) */}
-            <div
-              onClick={() =>
-                setZoomModalData({
-                  title: `${clubName} — Master Menu`,
-                  subtitle: 'Official Venue-Wide Menu QR Code (for bar counters, entrance & flyers)',
-                  url: fullBaseUrl,
-                })
-              }
-              className="flex items-center gap-3 p-2.5 sm:p-3 rounded-2xl border cursor-pointer group transition-all hover:border-blue-500 hover:shadow-lg flex-shrink-0"
-              style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}
-              title="Click to view & scan full-size Venue QR Code"
-            >
-              <div className="relative p-1.5 bg-white rounded-xl border border-slate-200 shadow-sm flex-shrink-0">
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=2&data=${encodeURIComponent(fullBaseUrl)}`}
-                  alt="Venue Master QR"
-                  className="w-16 h-16 sm:w-18 sm:h-18 object-contain"
-                  crossOrigin="anonymous"
-                />
-                <div className="absolute inset-0 bg-blue-600/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Maximize2 className="h-5 w-5 text-blue-600 drop-shadow" />
+            {/* Center / Right: Master QR preview button + Action Buttons */}
+            <div className="flex items-center gap-2 flex-wrap w-full lg:w-auto justify-start lg:justify-end">
+              {/* Sleek Master QR Button */}
+              <button
+                type="button"
+                onClick={() =>
+                  setZoomModalData({
+                    title: `${clubName} — Master Menu`,
+                    subtitle: 'Official Venue-Wide Menu QR Code (for bar counters, entrance & flyers)',
+                    url: fullBaseUrl,
+                  })
+                }
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all hover:border-blue-500 hover:bg-blue-50/10 text-xs font-bold group"
+                style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}
+                title="Click to view & scan full-size Venue QR Code"
+              >
+                <div className="p-0.5 bg-white rounded-md border border-slate-200 shadow-sm flex-shrink-0">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&margin=1&data=${encodeURIComponent(fullBaseUrl)}`}
+                    alt="Venue Master QR"
+                    className="w-5 h-5 object-contain"
+                    crossOrigin="anonymous"
+                  />
                 </div>
-              </div>
-              <div className="pr-1">
-                <span className="text-[10px] font-black uppercase tracking-wider text-blue-500 block">Master QR</span>
-                <span className="text-xs sm:text-sm font-black block" style={{ color: 'var(--text-primary)' }}>Venue Menu</span>
-                <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-1 group-hover:text-blue-500 font-bold">
-                  <ZoomIn className="h-3 w-3" /> Click to enlarge & scan
-                </span>
-              </div>
-            </div>
+                <span style={{ color: 'var(--text-primary)' }}>Venue QR</span>
+                <ZoomIn className="h-3 w-3 text-slate-400 group-hover:text-blue-500" />
+              </button>
 
-            {/* Right Action Buttons */}
-            <div className="flex items-center gap-2.5 flex-wrap w-full xl:w-auto xl:justify-end">
+              {/* Action buttons */}
               <button
                 type="button"
                 onClick={() => {
@@ -3092,34 +3079,35 @@ const QrCodesPage = ({
                   setSingleTableSection(distinctSections[0] || 'Main Lounge');
                   setAddModalOpen(true);
                 }}
-                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border text-xs font-bold transition-all hover:bg-slate-100 dark:hover:bg-slate-800 shadow-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all hover:bg-slate-100 dark:hover:bg-slate-800 shadow-sm"
                 style={{ borderColor: 'var(--border)', color: 'var(--text-primary)', background: 'var(--bg-card)' }}
               >
-                <Plus className="h-4 w-4 text-emerald-500" />
-                Add Single Table
+                <Plus className="h-3.5 w-3.5 text-emerald-500" />
+                <span>Add Single Table</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setShowGenerator(!showGenerator)}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border text-xs font-bold transition-all shadow-sm ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-sm ${
                   showGenerator
                     ? 'bg-blue-600 text-white border-blue-600'
                     : 'hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
                 style={showGenerator ? {} : { borderColor: 'var(--border)', color: 'var(--text-primary)', background: 'var(--bg-card)' }}
               >
-                <Sparkles className="h-4 w-4 text-amber-500" />
-                Batch Generator {showGenerator ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                <span>Batch Generator</span>
+                {showGenerator ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
               </button>
 
               <button
                 type="button"
                 onClick={handlePrintAll}
-                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white px-5 py-2.5 text-xs font-bold transition-all shadow-md hover:shadow-lg"
+                className="flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 text-xs font-bold transition-all shadow-md hover:shadow-lg"
               >
-                <Printer className="h-4 w-4" />
-                Print All Table Stands
+                <Printer className="h-3.5 w-3.5" />
+                <span>Print All Stands</span>
               </button>
             </div>
           </div>
@@ -3297,17 +3285,17 @@ const QrCodesPage = ({
           )}
         </div>
 
-        {/* Filter, Search & View Toolbar */}
+        {/* Compact Filter, Search & View Toolbar */}
         <div
-          className="rounded-2xl border p-4 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between"
+          className="rounded-xl border px-3 py-2 sm:px-4 sm:py-2 flex flex-col md:flex-row gap-2 items-stretch md:items-center justify-between"
           style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}
         >
           {/* Section Filter Pills */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 flex-1 min-w-0" style={{ scrollbarWidth: 'none' }}>
             <button
               type="button"
               onClick={() => setSelectedSectionFilter('All')}
-              className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-bold border transition-all flex-shrink-0 ${
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold border transition-all flex-shrink-0 ${
                 selectedSectionFilter === 'All'
                   ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                   : 'hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -3331,7 +3319,7 @@ const QrCodesPage = ({
                   key={sec}
                   type="button"
                   onClick={() => setSelectedSectionFilter(sec)}
-                  className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-bold border transition-all whitespace-nowrap flex-shrink-0 ${
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold border transition-all whitespace-nowrap flex-shrink-0 ${
                     selectedSectionFilter === sec
                       ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                       : 'hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -3352,35 +3340,35 @@ const QrCodesPage = ({
           </div>
 
           {/* Right Toolbar: Search & View Mode Switcher */}
-          <div className="flex items-center gap-2.5 flex-shrink-0">
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="relative w-full sm:w-56">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
               <input
                 type="text"
                 value={qrSearchQuery}
                 onChange={e => setQrSearchQuery(e.target.value)}
                 placeholder="Search table # or area..."
-                className="w-full pl-9 pr-8 py-2 rounded-xl text-xs font-medium border outline-none transition-all focus:ring-2 focus:ring-blue-500 shadow-sm"
+                className="w-full pl-8 pr-7 py-1.5 rounded-xl text-xs font-medium border outline-none transition-all focus:ring-2 focus:ring-blue-500 shadow-sm"
                 style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
               />
               {qrSearchQuery && (
                 <button
                   onClick={() => setQrSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-0.5"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-0.5"
                   title="Clear search"
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <X className="h-3 w-3" />
                 </button>
               )}
             </div>
 
             {/* QR Size Density Selector (Grid Mode Only) */}
             {viewMode === 'grid' && (
-              <div className="flex items-center p-1 rounded-xl border text-xs font-bold" style={{ borderColor: 'var(--border)', background: 'var(--bg-body)' }}>
+              <div className="flex items-center p-0.5 rounded-xl border text-xs font-bold" style={{ borderColor: 'var(--border)', background: 'var(--bg-body)' }}>
                 <button
                   type="button"
                   onClick={() => setQrSize('normal')}
-                  className={`px-2.5 py-1 rounded-lg transition-all text-[11px] font-bold ${
+                  className={`px-2 py-1 rounded-lg transition-all text-[11px] font-bold ${
                     qrSize === 'normal' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
                   }`}
                   title="Standard QR Size"
@@ -3390,18 +3378,18 @@ const QrCodesPage = ({
                 <button
                   type="button"
                   onClick={() => setQrSize('large')}
-                  className={`px-2.5 py-1 rounded-lg transition-all text-[11px] font-bold ${
+                  className={`px-2 py-1 rounded-lg transition-all text-[11px] font-bold ${
                     qrSize === 'large' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
                   }`}
                   title="Large QR Codes (Maximum visibility & scan ease)"
                 >
-                  Large QR ⚡
+                  Large ⚡
                 </button>
               </div>
             )}
 
             {/* View Mode Toggle */}
-            <div className="flex items-center p-1 rounded-xl border" style={{ borderColor: 'var(--border)', background: 'var(--bg-body)' }}>
+            <div className="flex items-center p-0.5 rounded-xl border" style={{ borderColor: 'var(--border)', background: 'var(--bg-body)' }}>
               <button
                 type="button"
                 onClick={() => setViewMode('grid')}
@@ -3428,15 +3416,16 @@ const QrCodesPage = ({
 
         {/* Results Info Bar */}
         <div className="flex items-center justify-between px-1">
-          <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>
             Showing <span className="font-bold text-blue-500">{filteredTables.length}</span> of {tables.length} Active Table QR Codes
           </p>
           {filteredTables.length > 0 && (
-            <p className="text-xs text-slate-400 hidden sm:block">
-              Click <span className="font-bold text-slate-300">Print Stand</span> on any card to generate a single tent card.
+            <p className="text-[11px] text-slate-400 hidden sm:block">
+              Click <span className="font-bold text-slate-300">Print</span> on any card to generate a tent card.
             </p>
           )}
         </div>
+      </div>
 
         {/* Main Content View (No Cut-off, Natural Page Flow) */}
         {filteredTables.length === 0 ? (
@@ -3474,161 +3463,154 @@ const QrCodesPage = ({
             )}
           </div>
         ) : viewMode === 'grid' ? (
-          /* Cards Grid View with Enhanced Visibility */
+          /* Cards Grid View — Scrollable container calibrated so at least 2 full rows show at a go */
           <div
-            className={`grid gap-6 ${
-              qrSize === 'large'
-                ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4'
-                : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
-            }`}
+            className="overflow-y-auto max-h-[calc(100vh-235px)] min-h-[480px] pr-1 pb-4"
+            style={{ scrollbarWidth: 'thin' }}
           >
-            {filteredTables.map(t => {
-              const tableUrl = `${fullBaseUrl}/t/${t.id}`;
-              const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=2&data=${encodeURIComponent(tableUrl)}`;
-              const isCopied = copiedTableId === t.id;
+            <div
+              className={`grid gap-4 ${
+                qrSize === 'large'
+                  ? 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4'
+                  : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5'
+              }`}
+            >
+              {filteredTables.map(t => {
+                const tableUrl = `${fullBaseUrl}/t/${t.id}`;
+                const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=2&data=${encodeURIComponent(tableUrl)}`;
+                const isCopied = copiedTableId === t.id;
 
-              return (
-                <div
-                  key={t.id}
-                  className="rounded-2xl border p-5 sm:p-6 flex flex-col justify-between transition-all hover:shadow-2xl hover:border-blue-500/60 group relative"
-                  style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}
-                >
-                  {/* Card Header */}
-                  <div>
-                    <div className="flex items-center justify-between gap-2 mb-3">
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 truncate max-w-[160px]">
-                        {t.section}
-                      </span>
-
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-black px-2.5 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
-                          Table {t.id}
+                return (
+                  <div
+                    key={t.id}
+                    className="rounded-xl border p-3 flex flex-col justify-between transition-all hover:shadow-xl hover:border-blue-500/60 group relative"
+                    style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}
+                  >
+                    {/* Card Header: Section & Table # */}
+                    <div>
+                      <div className="flex items-center justify-between gap-1 mb-2">
+                        <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20 truncate max-w-[120px]">
+                          {t.section}
                         </span>
-                        <button
-                          type="button"
-                          onClick={e => {
-                            e.stopPropagation();
-                            if (confirm(`Are you sure you want to delete Table ${t.id}?`)) {
-                              handleDeleteTable(t.id);
-                            }
-                          }}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                          title={`Delete Table ${t.id}`}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
 
-                    {/* QR Code Canvas with Camera Frame Design & Click-to-Zoom */}
-                    <div
-                      onClick={() =>
-                        setZoomModalData({
-                          title: `Table ${t.id} • ${t.section}`,
-                          subtitle: `Direct Table Ordering QR Code for Table ${t.id}`,
-                          url: tableUrl,
-                          tableId: t.id,
-                          section: t.section,
-                        })
-                      }
-                      className="relative p-5 bg-white rounded-2xl shadow-md border-2 border-slate-200 my-2 flex flex-col items-center justify-center cursor-pointer group/qr transition-all hover:border-blue-500 hover:shadow-xl"
-                      title="Click to view full-size & scan directly from screen"
-                    >
-                      {/* Scanner Frame Corner Accents */}
-                      <div className="absolute top-2.5 left-2.5 w-4 h-4 border-t-2 border-l-2 border-blue-600 rounded-tl-sm" />
-                      <div className="absolute top-2.5 right-2.5 w-4 h-4 border-t-2 border-r-2 border-blue-600 rounded-tr-sm" />
-                      <div className="absolute bottom-2.5 left-2.5 w-4 h-4 border-b-2 border-l-2 border-blue-600 rounded-bl-sm" />
-                      <div className="absolute bottom-2.5 right-2.5 w-4 h-4 border-b-2 border-r-2 border-blue-600 rounded-br-sm" />
-
-                      <img
-                        src={qrImgUrl}
-                        alt={`QR Table ${t.id}`}
-                        className={`object-contain transition-transform duration-300 group-hover/qr:scale-105 ${
-                          qrSize === 'large' ? 'w-52 h-52 sm:w-60 sm:h-60' : 'w-44 h-44 sm:w-48 sm:h-48'
-                        }`}
-                        crossOrigin="anonymous"
-                        loading="lazy"
-                      />
-
-                      {/* Hover Overlay Hint */}
-                      <div className="absolute inset-0 bg-blue-900/15 backdrop-blur-[1px] rounded-2xl opacity-0 group-hover/qr:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 pointer-events-none">
-                        <div className="p-2 rounded-xl bg-blue-600 text-white shadow-lg flex items-center gap-1.5 text-xs font-bold">
-                          <Maximize2 className="h-4 w-4" />
-                          <span>Click to Enlarge & Scan</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs font-black px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
+                            Table {t.id}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={e => {
+                              e.stopPropagation();
+                              if (confirm(`Are you sure you want to delete Table ${t.id}?`)) {
+                                handleDeleteTable(t.id);
+                              }
+                            }}
+                            className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                            title={`Delete Table ${t.id}`}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
                         </div>
                       </div>
 
-                      <div className="mt-2.5 flex items-center gap-1.5 text-xs font-bold text-slate-600">
-                        <Smartphone className="h-3.5 w-3.5 text-blue-600" />
-                        <span>Scan to Order • Table {t.id}</span>
-                      </div>
-                    </div>
-
-                    {/* Table Details */}
-                    <div className="text-center mt-3 mb-4 space-y-1">
-                      <div className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-                        Table {t.id} • {t.section}
-                      </div>
+                      {/* QR Code Canvas with Camera Frame Design & Click-to-Zoom */}
                       <div
-                        onClick={() => copyToClipboard(tableUrl, `Table ${t.id} QR Link`, t.id)}
-                        className="text-xs font-mono text-slate-400 truncate px-2 py-0.5 rounded cursor-pointer hover:text-blue-500 transition-colors"
-                        title="Click to copy link"
+                        onClick={() =>
+                          setZoomModalData({
+                            title: `Table ${t.id} • ${t.section}`,
+                            subtitle: `Direct Table Ordering QR Code for Table ${t.id}`,
+                            url: tableUrl,
+                            tableId: t.id,
+                            section: t.section,
+                          })
+                        }
+                        className="relative p-2 sm:p-2.5 bg-white rounded-xl shadow-sm border border-slate-200 my-1 flex flex-col items-center justify-center cursor-pointer group/qr transition-all hover:border-blue-500 hover:shadow-md"
+                        title="Click to view full-size & scan directly from screen"
                       >
-                        /v/{clubSlug}/t/{t.id}
+                        {/* Scanner Frame Corner Accents */}
+                        <div className="absolute top-1.5 left-1.5 w-3 h-3 border-t-2 border-l-2 border-blue-600 rounded-tl-sm" />
+                        <div className="absolute top-1.5 right-1.5 w-3 h-3 border-t-2 border-r-2 border-blue-600 rounded-tr-sm" />
+                        <div className="absolute bottom-1.5 left-1.5 w-3 h-3 border-b-2 border-l-2 border-blue-600 rounded-bl-sm" />
+                        <div className="absolute bottom-1.5 right-1.5 w-3 h-3 border-b-2 border-r-2 border-blue-600 rounded-br-sm" />
+
+                        <img
+                          src={qrImgUrl}
+                          alt={`QR Table ${t.id}`}
+                          className={`object-contain transition-transform duration-300 group-hover/qr:scale-105 ${
+                            qrSize === 'large' ? 'w-32 h-32 sm:w-36 sm:h-36' : 'w-24 h-24 sm:w-28 sm:h-28'
+                          }`}
+                          crossOrigin="anonymous"
+                          loading="lazy"
+                        />
+
+                        {/* Hover Overlay Hint */}
+                        <div className="absolute inset-0 bg-blue-900/15 backdrop-blur-[1px] rounded-xl opacity-0 group-hover/qr:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 pointer-events-none">
+                          <div className="p-1.5 rounded-lg bg-blue-600 text-white shadow flex items-center gap-1 text-[11px] font-bold">
+                            <Maximize2 className="h-3 w-3" />
+                            <span>Enlarge</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Table Details */}
+                      <div className="text-center my-1.5">
+                        <div className="text-xs font-black truncate" style={{ color: 'var(--text-primary)' }}>
+                          Table {t.id} · {t.section}
+                        </div>
                       </div>
                     </div>
+
+                    {/* Action Buttons Toolbar */}
+                    <div className="grid grid-cols-4 gap-1 pt-1.5 border-t" style={{ borderColor: 'var(--border)' }}>
+                      <button
+                        type="button"
+                        onClick={() => handlePrintSingle(t)}
+                        className="flex items-center justify-center py-1 rounded-lg text-[10px] font-bold transition-colors border hover:bg-slate-100 dark:hover:bg-slate-800"
+                        style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                        title="Print single table tent stand"
+                      >
+                        <Printer className="h-3 w-3 text-blue-500 mr-0.5" />
+                        <span>Print</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => downloadQrImage(t.id, t.section)}
+                        className="flex items-center justify-center py-1 rounded-lg text-[10px] font-bold transition-colors border hover:bg-slate-100 dark:hover:bg-slate-800"
+                        style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                        title="Download PNG image"
+                      >
+                        <Download className="h-3 w-3 text-emerald-500 mr-0.5" />
+                        <span>Save</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(tableUrl, `Table ${t.id} direct link`, t.id)}
+                        className="flex items-center justify-center py-1 rounded-lg text-[10px] font-bold transition-colors border hover:bg-slate-100 dark:hover:bg-slate-800"
+                        style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                        title="Copy table direct ordering link"
+                      >
+                        {isCopied ? <Check className="h-3 w-3 text-emerald-500 mr-0.5" /> : <Copy className="h-3 w-3 text-amber-500 mr-0.5" />}
+                        <span>{isCopied ? 'Done' : 'Copy'}</span>
+                      </button>
+
+                      <a
+                        href={tableUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center justify-center py-1 rounded-lg text-[10px] font-bold transition-colors border text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50"
+                        style={{ borderColor: 'var(--border)' }}
+                        title="Open digital menu for this table"
+                      >
+                        <ExternalLink className="h-3 w-3 mr-0.5" />
+                        <span>Open</span>
+                      </a>
+                    </div>
                   </div>
-
-                  {/* Action Buttons Toolbar */}
-                  <div className="grid grid-cols-4 gap-1.5 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
-                    <button
-                      type="button"
-                      onClick={() => handlePrintSingle(t)}
-                      className="flex flex-col items-center justify-center gap-1 rounded-xl py-2 px-1 text-[10px] font-bold transition-colors border hover:bg-slate-100 dark:hover:bg-slate-800"
-                      style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                      title="Print single table tent stand"
-                    >
-                      <Printer className="h-3.5 w-3.5 text-blue-500" />
-                      <span>Print</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => downloadQrImage(t.id, t.section)}
-                      className="flex flex-col items-center justify-center gap-1 rounded-xl py-2 px-1 text-[10px] font-bold transition-colors border hover:bg-slate-100 dark:hover:bg-slate-800"
-                      style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                      title="Download high-resolution PNG image"
-                    >
-                      <Download className="h-3.5 w-3.5 text-emerald-500" />
-                      <span>Save</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => copyToClipboard(tableUrl, `Table ${t.id} direct link`, t.id)}
-                      className="flex flex-col items-center justify-center gap-1 rounded-xl py-2 px-1 text-[10px] font-bold transition-colors border hover:bg-slate-100 dark:hover:bg-slate-800"
-                      style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                      title="Copy table direct ordering link"
-                    >
-                      {isCopied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-amber-500" />}
-                      <span>{isCopied ? 'Copied' : 'Copy'}</span>
-                    </button>
-
-                    <a
-                      href={tableUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex flex-col items-center justify-center gap-1 rounded-xl py-2 px-1 text-[10px] font-bold transition-colors border text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50"
-                      style={{ borderColor: 'var(--border)' }}
-                      title="Open digital menu for this table"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      <span>Open</span>
-                    </a>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         ) : (
           /* Compact Table / List View */

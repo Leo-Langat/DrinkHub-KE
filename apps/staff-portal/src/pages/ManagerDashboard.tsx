@@ -3751,31 +3751,45 @@ const QrCodesPage = ({
       {addModalOpen && (() => {
         const isNewSection = !distinctSections.includes(singleTableSection) && singleTableSection !== '';
         const showNewInput = isNewSection || distinctSections.length === 0;
+        const closeModal = () => { setAddModalOpen(false); setSingleTableSection(distinctSections[0] || 'Main Lounge'); setSingleTableNum(''); };
         return (
-          <Modal open={addModalOpen} onClose={() => { setAddModalOpen(false); setSingleTableSection(distinctSections[0] || 'Main Lounge'); setSingleTableNum(''); }} title="Add Single Table QR Code" size="sm">
-            <form onSubmit={handleAddSingleTable} className="space-y-4">
+          <Modal open={addModalOpen} onClose={closeModal} title="Add Single Table QR Code" size="md">
+            <form onSubmit={handleAddSingleTable} className="space-y-6">
+
+              {/* Table Number */}
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider block mb-1" style={{ color: 'var(--text-muted)' }}>Table Number</label>
+                <label className="text-sm font-extrabold uppercase tracking-widest block mb-2" style={{ color: 'var(--text-secondary)' }}>
+                  Table Number <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="number"
                   min={1}
                   max={999}
                   value={singleTableNum}
                   onChange={e => setSingleTableNum(e.target.value)}
-                  placeholder="e.g. 15"
+                  placeholder="e.g. 12"
                   required
                   autoFocus
-                  className="w-full rounded-xl border px-3.5 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500"
-                  style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                  className="w-full rounded-2xl border-2 px-5 py-4 text-2xl font-black outline-none focus:ring-4 focus:ring-blue-500/30 transition-all"
+                  style={{ background: 'var(--bg-body)', borderColor: singleTableNum ? '#3b82f6' : 'var(--border)', color: 'var(--text-primary)' }}
                 />
+                {singleTableNum && (
+                  <p className="text-xs font-semibold mt-2 flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    Table {singleTableNum} will be created
+                  </p>
+                )}
               </div>
 
+              {/* Section / Area */}
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider block mb-1" style={{ color: 'var(--text-muted)' }}>Section / Area</label>
+                <label className="text-sm font-extrabold uppercase tracking-widest block mb-2" style={{ color: 'var(--text-secondary)' }}>
+                  Section / Area <span className="text-red-500">*</span>
+                </label>
 
                 {/* Existing section pills */}
                 {distinctSections.length > 0 && (
-                  <div className="flex gap-1.5 flex-wrap mb-2">
+                  <div className="flex gap-2 flex-wrap mb-3">
                     {distinctSections.map(sec => {
                       const isSelected = singleTableSection === sec;
                       return (
@@ -3783,10 +3797,10 @@ const QrCodesPage = ({
                           key={sec}
                           type="button"
                           onClick={() => setSingleTableSection(sec)}
-                          className="text-[11px] font-bold px-2.5 py-1 rounded-lg transition-colors"
+                          className="text-sm font-bold px-4 py-2 rounded-xl transition-all"
                           style={isSelected
-                            ? { background: 'var(--accent, #3b82f6)', color: '#fff', border: '1px solid transparent' }
-                            : { background: 'var(--bg-body)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }
+                            ? { background: '#3b82f6', color: '#fff', border: '2px solid #3b82f6', boxShadow: '0 0 0 3px rgba(59,130,246,0.25)' }
+                            : { background: 'var(--bg-body)', color: 'var(--text-primary)', border: '2px solid var(--border)' }
                           }
                         >
                           {sec}
@@ -3798,18 +3812,18 @@ const QrCodesPage = ({
                     <button
                       type="button"
                       onClick={() => setSingleTableSection('')}
-                      className="text-[11px] font-bold px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1"
+                      className="text-sm font-bold px-4 py-2 rounded-xl transition-all flex items-center gap-1.5"
                       style={isNewSection || singleTableSection === ''
-                        ? { background: 'var(--accent, #3b82f6)', color: '#fff', border: '1px solid transparent' }
-                        : { background: 'var(--bg-body)', color: 'var(--text-secondary)', border: '1px dashed var(--border)' }
+                        ? { background: '#10b981', color: '#fff', border: '2px solid #10b981', boxShadow: '0 0 0 3px rgba(16,185,129,0.25)' }
+                        : { background: 'var(--bg-body)', color: 'var(--text-muted)', border: '2px dashed var(--border)' }
                       }
                     >
-                      <span>+</span> New Section
+                      <span className="text-base leading-none">+</span> New Section
                     </button>
                   </div>
                 )}
 
-                {/* New section text input — shown when "New Section" is active or no sections exist yet */}
+                {/* New section text input */}
                 {(showNewInput || distinctSections.length === 0) && (
                   <input
                     type="text"
@@ -3818,31 +3832,46 @@ const QrCodesPage = ({
                     placeholder="e.g. VIP, Terrace, Main Lounge"
                     required
                     autoFocus={distinctSections.length === 0}
-                    className="w-full rounded-xl border px-3.5 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500"
-                    style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                    className="w-full rounded-2xl border-2 px-5 py-4 text-base font-semibold outline-none focus:ring-4 focus:ring-emerald-500/30 transition-all"
+                    style={{ background: 'var(--bg-body)', borderColor: singleTableSection ? '#10b981' : 'var(--border)', color: 'var(--text-primary)' }}
                   />
                 )}
 
-                {/* Hidden required input to ensure form validation works when pill is selected */}
+                {/* Hidden required guard when pill selected */}
                 {!showNewInput && distinctSections.length > 0 && (
                   <input type="hidden" value={singleTableSection} required />
                 )}
 
                 {singleTableSection && (
-                  <p className="text-[11px] mt-1.5 font-medium" style={{ color: 'var(--text-muted)' }}>
+                  <p className="text-xs font-semibold mt-2 flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+                    <span className={`inline-block w-1.5 h-1.5 rounded-full ${distinctSections.includes(singleTableSection) ? 'bg-blue-500' : 'bg-emerald-500'}`} />
                     {distinctSections.includes(singleTableSection)
                       ? `Adding to existing section "${singleTableSection}"`
-                      : `Creating new section "${singleTableSection}"`
+                      : `Will create new section "${singleTableSection}"`
                     }
                   </p>
                 )}
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
+              {/* Summary preview */}
+              {singleTableNum && singleTableSection && (
+                <div className="rounded-2xl px-5 py-4 flex items-center gap-4 border-2" style={{ background: 'var(--bg-body)', borderColor: '#3b82f6' }}>
+                  <div className="h-12 w-12 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0">
+                    <span className="text-white font-black text-lg">{singleTableNum}</span>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Ready to add</p>
+                    <p className="text-base font-black" style={{ color: 'var(--text-primary)' }}>Table {singleTableNum} · {singleTableSection}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-3 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
                 <button
                   type="button"
-                  onClick={() => { setAddModalOpen(false); setSingleTableSection(distinctSections[0] || 'Main Lounge'); setSingleTableNum(''); }}
-                  className="px-4 py-2 rounded-xl text-xs font-bold transition-colors"
+                  onClick={closeModal}
+                  className="px-5 py-2.5 rounded-xl text-sm font-bold transition-colors"
                   style={{ color: 'var(--text-muted)' }}
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-body)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -3851,10 +3880,10 @@ const QrCodesPage = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={!singleTableSection.trim()}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold shadow-md transition-colors"
+                  disabled={!singleTableSection.trim() || !singleTableNum}
+                  className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-black shadow-lg shadow-blue-500/30 transition-all"
                 >
-                  Add Table
+                  Add Table →
                 </button>
               </div>
             </form>

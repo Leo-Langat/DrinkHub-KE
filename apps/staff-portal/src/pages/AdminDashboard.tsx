@@ -6144,7 +6144,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   };
 
   return (
-    <div className="h-screen flex overflow-hidden" style={{ background: 'var(--bg-body)' }}>
+    <div className="min-h-screen flex" style={{ background: 'var(--bg-body)' }}>
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
 
       {/* ── Mobile Sidebar Backdrop ── */}
@@ -6262,9 +6262,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       </aside>
 
       {/* ── Main Workspace Body ── */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
         <header
-          className="flex-shrink-0 border-b px-3 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between z-20"
+          className="sticky top-0 z-20 flex-shrink-0 border-b px-3 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between backdrop-blur-md"
           style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}
         >
           <div className="flex items-center gap-2 min-w-0">
@@ -6296,7 +6296,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           </div>
         </header>
 
-        <main className="flex-1 p-3 sm:p-6 overflow-y-auto min-h-0 flex flex-col">
+        <main className="flex-1 p-3 sm:p-6 pb-24 overflow-visible">
           {loading ? (
             <div className="h-96 flex flex-col items-center justify-center text-slate-400 space-y-3">
               <Building2 className="h-10 w-10 animate-bounce" style={{ color: currentThemeColor }} />

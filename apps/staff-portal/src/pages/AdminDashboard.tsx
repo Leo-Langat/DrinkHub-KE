@@ -6563,7 +6563,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   };
 
   return (
-    <div className="min-h-screen flex" style={{ background: 'var(--bg-body)' }}>
+    <div className="h-screen flex overflow-hidden" style={{ background: 'var(--bg-body)' }}>
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
 
       {/* ── Mobile Sidebar Backdrop ── */}
@@ -6576,8 +6576,8 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
 
       {/* ── Sidebar Navigation ── */}
       <aside
-        className={`flex-shrink-0 flex flex-col h-screen transition-all duration-200
-          fixed lg:sticky top-0 z-50 lg:z-30
+        className={`flex-shrink-0 flex flex-col h-full transition-all duration-200
+          fixed inset-y-0 left-0 lg:static z-50 lg:z-30
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
         style={{
           width: collapsed ? '64px' : '230px',
@@ -6647,7 +6647,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           )}
         </div>
 
-        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 min-h-0 p-2 space-y-0.5 overflow-y-auto">
           {NAV_ITEMS.map((item) => (
             <button
               key={item.key}
@@ -6667,7 +6667,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           ))}
         </nav>
 
-        <div className="p-2 border-t" style={{ borderColor: '#1E293B' }}>
+        <div className="flex-shrink-0 p-2 border-t" style={{ borderColor: '#1E293B' }}>
           <button
             onClick={onLogout}
             title={collapsed ? 'Sign Out' : undefined}
@@ -6681,7 +6681,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       </aside>
 
       {/* ── Main Workspace Body ── */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header
           className="sticky top-0 z-20 flex-shrink-0 border-b px-3 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between backdrop-blur-md"
           style={{ background: 'var(--bg-body)', borderColor: 'var(--border)' }}
@@ -6715,7 +6715,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           </div>
         </header>
 
-        <main className="flex-1 p-3 sm:p-6 pb-24 overflow-visible">
+        <main className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-6 pb-12">
           {loading ? (
             <div className="h-96 flex flex-col items-center justify-center text-slate-400 space-y-3">
               <Building2 className="h-10 w-10 animate-bounce" style={{ color: currentThemeColor }} />

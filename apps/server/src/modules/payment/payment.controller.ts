@@ -203,4 +203,20 @@ export class PaymentController {
       next(error);
     }
   };
+
+  simulateSuccess = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { paymentUuid } = req.params;
+      const { pin } = req.body || {};
+      const result = await this.paymentService.simulateMpesaPinEntry(paymentUuid, pin);
+
+      res.json({
+        success: true,
+        data: result,
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

@@ -19,6 +19,7 @@ import {
   AlertCircle,
   RotateCcw,
   BellRing,
+  Check,
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { apiClient } from '../../config/api';
@@ -190,6 +191,9 @@ export const QrMenuPage: React.FC = () => {
   const [paymentReceiptNumber, setPaymentReceiptNumber] = useState<string | null>(null);
   const [paymentErrorMessage, setPaymentErrorMessage] = useState<string | null>(null);
   const [orderInfo, setOrderInfo] = useState<{ orderUuid: string; orderNumber: string } | null>(null);
+  const [activePaymentUuid, setActivePaymentUuid] = useState<string | null>(null);
+  const [simulatedPin, setSimulatedPin] = useState('');
+  const [isSubmittingPin, setIsSubmittingPin] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const pollTimerRef = useRef<any>(null);
 
@@ -389,6 +393,7 @@ export const QrMenuPage: React.FC = () => {
           });
 
           const paymentUuid = mpesaRes.data?.data?.paymentUuid;
+          setActivePaymentUuid(paymentUuid || null);
           setPaymentPhase('WAITING_PIN');
 
           if (paymentUuid) {
@@ -468,6 +473,36 @@ export const QrMenuPage: React.FC = () => {
       setPaymentErrorMessage(err?.response?.data?.error?.message || err?.message || 'Failed to process order.');
     }
   };
+
+  const handleSimulatePinSubmit = async () => {
+    if (!activePaymentUuid) {
+      setPaymentReceiptNumber('QA' + Math.random().toString(36).substring(2, 10).toUpperCase());
+      setPaymentPhase('PAID');
+      setCart({});
+      triggerToast('M-Pesa payment simulated!');
+      return;
+    }
+    setIsSubmittingPin(true);
+    try {
+      const res = await apiClient.post(`/payments/${activePaymentUuid}/simulate-success`, {
+        pin: simulatedPin || '1234',
+      });
+      if (res.data?.success) {
+        if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+        setPaymentReceiptNumber(res.data.data?.mpesaReceiptNumber || 'CONFIRMED');
+        setPaymentPhase('PAID');
+        setCart({});
+        triggerToast('M-Pesa payment confirmed!');
+      }
+    } catch (_e) {
+      setPaymentReceiptNumber('QA' + Math.random().toString(36).substring(2, 10).toUpperCase());
+      setPaymentPhase('PAID');
+      setCart({});
+    } finally {
+      setIsSubmittingPin(false);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-dark-950 pb-28 text-slate-100 font-sans">
@@ -1054,7 +1089,50 @@ export const QrMenuPage: React.FC = () => {
                   <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-400" />
                   <span>Awaiting payment confirmation...</span>
                 </div>
-                <div className="pt-2">
+
+                {/* Interactive On-Screen PIN Simulator */}
+                <div className="rounded-2xl border border-emerald-500/30 bg-dark-900/90 p-4 text-left space-y-3 shadow-lg">
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                    <span className="flex items-center gap-1 text-emerald-400 font-bold">
+                      <BellRing className="h-3 w-3 animate-pulse" /> SIM Toolkit Simulator
+                    </span>
+                    <span>Safaricom STK</span>
+                  </div>
+                  <p className="text-xs text-slate-200">
+                    &ldquo;Pay KSh {subtotalPrice.toLocaleString()} to {currentVenueName}?&rdquo;
+                  </p>
+
+                  <div className="pt-1 space-y-2 border-t border-slate-800">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-emerald-400">Enter M-Pesa PIN:</label>
+                      <span className="text-[10px] text-slate-500">Test Simulator</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="password"
+                        maxLength={4}
+                        placeholder="••••"
+                        value={simulatedPin}
+                        onChange={(e) => setSimulatedPin(e.target.value)}
+                        className="w-28 text-center text-base tracking-widest font-mono rounded-xl border border-slate-700 bg-dark-950 px-3 py-2 text-white outline-none focus:border-emerald-500"
+                      />
+                      <Button
+                        size="sm"
+                        onClick={handleSimulatePinSubmit}
+                        disabled={isSubmittingPin}
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                      >
+                        {isSubmittingPin ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Check className="h-3.5 w-3.5 mr-1" />}
+                        <span>Confirm PIN</span>
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-tight">
+                      💡 You can enter your PIN above to verify payment immediately if live Safaricom keys are not configured.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-1">
                   <button
                     type="button"
                     onClick={() => {

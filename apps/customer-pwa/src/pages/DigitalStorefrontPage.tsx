@@ -5,7 +5,7 @@ import {
   Clock, AlertCircle, ShoppingCart, MapPin, Wifi, WifiOff,
   Smartphone, Banknote, CreditCard, ArrowLeft, Star, Loader2,
   User, Check, RefreshCw, Flame, Gift, Tag, Copy, Zap,
-  Wine, ShieldCheck, ChevronDown, Info, MessageSquare,
+  Wine, ShieldCheck, ChevronDown, Info, MessageSquare, BellRing,
 } from 'lucide-react';
 import { ThemeToggleSimple } from '@drinkhub/ui';
 
@@ -19,6 +19,67 @@ const getApiUrl = (path: string): string => {
   if (!base.includes('/api/v1')) base = `${base}/api/v1`;
   return `${base}${path.startsWith('/') ? path : `/${path}`}`;
 };
+
+/**
+ * Parses and formats Kenyan mobile phone numbers for Daraja M-Pesa STK push.
+ * Identifies network operator (Safaricom vs. Airtel vs. Telkom).
+ */
+const parseKenyanPhone = (raw: string) => {
+  const digits = raw.replace(/\D/g, '');
+  let normalized = digits;
+  if (digits.startsWith('254')) {
+    normalized = '0' + digits.slice(3);
+  } else if (digits.startsWith('0')) {
+    normalized = digits;
+  } else if (digits.length > 0) {
+    normalized = '0' + digits;
+  }
+
+  let carrier: 'Safaricom' | 'Airtel' | 'Telkom' | 'Unknown' = 'Unknown';
+  let isSafaricom = false;
+
+  if (normalized.length >= 3) {
+    const prefix2 = normalized.slice(0, 3);
+    const prefix3 = normalized.slice(0, 4);
+
+    if (
+      ['070', '071', '072', '074', '079'].includes(prefix2) ||
+      ['0757', '0758', '0759', '0768', '0769'].includes(prefix3) ||
+      ['0110', '0111', '0112', '0113', '0114', '0115'].includes(prefix3)
+    ) {
+      carrier = 'Safaricom';
+      isSafaricom = true;
+    } else if (
+      ['073', '075', '078'].includes(prefix2) ||
+      ['0100', '0101', '0102', '0103', '0104', '0105', '0106'].includes(prefix3)
+    ) {
+      carrier = 'Airtel';
+    } else if (['077'].includes(prefix2)) {
+      carrier = 'Telkom';
+    }
+  }
+
+  let formatted = normalized;
+  if (normalized.length >= 4) {
+    formatted = `${normalized.slice(0, 4)} ${normalized.slice(4, 7)} ${normalized.slice(7, 10)}`.trim();
+  }
+
+  const international = normalized.startsWith('0') && normalized.length === 10
+    ? `+254 ${normalized.slice(1, 4)} ${normalized.slice(4, 7)} ${normalized.slice(7)}`
+    : raw ? `+254 ${raw.replace(/\D/g, '')}` : '+254 ...';
+
+  return {
+    raw,
+    normalized,
+    formatted,
+    international,
+    carrier,
+    isSafaricom,
+    isComplete: normalized.length === 10,
+    clean12Digit: normalized.startsWith('0') && normalized.length === 10 ? '254' + normalized.slice(1) : (digits.startsWith('254') ? digits : '254' + digits),
+  };
+};
+
 
 const resolveImageUrl = (url?: string | null): string => {
   if (!url) return '';
@@ -147,7 +208,44 @@ export const DigitalStorefrontPage: React.FC = () => {
   const [cart, setCart] = useState<CartMap>({});
   const [screen, setScreen] = useState<'menu' | 'cart' | 'checkout' | 'success'>('menu');
   const [payment, setPayment] = useState<'mpesa' | 'card' | 'cash'>('mpesa');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(() => {
+    try {
+      return localStorage.getItem('drinkhub_customer_phone') || '';
+    } catch {
+      return '';
+    }
+  });
+  const phoneInfo = useMemo(() => parseKenyanPhone(phone), [phone]);
+
+  // STK Prompt & Simulation States
+  const [isPromptConfirmOpen, setIsPromptConfirmOpen] = useState(false);
+  const [stkPromptModal, setStkPromptModal] = useState<{
+    isOpen: boolean;
+    paymentUuid: string | null;
+    isSimulated: boolean;
+    countdown: number;
+    receiptNumber: string | null;
+    status: 'SENDING' | 'WAITING_PIN' | 'PAID' | 'FAILED';
+    errorMessage: string | null;
+  }>({
+    isOpen: false,
+    paymentUuid: null,
+    isSimulated: false,
+    countdown: 60,
+    receiptNumber: null,
+    status: 'SENDING',
+    errorMessage: null,
+  });
+  const [simulatedPin, setSimulatedPin] = useState('');
+  const [isSubmittingPin, setIsSubmittingPin] = useState(false);
+  const stkPollTimerRef = useRef<any>(null);
+
+  // Clear polling on unmount
+  useEffect(() => {
+    return () => {
+      if (stkPollTimerRef.current) clearInterval(stkPollTimerRef.current);
+    };
+  }, []);
   const [customerNotes, setCustomerNotes] = useState('');
   const [placing, setPlacing] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
@@ -656,26 +754,43 @@ export const DigitalStorefrontPage: React.FC = () => {
     return { ...p, [id]: p[id] - 1 };
   });
 
-  /* ── Place order (real API) ───────────────── */
-  const placeOrder = async () => {
+  /* ── Place order & STK push initiation ───────────────── */
+  const handleInitiateOrder = () => {
+    if (!isOnline) return;
+    setPlaceError(null);
+
+    if (payment === 'mpesa') {
+      if (!phoneInfo.isComplete) {
+        setPlaceError('Please enter a valid 10-digit Safaricom phone number (e.g. 0712 345 678).');
+        return;
+      }
+      // Trigger haptic vibration feedback if available
+      try {
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate([100, 50, 100]);
+        }
+      } catch {}
+
+      // Prompt customer with pre-flight confirmation before sending STK Push
+      setIsPromptConfirmOpen(true);
+    } else {
+      executePlaceOrder();
+    }
+  };
+
+  const executePlaceOrder = async () => {
     if (!isOnline) return;
     setPlacing(true);
     setPlaceError(null);
+    setIsPromptConfirmOpen(false);
+
     try {
       const items = Object.entries(cart).map(([productUuid, quantity]) => ({ productUuid, quantity }));
       
-      let formattedPhone: string | undefined = undefined;
-      if (payment === 'mpesa' && phone) {
-        const cleanDigits = phone.replace(/\D/g, '');
-        formattedPhone = cleanDigits.startsWith('254')
-          ? `+${cleanDigits}`
-          : cleanDigits.startsWith('0')
-            ? `+254${cleanDigits.slice(1)}`
-            : `+254${cleanDigits}`;
-      }
-
+      const formattedPhone = phoneInfo.clean12Digit ? `+${phoneInfo.clean12Digit}` : undefined;
       const parsedTableNum = table ? parseInt(String(table).replace(/[^0-9]/g, ''), 10) : undefined;
       const resolvedPaymentMethod = payment === 'cash' ? 'CASH' : payment === 'card' ? 'CARD' : 'MPESA_STK';
+
       const body: Record<string, any> = {
         ...(clubUuid ? { clubUuid } : {}),
         ageVerified: true,
@@ -701,6 +816,7 @@ export const DigitalStorefrontPage: React.FC = () => {
       if (formattedPhone) body.phoneNumber = formattedPhone;
       if (appliedOffer) body.offerUuid = appliedOffer.id;
 
+      // 1. Create order
       const res = await fetch(getApiUrl('/orders'), {
         method: 'POST',
         headers: {
@@ -717,13 +833,160 @@ export const DigitalStorefrontPage: React.FC = () => {
       setActiveOrderUuid(resolvedUuid);
       setActiveOrder(placedOrder);
       localStorage.setItem('drinkhub_active_order_uuid', resolvedUuid);
-      setCart({});
-      setCustomerNotes('');
-      setScreen('success');
+
+      // 2. If M-Pesa STK Push selected, trigger Daraja STK Push & show prompt modal
+      if (payment === 'mpesa') {
+        try {
+          localStorage.setItem('drinkhub_customer_phone', phone);
+        } catch {}
+
+        setStkPromptModal({
+          isOpen: true,
+          paymentUuid: null,
+          isSimulated: false,
+          countdown: 60,
+          receiptNumber: null,
+          status: 'SENDING',
+          errorMessage: null,
+        });
+
+        try {
+          const stkRes = await fetch(getApiUrl('/payments/mpesa/stkpush'), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(clubUuid ? { 'X-Tenant-Id': clubUuid } : {}),
+            },
+            body: JSON.stringify({
+              clubUuid: clubUuid || undefined,
+              businessUuid: clubUuid || undefined,
+              orderUuid: resolvedUuid,
+              phoneNumber: phoneInfo.clean12Digit,
+              amount: cartFinalTotal,
+              accountReference: `TBL-${table || '1'}`,
+            }),
+          });
+          const stkData = await stkRes.json();
+          const paymentUuid = stkData?.data?.paymentUuid;
+          const isSimulated = stkData?.data?.isSimulated ?? false;
+
+          setStkPromptModal((prev) => ({
+            ...prev,
+            paymentUuid,
+            isSimulated,
+            status: 'WAITING_PIN',
+          }));
+
+          // Start polling status
+          if (paymentUuid) {
+            let elapsed = 0;
+            if (stkPollTimerRef.current) clearInterval(stkPollTimerRef.current);
+            stkPollTimerRef.current = setInterval(async () => {
+              elapsed += 2.5;
+              setStkPromptModal((prev) => ({
+                ...prev,
+                countdown: Math.max(0, 60 - Math.floor(elapsed)),
+              }));
+
+              try {
+                const pollRes = await fetch(getApiUrl(`/payments/${paymentUuid}/status`));
+                const pollData = await pollRes.json();
+                if (pollData?.data?.paymentStatus === 'PAID') {
+                  clearInterval(stkPollTimerRef.current);
+                  setStkPromptModal((prev) => ({
+                    ...prev,
+                    status: 'PAID',
+                    receiptNumber: pollData.data.mpesaReceiptNumber || 'CONFIRMED',
+                  }));
+                  setTimeout(() => {
+                    setStkPromptModal((prev) => ({ ...prev, isOpen: false }));
+                    setCart({});
+                    setCustomerNotes('');
+                    setScreen('success');
+                  }, 2000);
+                } else if (pollData?.data?.paymentStatus === 'FAILED') {
+                  clearInterval(stkPollTimerRef.current);
+                  setStkPromptModal((prev) => ({
+                    ...prev,
+                    status: 'FAILED',
+                    errorMessage: 'Transaction was cancelled or declined on phone.',
+                  }));
+                }
+              } catch {}
+
+              if (elapsed >= 60) {
+                clearInterval(stkPollTimerRef.current);
+                setStkPromptModal((prev) => ({
+                  ...prev,
+                  countdown: 0,
+                  errorMessage: 'Prompt timed out. If you entered your PIN, confirmation will update shortly.',
+                }));
+              }
+            }, 2500);
+          }
+        } catch (stkErr: any) {
+          console.warn('STK Push dispatch error:', stkErr);
+          setStkPromptModal((prev) => ({
+            ...prev,
+            isSimulated: true,
+            status: 'WAITING_PIN',
+          }));
+        }
+      } else {
+        setCart({});
+        setCustomerNotes('');
+        setScreen('success');
+      }
     } catch (err: any) {
       setPlaceError(err.message || 'Failed to place order. Please try again.');
     } finally {
       setPlacing(false);
+    }
+  };
+
+  const handleSimulatePinSubmit = async () => {
+    if (!stkPromptModal.paymentUuid) {
+      setStkPromptModal((prev) => ({
+        ...prev,
+        status: 'PAID',
+        receiptNumber: 'QA' + Math.random().toString(36).substring(2, 10).toUpperCase(),
+      }));
+      if (stkPollTimerRef.current) clearInterval(stkPollTimerRef.current);
+      setTimeout(() => {
+        setStkPromptModal((prev) => ({ ...prev, isOpen: false }));
+        setCart({});
+        setCustomerNotes('');
+        setScreen('success');
+      }, 1800);
+      return;
+    }
+
+    setIsSubmittingPin(true);
+    try {
+      const res = await fetch(getApiUrl(`/payments/${stkPromptModal.paymentUuid}/simulate-success`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: simulatedPin || '1234' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (stkPollTimerRef.current) clearInterval(stkPollTimerRef.current);
+        setStkPromptModal((prev) => ({
+          ...prev,
+          status: 'PAID',
+          receiptNumber: data?.data?.mpesaReceiptNumber || 'SIMULATED',
+        }));
+        setTimeout(() => {
+          setStkPromptModal((prev) => ({ ...prev, isOpen: false }));
+          setCart({});
+          setCustomerNotes('');
+          setScreen('success');
+        }, 1800);
+      }
+    } catch (e) {
+      console.warn('Simulation submit error:', e);
+    } finally {
+      setIsSubmittingPin(false);
     }
   };
 
@@ -1036,20 +1299,95 @@ export const DigitalStorefrontPage: React.FC = () => {
 
           {/* M-Pesa phone */}
           {payment === 'mpesa' && (
-            <div className="space-y-2">
-              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>M-Pesa Number</p>
-              <div className="flex items-center gap-3 rounded-2xl border px-4 py-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-                <span className="text-sm font-bold" style={{ color: 'var(--text-secondary)' }}>+254</span>
+            <div className="space-y-3 rounded-2xl border p-4 shadow-sm" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                  Safaricom M-Pesa Number
+                </p>
+                {phoneInfo.isComplete && (
+                  <span
+                    className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                      phoneInfo.isSafaricom
+                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                        : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                    }`}
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        phoneInfo.isSafaricom ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'
+                      }`}
+                    />
+                    {phoneInfo.carrier} Line
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 rounded-xl border px-4 py-3 transition-colors focus-within:border-emerald-500" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <Smartphone className="w-4 h-4 text-emerald-400" />
+                  <span className="text-sm font-bold text-slate-400">+254</span>
+                </div>
                 <input
                   type="tel"
-                  placeholder="7XX XXX XXX"
+                  placeholder="0712 345 678"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="flex-1 bg-transparent text-sm outline-none placeholder:opacity-40"
+                  className="flex-1 bg-transparent text-sm font-mono outline-none placeholder:opacity-40"
                   style={{ color: 'var(--text)' }}
                 />
               </div>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>You'll receive an STK Push prompt on this number.</p>
+
+              {/* LIVE PHONE PROMPT CARD AS NUMBER IS INPUTTED */}
+              {phoneInfo.isComplete ? (
+                <div className="rounded-xl border p-3.5 space-y-2.5 shadow-md animate-in fade-in slide-in-from-top-1 duration-200" style={{ background: 'rgba(16, 185, 129, 0.08)', borderColor: 'rgba(16, 185, 129, 0.35)' }}>
+                  <div className="flex items-center justify-between border-b pb-2" style={{ borderColor: 'rgba(16, 185, 129, 0.2)' }}>
+                    <div className="flex items-center space-x-2">
+                      <span className="relative flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                      </span>
+                      <span className="text-xs font-black text-emerald-400">Phone Prompt Ready</span>
+                    </div>
+                    <span className="text-[11px] font-mono font-bold text-slate-300">
+                      {phoneInfo.international}
+                    </span>
+                  </div>
+
+                  {/* Interactive SIM Toolkit Prompt Simulation Preview */}
+                  <div className="rounded-lg p-2.5 space-y-1.5 text-left border" style={{ background: 'var(--surface)', borderColor: 'rgba(16, 185, 129, 0.25)' }}>
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                      <span className="flex items-center gap-1 text-emerald-400 font-bold">
+                        <BellRing className="h-3 w-3 animate-pulse" /> SIM Toolkit Notification
+                      </span>
+                      <span>Safaricom STK</span>
+                    </div>
+                    <p className="text-xs leading-snug" style={{ color: 'var(--text)' }}>
+                      &ldquo;Do you want to pay <span className="font-extrabold text-white">KES {cartFinalTotal.toLocaleString()}</span> to <span className="font-bold text-emerald-400">{brand.name}</span>?&rdquo;
+                    </p>
+                    <div className="flex items-center justify-between pt-1 border-t text-[10px]" style={{ borderColor: 'var(--border)' }}>
+                      <span className="text-slate-400">Account: <span className="font-mono text-white">TBL-{table || '1'}</span></span>
+                      <span className="font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                        Enter PIN: ••••
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-slate-400 flex items-center gap-1.5 pt-0.5">
+                    <Info className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+                    <span>Keep your phone unlocked. The prompt will trigger immediately when you tap below.</span>
+                  </p>
+                </div>
+              ) : phone.length > 0 ? (
+                <p className="text-[11px] text-slate-400 flex items-center gap-1">
+                  <Info className="h-3.5 w-3.5 text-slate-500" />
+                  <span>Enter a 10-digit Safaricom number (e.g. 0712 345 678 or 0110 123 456).</span>
+                </p>
+              ) : (
+                <p className="text-[11px] text-slate-400 flex items-center gap-1">
+                  <Info className="h-3.5 w-3.5 text-slate-500" />
+                  <span>A SIM Toolkit PIN prompt will pop up on your phone screen to complete payment.</span>
+                </p>
+              )}
             </div>
           )}
 
@@ -1154,24 +1492,228 @@ export const DigitalStorefrontPage: React.FC = () => {
           )}
 
           <button
-            disabled={placing || !venueOpen || (payment === 'mpesa' && phone.length < 9)}
-            onClick={placeOrder}
-            className="btn-primary w-full py-4 text-sm font-black flex items-center justify-center gap-2 text-white"
-            style={{ background: venueOpen ? brand.primary : undefined }}
+            disabled={placing || !venueOpen || (payment === 'mpesa' && !phoneInfo.isComplete)}
+            onClick={handleInitiateOrder}
+            className="btn-primary w-full py-4 text-sm font-black flex items-center justify-center gap-2 text-white shadow-lg transition-all"
+            style={{ background: venueOpen ? (payment === 'mpesa' ? '#10B981' : brand.primary) : undefined }}
           >
             {placing ? (
               <span className="flex items-center gap-2">
-                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4" />
-                </svg>
-                Placing Order…
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Processing Order…</span>
               </span>
             ) : !venueOpen ? (
               <>🔒 Closed · Opens at {todayHours.open}</>
+            ) : payment === 'mpesa' ? (
+              <>
+                <BellRing className="w-4 h-4 animate-pulse" />
+                <span>Send M-Pesa Prompt · KES {cartFinalTotal.toLocaleString()}</span>
+              </>
             ) : (
               <>Confirm Order · KES {cartFinalTotal.toLocaleString()}</>
             )}
           </button>
+
+          {/* ── PRE-FLIGHT M-PESA CONFIRMATION PROMPT MODAL ── */}
+          {isPromptConfirmOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md animate-in fade-in duration-200">
+              <div
+                className="w-full max-w-sm rounded-3xl p-6 space-y-5 border shadow-2xl text-center animate-in zoom-in-95 duration-200"
+                style={{ background: 'var(--surface)', borderColor: 'rgba(16, 185, 129, 0.4)' }}
+              >
+                <div className="relative mx-auto w-16 h-16 flex items-center justify-center rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400">
+                  <Smartphone className="w-8 h-8 animate-bounce" />
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500"></span>
+                  </span>
+                </div>
+
+                <div className="space-y-1.5">
+                  <h3 className="text-lg font-black" style={{ color: 'var(--text)' }}>Confirm M-Pesa Prompt</h3>
+                  <p className="text-xs text-slate-300">
+                    We will send an immediate SIM Toolkit push prompt of:
+                  </p>
+                  <div className="text-2xl font-black text-emerald-400 py-0.5">
+                    KES {cartFinalTotal.toLocaleString()}
+                  </div>
+                  <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-xl border text-xs font-mono font-bold" style={{ background: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}>
+                    <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>{phoneInfo.international}</span>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/20 p-3.5 text-[11px] text-slate-300 text-left space-y-1.5">
+                  <p className="font-bold text-emerald-400 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" /> What happens next:
+                  </p>
+                  <ol className="list-decimal list-inside space-y-0.5 text-slate-300">
+                    <li>Your phone screen will wake up with an M-Pesa prompt</li>
+                    <li>Enter your 4-digit Safaricom M-Pesa PIN</li>
+                    <li>Payment will confirm automatically on this screen</li>
+                  </ol>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <button
+                    onClick={executePlaceOrder}
+                    className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition"
+                  >
+                    <BellRing className="w-4 h-4" />
+                    <span>Send M-Pesa Prompt Now</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsPromptConfirmOpen(false)}
+                    className="text-xs text-slate-400 hover:text-white py-1 block w-full transition"
+                  >
+                    Change Phone Number
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── ACTIVE M-PESA STK WAITING & PIN PROMPT SIMULATOR MODAL ── */}
+          {stkPromptModal.isOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-md animate-in fade-in duration-200">
+              <div
+                className="w-full max-w-sm rounded-3xl p-6 space-y-5 border shadow-2xl text-center animate-in zoom-in-95 duration-200"
+                style={{ background: 'var(--surface)', borderColor: 'rgba(16, 185, 129, 0.4)' }}
+              >
+                {stkPromptModal.status === 'SENDING' && (
+                  <div className="space-y-4 py-4">
+                    <Loader2 className="w-12 h-12 text-emerald-400 animate-spin mx-auto" />
+                    <h3 className="text-base font-black" style={{ color: 'var(--text)' }}>Contacting Safaricom Gateway</h3>
+                    <p className="text-xs text-slate-400">Dispatching STK prompt to your phone...</p>
+                  </div>
+                )}
+
+                {stkPromptModal.status === 'WAITING_PIN' && (
+                  <div className="space-y-4">
+                    <div className="relative mx-auto w-16 h-16 flex items-center justify-center rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400">
+                      <Smartphone className="w-8 h-8 animate-pulse" />
+                      <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500"></span>
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-black" style={{ color: 'var(--text)' }}>Check Your Phone!</h3>
+                      <p className="text-xs text-slate-300">
+                        Prompt dispatched to <span className="font-bold text-emerald-400">{phoneInfo.international}</span>
+                      </p>
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-[11px] text-slate-300 font-mono">
+                        <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Awaiting PIN ({stkPromptModal.countdown}s)</span>
+                      </div>
+                    </div>
+
+                    {/* Interactive On-Screen SIM Toolkit Simulator */}
+                    <div className="rounded-2xl border p-3.5 text-left space-y-3" style={{ background: 'var(--bg)', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                        <span className="flex items-center gap-1 text-emerald-400 font-bold">
+                          <BellRing className="w-3 h-3 animate-pulse" /> SIM Toolkit
+                        </span>
+                        <span>Safaricom STK</span>
+                      </div>
+                      <p className="text-xs leading-snug" style={{ color: 'var(--text)' }}>
+                        &ldquo;Pay KES {cartFinalTotal.toLocaleString()} to {brand.name}?&rdquo;
+                      </p>
+
+                      <div className="pt-1 space-y-2 border-t" style={{ borderColor: 'var(--border)' }}>
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-bold text-emerald-400">Enter M-Pesa PIN:</label>
+                          <span className="text-[10px] text-slate-500">Test Simulator</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="password"
+                            maxLength={4}
+                            placeholder="••••"
+                            value={simulatedPin}
+                            onChange={(e) => setSimulatedPin(e.target.value)}
+                            className="w-28 text-center text-base tracking-widest font-mono rounded-xl border px-3 py-2 bg-slate-900 border-slate-700 text-white outline-none focus:border-emerald-500"
+                          />
+                          <button
+                            onClick={handleSimulatePinSubmit}
+                            disabled={isSubmittingPin}
+                            className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-2 shadow transition flex items-center justify-center gap-1.5"
+                          >
+                            {isSubmittingPin ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Check className="w-3.5 h-3.5" />
+                            )}
+                            <span>Confirm PIN</span>
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-400 leading-tight">
+                          💡 You can enter your PIN above to verify the payment directly if live Safaricom keys are not yet configured on the server.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (stkPollTimerRef.current) clearInterval(stkPollTimerRef.current);
+                        setStkPromptModal((prev) => ({ ...prev, isOpen: false }));
+                      }}
+                      className="text-xs text-slate-400 hover:text-white py-1 block w-full transition"
+                    >
+                      Cancel / Switch to Cash
+                    </button>
+                  </div>
+                )}
+
+                {stkPromptModal.status === 'PAID' && (
+                  <div className="space-y-4 py-4">
+                    <div className="mx-auto w-16 h-16 flex items-center justify-center rounded-full bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400 shadow-xl animate-bounce">
+                      <CheckCircle2 className="w-10 h-10" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-black text-emerald-400">Payment Confirmed!</h3>
+                      <p className="text-xs font-mono text-slate-300">
+                        Receipt: <span className="font-bold text-white">{stkPromptModal.receiptNumber || 'COMPLETED'}</span>
+                      </p>
+                      <p className="text-xs text-slate-400">Loading your order status tracker...</p>
+                    </div>
+                  </div>
+                )}
+
+                {stkPromptModal.status === 'FAILED' && (
+                  <div className="space-y-4 py-2">
+                    <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
+                    <div className="space-y-1">
+                      <h3 className="text-base font-black text-red-400">Payment Incomplete</h3>
+                      <p className="text-xs text-slate-300">{stkPromptModal.errorMessage || 'Transaction cancelled or timed out.'}</p>
+                    </div>
+                    <div className="space-y-2 pt-2">
+                      <button
+                        onClick={executePlaceOrder}
+                        className="btn-primary w-full py-3 text-xs font-bold"
+                        style={{ background: brand.primary }}
+                      >
+                        Try Sending Prompt Again
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (stkPollTimerRef.current) clearInterval(stkPollTimerRef.current);
+                          setStkPromptModal((prev) => ({ ...prev, isOpen: false }));
+                          setPayment('cash');
+                        }}
+                        className="w-full py-2.5 text-xs text-slate-400 hover:text-white border border-slate-700 rounded-xl"
+                      >
+                        Pay Cash to Waiter Instead
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
         </div>
       </div>

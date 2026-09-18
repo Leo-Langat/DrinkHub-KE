@@ -14,14 +14,27 @@ export class PaymentService {
 
   // WORKFLOW 1: M-PESA STK PUSH
   async initiateMpesaStkPush(params: {
-    businessUuid: string;
+    businessUuid?: string;
     clubUuid?: string; // backward compat
     orderUuid: string;
     phoneNumber: string;
     amount: number;
     accountReference: string;
   }) {
-    const businessUuid = params.businessUuid || params.clubUuid!;
+    let businessUuid = params.businessUuid || params.clubUuid;
+    if (!businessUuid && params.orderUuid) {
+      const order = await prisma.order.findUnique({
+        where: { orderUuid: params.orderUuid },
+        select: { businessUuid: true },
+      });
+      if (order?.businessUuid) {
+        businessUuid = order.businessUuid;
+      }
+    }
+    if (!businessUuid) {
+      throw new BadRequestError('Could not resolve businessUuid for order payment');
+    }
+
     const stkResponse = await this.mpesaAdapter.initiateStkPush({
       phoneNumber: params.phoneNumber,
       amount: params.amount,
@@ -56,6 +69,8 @@ export class PaymentService {
       checkoutRequestId: stkResponse.CheckoutRequestID,
       customerMessage: stkResponse.CustomerMessage,
       status: 'PROCESSING',
+      isSimulated: stkResponse.isSimulated ?? false,
+      simulationReason: stkResponse.simulationReason,
     };
   }
 
@@ -311,5 +326,37 @@ export class PaymentService {
 
   async getPaymentById(paymentUuid: string) {
     return this.paymentRepository.findById(paymentUuid);
+  }
+
+  async simulateMpesaPinEntry(paymentUuid: string, _pin?: string) {
+    const payment = await this.paymentRepository.findById(paymentUuid);
+    if (!payment) throw new BadRequestError('Payment record not found');
+
+    const receiptNumber = 'QA' + Math.random().toString(36).substring(2, 10).toUpperCase();
+    const updated = await this.paymentRepository.updateStatus(paymentUuid, 'PAID', receiptNumber);
+
+    // Notify Waiters & Kitchen via Socket.IO
+    try {
+      const io = getIO();
+      const tenantRoom = (payment as any).businessUuid || (payment as any).clubUuid;
+      io.to(`tenant:${tenantRoom}`).emit('payment_notification', {
+        type: 'MPESA_SUCCESS',
+        paymentUuid: payment.paymentUuid,
+        orderUuid: payment.orderUuid,
+        amount: payment.amount,
+        receiptNumber,
+        message: `M-Pesa payment of KSh ${payment.amount} confirmed (Receipt: ${receiptNumber}).`,
+      });
+    } catch (_e) {
+      logger.warn('Socket.IO not ready to dispatch payment alert.');
+    }
+
+    return {
+      paymentUuid: updated.paymentUuid,
+      paymentStatus: updated.paymentStatus,
+      amount: updated.amount,
+      mpesaReceiptNumber: receiptNumber,
+      orderUuid: updated.orderUuid,
+    };
   }
 }

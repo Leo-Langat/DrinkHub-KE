@@ -156,3 +156,10 @@ paymentRouter.get(
   validateRequest(getPaymentStatusSchema),
   paymentController.getStatus,
 );
+
+paymentRouter.post(
+  '/:paymentUuid/simulate-success',
+  validateRequest(getPaymentStatusSchema),
+  paymentController.simulateSuccess,
+);
+

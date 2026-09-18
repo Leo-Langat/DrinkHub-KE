@@ -1642,10 +1642,10 @@ export const DigitalStorefrontPage: React.FC = () => {
 
           {/* ── ACTIVE M-PESA STK WAITING & PIN PROMPT SIMULATOR MODAL ── */}
           {stkPromptModal.isOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-200">
               <div
-                className="w-full max-w-sm rounded-3xl p-6 space-y-5 border shadow-2xl text-center animate-in zoom-in-95 duration-200"
-                style={{ background: 'var(--surface)', borderColor: 'rgba(16, 185, 129, 0.4)' }}
+                className="w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-2xl text-left animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
+                style={{ background: '#2a2a2a', border: '1px solid rgba(255,255,255,0.08)' }}
               >
                 {stkPromptModal.status === 'SENDING' && (
                   <div className="space-y-4 py-4">
@@ -1657,82 +1657,95 @@ export const DigitalStorefrontPage: React.FC = () => {
 
                 {stkPromptModal.status === 'WAITING_PIN' && (
                   <div className="space-y-4">
-                    <div className="relative mx-auto w-16 h-16 flex items-center justify-center rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400">
-                      <Smartphone className="w-8 h-8 animate-pulse" />
-                      <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500"></span>
-                      </span>
-                    </div>
-
-                    <div className="space-y-1">
-                      <h3 className="text-lg font-black" style={{ color: 'var(--text)' }}>Check Your Phone!</h3>
-                      <p className="text-xs text-slate-300">
-                        Prompt dispatched to <span className="font-bold text-emerald-400">{phoneInfo.international}</span>
-                      </p>
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-[11px] text-slate-300 font-mono">
-                        <Clock className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Awaiting PIN ({stkPromptModal.countdown}s)</span>
-                      </div>
-                    </div>
-
-                    {/* Interactive On-Screen SIM Toolkit Simulator */}
-                    <div className="rounded-2xl border p-3.5 text-left space-y-3" style={{ background: 'var(--bg)', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
-                      <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
-                        <span className="flex items-center gap-1 text-emerald-400 font-bold">
-                          <BellRing className="w-3 h-3 animate-pulse" /> SIM Toolkit
-                        </span>
-                        <span>Safaricom STK</span>
-                      </div>
-                      <p className="text-xs leading-snug" style={{ color: 'var(--text)' }}>
-                        &ldquo;Pay KES {cartFinalTotal.toLocaleString()} to {brand.name}?&rdquo;
-                      </p>
-
-                      <div className="pt-1 space-y-2 border-t" style={{ borderColor: 'var(--border)' }}>
-                        <div className="flex items-center justify-between">
-                          <label className="text-[11px] font-bold text-emerald-400">Enter M-Pesa PIN:</label>
-                          <span className="text-[10px] text-slate-500">Test Simulator</span>
+                    {/* Progress header — mirrors Cellulant/Safaricom STK screen */}
+                    <div className="space-y-2 pb-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
+                          <Check className="w-4 h-4 text-white" />
                         </div>
-                        <div className="flex gap-2">
-                          <input
-                            type="password"
-                            maxLength={4}
-                            placeholder="••••"
-                            value={simulatedPin}
-                            onChange={(e) => setSimulatedPin(e.target.value)}
-                            className="w-28 text-center text-base tracking-widest font-mono rounded-xl border px-3 py-2 bg-slate-900 border-slate-700 text-white outline-none focus:border-emerald-500"
-                          />
-                          <button
-                            onClick={handleSimulatePinSubmit}
-                            disabled={isSubmittingPin}
-                            className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-2 shadow transition flex items-center justify-center gap-1.5"
-                          >
-                            {isSubmittingPin ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Check className="w-3.5 h-3.5" />
-                            )}
-                            <span>Confirm PIN</span>
-                          </button>
+                        <span className="text-sm font-semibold text-emerald-400">Details submitted</span>
+                      </div>
+                      <div className="ml-3.5 border-l-2 border-dashed border-slate-600 h-4" />
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full border-2 border-slate-500 flex items-center justify-center flex-shrink-0">
+                          <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin" />
                         </div>
-                        <p className="text-[10px] text-slate-400 leading-tight">
-                          💡 You can enter your PIN above to verify the payment directly if live Safaricom keys are not yet configured on the server.
-                        </p>
+                        <span className="text-sm text-slate-400">Waiting for confirmation</span>
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (stkPollTimerRef.current) clearInterval(stkPollTimerRef.current);
-                        setStkPromptModal((prev) => ({ ...prev, isOpen: false }));
-                      }}
-                      className="text-xs text-slate-400 hover:text-white py-1 block w-full transition"
+                    {/* ── Authentic Safaricom STK Push Dialog ── */}
+                    <div
+                      className="rounded-2xl p-5 space-y-5 text-left"
+                      style={{ background: '#1c1c1c' }}
                     >
-                      Cancel / Switch to Cash
-                    </button>
+                      <p className="text-base text-white leading-relaxed">
+                        Do you want to pay{' '}
+                        <span className="font-semibold">
+                          Kshs. {cartFinalTotal.toLocaleString('en-KE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                        </span>{' '}
+                        to{' '}
+                        <span className="font-semibold">{brand.name}</span>
+                        {' '}Account no.{' '}
+                        <span className="font-semibold">{brand.name}</span>?
+                      </p>
+
+                      <div className="space-y-1.5">
+                        <p className="text-base text-white">Enter M-PESA PIN:</p>
+                        <input
+                          type="password"
+                          inputMode="numeric"
+                          maxLength={4}
+                          autoFocus
+                          placeholder=""
+                          value={simulatedPin}
+                          onChange={(e) => setSimulatedPin(e.target.value.replace(/\D/g, ''))}
+                          className="w-full bg-transparent text-white text-lg tracking-[0.5em] outline-none py-1"
+                          style={{ borderBottom: '2px solid #ffffff' }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && simulatedPin.length >= 4) handleSimulatePinSubmit();
+                          }}
+                        />
+                      </div>
+
+                      {/* Cancel | Send */}
+                      <div
+                        className="flex items-center"
+                        style={{ borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: '0.75rem' }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (stkPollTimerRef.current) clearInterval(stkPollTimerRef.current);
+                            setStkPromptModal((prev) => ({ ...prev, isOpen: false }));
+                          }}
+                          className="flex-1 text-center text-base font-semibold text-white py-1 opacity-80 hover:opacity-100 transition"
+                        >
+                          Cancel
+                        </button>
+                        <div style={{ width: '1px', background: 'rgba(255,255,255,0.15)', height: '20px' }} />
+                        <button
+                          type="button"
+                          onClick={handleSimulatePinSubmit}
+                          disabled={isSubmittingPin}
+                          className="flex-1 text-center text-base font-bold text-white py-1 flex items-center justify-center gap-1.5 transition"
+                        >
+                          {isSubmittingPin ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            'Send'
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Countdown pill */}
+                      <p className="text-center text-[11px] text-slate-500 -mt-2">
+                        Prompt expires in {stkPromptModal.countdown}s · {phoneInfo.international}
+                      </p>
+                    </div>
                   </div>
                 )}
+
 
                 {stkPromptModal.status === 'PAID' && (
                   <div className="space-y-4 py-4">

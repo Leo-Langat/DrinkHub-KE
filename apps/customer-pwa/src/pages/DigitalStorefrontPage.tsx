@@ -80,6 +80,46 @@ const parseKenyanPhone = (raw: string) => {
   };
 };
 
+/**
+ * Synthesizes the authentic Safaricom SIM Toolkit push notification chime
+ * using the Web Audio API.
+ */
+const playSimToolkitChime = () => {
+  try {
+    const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+    
+    // First tone (900 Hz)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(900, ctx.currentTime);
+    gain1.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(ctx.currentTime);
+    osc1.stop(ctx.currentTime + 0.15);
+
+    // Second tone (1250 Hz)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(1250, ctx.currentTime + 0.15);
+    gain2.gain.setValueAtTime(0.3, ctx.currentTime + 0.15);
+    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(ctx.currentTime + 0.15);
+    osc2.stop(ctx.currentTime + 0.35);
+  } catch (_e) {}
+};
+
+
 
 const resolveImageUrl = (url?: string | null): string => {
   if (!url) return '';
@@ -764,15 +804,16 @@ export const DigitalStorefrontPage: React.FC = () => {
         setPlaceError('Please enter a valid 10-digit Safaricom phone number (e.g. 0712 345 678).');
         return;
       }
-      // Trigger haptic vibration feedback if available
+      // Play authentic SIM Toolkit notification chime & trigger mobile vibration
+      playSimToolkitChime();
       try {
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
-          navigator.vibrate([100, 50, 100]);
+          navigator.vibrate([200, 100, 200]);
         }
       } catch {}
 
-      // Prompt customer with pre-flight confirmation before sending STK Push
-      setIsPromptConfirmOpen(true);
+      // Prompt customer immediately
+      executePlaceOrder();
     } else {
       executePlaceOrder();
     }
@@ -783,6 +824,16 @@ export const DigitalStorefrontPage: React.FC = () => {
     setPlacing(true);
     setPlaceError(null);
     setIsPromptConfirmOpen(false);
+
+    // Play SIM toolkit chime if M-Pesa
+    if (payment === 'mpesa') {
+      playSimToolkitChime();
+      try {
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate([200, 100, 200]);
+        }
+      } catch {}
+    }
 
     try {
       const items = Object.entries(cart).map(([productUuid, quantity]) => ({ productUuid, quantity }));
@@ -1372,11 +1423,26 @@ export const DigitalStorefrontPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <p className="text-[11px] text-slate-400 flex items-center gap-1.5 pt-0.5">
-                    <Info className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
-                    <span>Keep your phone unlocked. The prompt will trigger immediately when you tap below.</span>
-                  </p>
+                  <button
+                    type="button"
+                    onClick={executePlaceOrder}
+                    disabled={placing}
+                    className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-black text-xs text-white shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition active:scale-95"
+                  >
+                    {placing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Sending STK Prompt…</span>
+                      </>
+                    ) : (
+                      <>
+                        <BellRing className="w-4 h-4 animate-pulse" />
+                        <span>Send M-Pesa Prompt to {phoneInfo.formatted}</span>
+                      </>
+                    )}
+                  </button>
                 </div>
+
               ) : phone.length > 0 ? (
                 <p className="text-[11px] text-slate-400 flex items-center gap-1">
                   <Info className="h-3.5 w-3.5 text-slate-500" />

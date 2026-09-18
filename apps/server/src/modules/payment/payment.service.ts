@@ -308,4 +308,8 @@ export class PaymentService {
   }) {
     return this.paymentRepository.findPaymentsForBusiness(options);
   }
+
+  async getPaymentById(paymentUuid: string) {
+    return this.paymentRepository.findById(paymentUuid);
+  }
 }

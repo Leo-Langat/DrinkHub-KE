@@ -6,21 +6,57 @@ import { prisma } from '../../config/prisma';
 export class MenuService {
   constructor(private menuRepository: IMenuRepository) {}
 
-  async getMenuForBusiness(businessUuid?: string) {
-    let targetUuid = businessUuid;
+  async getMenuForBusiness(identifier?: string) {
+    let targetUuid = identifier;
+    let businessRecord: any = null;
+
+    if (identifier && identifier !== 'default-club' && identifier !== 'default-business') {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
+      if (!isUuid) {
+        businessRecord = await prisma.business.findFirst({
+          where: { slug: identifier, deletedAt: null },
+        });
+        if (businessRecord) {
+          targetUuid = businessRecord.businessUuid;
+        }
+      } else {
+        businessRecord = await prisma.business.findUnique({
+          where: { businessUuid: identifier },
+        });
+      }
+    }
+
     if (!targetUuid || targetUuid === 'default-club' || targetUuid === 'default-business') {
-      const firstBiz = await prisma.business.findFirst({ where: { deletedAt: null } });
-      if (firstBiz) targetUuid = firstBiz.businessUuid;
+      businessRecord = await prisma.business.findFirst({ where: { deletedAt: null } });
+      if (businessRecord) targetUuid = businessRecord.businessUuid;
     }
+
     if (!targetUuid) {
-      return { categories: [], products: [], offers: [] };
+      return { business: null, categories: [], products: [], offers: [] };
     }
+
     const [categories, products, offers] = await Promise.all([
       this.menuRepository.findCategoriesByBusiness(targetUuid),
       this.menuRepository.findProductsByBusiness(targetUuid),
       this.menuRepository.findOffersByBusiness(targetUuid),
     ]);
-    return { categories, products, offers };
+
+    const business = businessRecord
+      ? {
+          businessUuid: businessRecord.businessUuid,
+          name: businessRecord.name,
+          slug: businessRecord.slug,
+          businessType: businessRecord.businessType,
+          themeColor: businessRecord.themeColor,
+          logoUrl: businessRecord.logoUrl,
+          bannerUrl: businessRecord.bannerUrl,
+          currency: businessRecord.currency || 'KES',
+          city: businessRecord.city,
+          county: businessRecord.county,
+        }
+      : null;
+
+    return { business, categories, products, offers };
   }
 
   // Alias

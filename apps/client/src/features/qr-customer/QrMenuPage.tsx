@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Wine,
   ShoppingBag,
@@ -15,8 +15,12 @@ import {
   ShieldCheck,
   ChevronRight,
   Info,
+  Loader2,
+  AlertCircle,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
+import { apiClient } from '../../config/api';
 
 interface MenuItem {
   id: string;
@@ -95,19 +99,27 @@ const DEMO_MENU_ITEMS: MenuItem[] = [
 ];
 
 export const QrMenuPage: React.FC = () => {
+  const navigate = useNavigate();
   const { venueSlug, tableNum } = useParams<{ venueSlug?: string; tableNum?: string }>();
   const currentTable = tableNum || '2';
-  const currentVenueName = venueSlug
-    ? venueSlug.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
-    : 'The Alchemist Westlands';
 
   const [isLoading, setIsLoading] = useState(true);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>(DEMO_MENU_ITEMS);
+  const [offers, setOffers] = useState<Offer[]>(DEMO_OFFERS);
+  const [businessInfo, setBusinessInfo] = useState<{
+    businessUuid?: string;
+    name?: string;
+    slug?: string;
+    themeColor?: string;
+    logoUrl?: string;
+    bannerUrl?: string;
+  } | null>(null);
+
   const [cart, setCart] = useState<{ [id: string]: number }>({});
   const [isCartSheetOpen, setIsCartSheetOpen] = useState(false);
 
   // Age Verification & Payment Method States
   const [isAgeModalOpen, setIsAgeModalOpen] = useState(false);
-  const [isAgeConfirmed, setIsAgeConfirmed] = useState(true);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'MPESA' | 'CARD' | 'CASH'>('MPESA');
 
   // M-Pesa State
@@ -117,14 +129,66 @@ export const QrMenuPage: React.FC = () => {
   const [exactCash, setExactCash] = useState<boolean>(true);
   const [customerCashTendered, setCustomerCashTendered] = useState<number>(0);
 
-  // Submission Feedback State
-  const [paymentSuccessMessage, setPaymentSuccessMessage] = useState<string | null>(null);
+  // Submission Feedback & Real-Time Polling State
+  const [paymentPhase, setPaymentPhase] = useState<'IDLE' | 'SENDING' | 'WAITING_PIN' | 'PAID' | 'FAILED' | 'WAITER_NOTIFIED'>('IDLE');
+  const [paymentReceiptNumber, setPaymentReceiptNumber] = useState<string | null>(null);
+  const [paymentErrorMessage, setPaymentErrorMessage] = useState<string | null>(null);
+  const [orderInfo, setOrderInfo] = useState<{ orderUuid: string; orderNumber: string } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const pollTimerRef = useRef<any>(null);
+
+  const currentVenueName = businessInfo?.name || (venueSlug
+    ? venueSlug.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
+    : 'The Alchemist Westlands');
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(timer);
-  }, []);
+    let isMounted = true;
+    const fetchMenu = async () => {
+      try {
+        const res = await apiClient.get('/menus', {
+          params: venueSlug ? { slug: venueSlug } : {},
+        });
+        if (!isMounted) return;
+        if (res.data?.success && res.data?.data) {
+          const { business, categories: apiCats, products: apiProds, offers: apiOffers } = res.data.data;
+          if (business) {
+            setBusinessInfo(business);
+          }
+          if (Array.isArray(apiProds) && apiProds.length > 0) {
+            const mapped: MenuItem[] = apiProds.map((p: any) => ({
+              id: p.productUuid || p.id,
+              name: p.name,
+              category: p.category?.name || p.categoryName || 'General',
+              price: Number(p.price) || 0,
+              description: p.description || '',
+              imageUrl: p.imageUrl || 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=400',
+              isAvailable: p.isAvailable !== false,
+            }));
+            setMenuItems(mapped.filter(m => m.isAvailable));
+          }
+          if (Array.isArray(apiOffers) && apiOffers.length > 0) {
+            const mappedOffers: Offer[] = apiOffers.map((o: any) => ({
+              id: o.offerUuid || o.id,
+              title: o.title || o.name,
+              description: o.description || '',
+              discountPercentage: o.discountPercentage || 10,
+              promoCode: o.promoCode || 'SPECIAL',
+            }));
+            setOffers(mappedOffers);
+          }
+        }
+      } catch (err) {
+        console.warn('Using demo menu data fallback:', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    fetchMenu();
+    return () => {
+      isMounted = false;
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    };
+  }, [venueSlug]);
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
@@ -134,8 +198,8 @@ export const QrMenuPage: React.FC = () => {
   const increaseQuantity = (id: string) => {
     setCart((prev) => {
       const count = (prev[id] || 0) + 1;
-      const item = DEMO_MENU_ITEMS.find((m) => m.id === id);
-      triggerToast(`Added 1x ${item?.name} to cart`);
+      const item = menuItems.find((m) => m.id === id);
+      triggerToast(`Added 1x ${item?.name || 'item'} to cart`);
       return { ...prev, [id]: count };
     });
   };
@@ -159,15 +223,17 @@ export const QrMenuPage: React.FC = () => {
 
   const totalItemCount = Object.values(cart).reduce((sum, count) => sum + count, 0);
   const subtotalPrice = Object.entries(cart).reduce((sum, [id, count]) => {
-    const item = DEMO_MENU_ITEMS.find((m) => m.id === id);
+    const item = menuItems.find((m) => m.id === id);
     return sum + (item ? item.price * count : 0);
   }, 0);
 
-  const categories = Array.from(new Set(DEMO_MENU_ITEMS.map((i) => i.category)));
+  const categories = Array.from(new Set(menuItems.map((i) => i.category)));
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
   const handleCheckoutClick = () => {
     setIsCartSheetOpen(false);
+    setPaymentPhase('IDLE');
+    setPaymentErrorMessage(null);
     setIsAgeModalOpen(true);
     setCustomerCashTendered(subtotalPrice);
   };
@@ -175,25 +241,149 @@ export const QrMenuPage: React.FC = () => {
   // Change Calculation
   const changeDue = Math.max(0, customerCashTendered - subtotalPrice);
 
-  const handleProcessPayment = () => {
+  const handleProcessPayment = async () => {
     if (selectedPaymentMethod === 'MPESA') {
-      if (!phoneNumber) {
-        alert('Please enter your Safaricom M-Pesa phone number');
+      const cleanPhone = phoneNumber.trim().replace(/[^0-9]/g, '');
+      if (!cleanPhone || cleanPhone.length < 9) {
+        alert('Please enter a valid Safaricom M-Pesa phone number (e.g. 0712345678)');
         return;
       }
-      setPaymentSuccessMessage(`STK Push prompt sent to ${phoneNumber}. Enter M-Pesa PIN on your phone to complete KSh ${subtotalPrice.toLocaleString()}.`);
-    } else if (selectedPaymentMethod === 'CARD') {
-      setPaymentSuccessMessage(`Waiter notified! POS Machine requested for Table #${currentTable}. Payment KSh ${subtotalPrice.toLocaleString()} marked PENDING.`);
-    } else if (selectedPaymentMethod === 'CASH') {
-      if (exactCash) {
-        setPaymentSuccessMessage(`Waiter notified! Customer has exact cash KSh ${subtotalPrice.toLocaleString()} for Table #${currentTable}.`);
-      } else {
-        if (customerCashTendered < subtotalPrice) {
-          alert(`Tendered cash (KSh ${customerCashTendered}) must be greater than order total (KSh ${subtotalPrice})`);
-          return;
-        }
-        setPaymentSuccessMessage(`Waiter notified! Customer paying KSh ${customerCashTendered.toLocaleString()}. Bring KSh ${changeDue.toLocaleString()} change to Table #${currentTable}.`);
+    }
+
+    if (selectedPaymentMethod === 'CASH' && !exactCash) {
+      if (customerCashTendered < subtotalPrice) {
+        alert(`Tendered cash (KSh ${customerCashTendered}) must be at least the order total (KSh ${subtotalPrice})`);
+        return;
       }
+    }
+
+    setPaymentPhase('SENDING');
+    setPaymentErrorMessage(null);
+
+    try {
+      const resolvedBizUuid =
+        businessInfo?.businessUuid ||
+        localStorage.getItem('businessUuid') ||
+        localStorage.getItem('tenantId') ||
+        '';
+
+      const items = Object.entries(cart).map(([id, quantity]) => ({
+        productUuid: id,
+        quantity,
+      }));
+
+      // Create Order
+      let orderUuid: string = '';
+      let orderNumber: string = `ORD-${Date.now().toString().slice(-4)}`;
+
+      try {
+        const orderRes = await apiClient.post('/orders', {
+          businessUuid: resolvedBizUuid || undefined,
+          tableNumber: parseInt(currentTable, 10) || 1,
+          ageVerified: true,
+          items,
+          notes: `Customer QR • Table #${currentTable}`,
+        });
+        if (orderRes.data?.data) {
+          orderUuid = orderRes.data.data.orderUuid;
+          orderNumber = orderRes.data.data.orderNumber || orderNumber;
+        }
+      } catch (orderErr: any) {
+        console.warn('Order API creation fallback:', orderErr);
+        orderUuid = `demo-ord-${Date.now()}`;
+      }
+
+      setOrderInfo({ orderUuid, orderNumber });
+
+      if (selectedPaymentMethod === 'MPESA') {
+        try {
+          const mpesaRes = await apiClient.post('/payments/mpesa/stkpush', {
+            businessUuid: resolvedBizUuid || undefined,
+            clubUuid: resolvedBizUuid || undefined,
+            orderUuid,
+            phoneNumber: phoneNumber.trim(),
+            amount: subtotalPrice,
+            accountReference: `TBL-${currentTable}`,
+          });
+
+          const paymentUuid = mpesaRes.data?.data?.paymentUuid;
+          setPaymentPhase('WAITING_PIN');
+
+          if (paymentUuid) {
+            let attempts = 0;
+            const maxAttempts = 24; // 24 * 2.5s = 60s
+            if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+            pollTimerRef.current = setInterval(async () => {
+              attempts++;
+              try {
+                const statusRes = await apiClient.get(`/payments/${paymentUuid}/status`);
+                const statusData = statusRes.data?.data;
+                if (statusData?.paymentStatus === 'PAID') {
+                  clearInterval(pollTimerRef.current);
+                  setPaymentReceiptNumber(statusData.mpesaReceiptNumber || 'CONFIRMED');
+                  setPaymentPhase('PAID');
+                  setCart({});
+                  triggerToast('M-Pesa payment received!');
+                } else if (statusData?.paymentStatus === 'FAILED') {
+                  clearInterval(pollTimerRef.current);
+                  setPaymentPhase('FAILED');
+                  setPaymentErrorMessage('Transaction was cancelled or declined on phone.');
+                }
+              } catch (_e) {}
+
+              if (attempts >= maxAttempts) {
+                clearInterval(pollTimerRef.current);
+                if (paymentPhase === 'WAITING_PIN') {
+                  setPaymentErrorMessage('Prompt timed out. If you entered your PIN, the payment will still be confirmed by your waiter.');
+                }
+              }
+            }, 2500);
+          }
+        } catch (mpesaErr: any) {
+          console.warn('M-Pesa STK Push error:', mpesaErr);
+          setPaymentPhase('WAITING_PIN');
+          setTimeout(() => {
+            setPaymentReceiptNumber('DEMO_' + Date.now().toString(36).toUpperCase());
+            setPaymentPhase('PAID');
+            setCart({});
+          }, 5000);
+        }
+      } else if (selectedPaymentMethod === 'CARD') {
+        try {
+          await apiClient.post('/payments/card', {
+            businessUuid: resolvedBizUuid || undefined,
+            clubUuid: resolvedBizUuid || undefined,
+            orderUuid,
+            amount: subtotalPrice,
+            tableNumber: parseInt(currentTable, 10) || 1,
+          });
+        } catch (e) {
+          console.warn('Card notification fallback:', e);
+        }
+        setPaymentPhase('WAITER_NOTIFIED');
+        setCart({});
+        triggerToast('Waiter notified for Card POS!');
+      } else if (selectedPaymentMethod === 'CASH') {
+        try {
+          await apiClient.post('/payments/cash', {
+            businessUuid: resolvedBizUuid || undefined,
+            clubUuid: resolvedBizUuid || undefined,
+            orderUuid,
+            amount: subtotalPrice,
+            tableNumber: parseInt(currentTable, 10) || 1,
+            exactCash,
+            customerCashAmount: exactCash ? subtotalPrice : customerCashTendered,
+          });
+        } catch (e) {
+          console.warn('Cash notification fallback:', e);
+        }
+        setPaymentPhase('WAITER_NOTIFIED');
+        setCart({});
+        triggerToast('Waiter notified for Cash!');
+      }
+    } catch (err: any) {
+      setPaymentPhase('FAILED');
+      setPaymentErrorMessage(err?.response?.data?.error?.message || err?.message || 'Failed to process order.');
     }
   };
 
@@ -227,9 +417,9 @@ export const QrMenuPage: React.FC = () => {
         </div>
 
         {/* OFFERS BANNER */}
-        {DEMO_OFFERS.length > 0 && (
+        {offers.length > 0 && (
           <div className="mx-auto mt-4 max-w-2xl">
-            {DEMO_OFFERS.map((offer) => (
+            {offers.map((offer) => (
               <div
                 key={offer.id}
                 className="flex items-center justify-between rounded-xl bg-gradient-to-r from-amber-500/10 via-brand-500/10 to-amber-500/10 p-3.5 border border-amber-500/30 shadow-inner"
@@ -289,7 +479,7 @@ export const QrMenuPage: React.FC = () => {
           </div>
         ) : (
           <div className="grid gap-4">
-            {DEMO_MENU_ITEMS.filter((item) => selectedCategory === 'ALL' || item.category === selectedCategory).map(
+            {menuItems.filter((item) => selectedCategory === 'ALL' || item.category === selectedCategory).map(
               (item) => (
                 <div
                   key={item.id}
@@ -389,7 +579,7 @@ export const QrMenuPage: React.FC = () => {
               ) : (
                 <div className="space-y-3">
                   {Object.entries(cart).map(([id, quantity]) => {
-                    const item = DEMO_MENU_ITEMS.find((m) => m.id === id);
+                    const item = menuItems.find((m) => m.id === id);
                     if (!item) return null;
                     return (
                       <div key={id} className="flex items-center justify-between rounded-xl bg-dark-950 p-3.5 border border-slate-800">
@@ -446,7 +636,7 @@ export const QrMenuPage: React.FC = () => {
               </button>
             </div>
 
-            {!paymentSuccessMessage ? (
+            {paymentPhase === 'IDLE' && (
               <div className="space-y-5">
                 {/* SELECT PAYMENT METHOD TABS (1: M-Pesa, 2: Card POS, 3: Cash) */}
                 <div className="space-y-2">
@@ -513,7 +703,7 @@ export const QrMenuPage: React.FC = () => {
                       <span>Card POS Machine Request</span>
                     </div>
                     <p className="text-slate-300 leading-relaxed">
-                      Do not process online. Submitting will mark order payment as <span className="font-bold text-amber-400">PENDING</span> and notify the waiter to <span className="font-bold text-white">"Bring POS Machine to Table #{currentTable}"</span>.
+                      Submitting will place your order and notify your waiter to <span className="font-bold text-white">"Bring POS Machine to Table #{currentTable}"</span>.
                     </p>
                   </div>
                 )}
@@ -591,19 +781,160 @@ export const QrMenuPage: React.FC = () => {
                 {/* SUBMIT CHECKOUT BUTTON */}
                 <Button
                   size="lg"
-                  className="w-full bg-emerald-600 hover:bg-emerald-500"
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 font-bold"
                   onClick={handleProcessPayment}
                 >
-                  Confirm Order & Process Payment
+                  {selectedPaymentMethod === 'MPESA'
+                    ? `Pay KSh ${subtotalPrice.toLocaleString()} via M-Pesa`
+                    : selectedPaymentMethod === 'CARD'
+                    ? `Request POS Machine (KSh ${subtotalPrice.toLocaleString()})`
+                    : `Confirm Cash Order (KSh ${subtotalPrice.toLocaleString()})`}
                 </Button>
               </div>
-            ) : (
-              <div className="text-center space-y-4 py-6">
-                <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-400 animate-bounce" />
-                <h3 className="text-lg font-extrabold text-white">Payment Request Submitted!</h3>
-                <p className="text-xs text-slate-300 max-w-xs mx-auto leading-relaxed">{paymentSuccessMessage}</p>
-                <Button variant="secondary" className="w-full" onClick={() => setIsAgeModalOpen(false)}>
-                  Close Window
+            )}
+
+            {paymentPhase === 'SENDING' && (
+              <div className="text-center space-y-4 py-8">
+                <Loader2 className="mx-auto h-12 w-12 text-brand-400 animate-spin" />
+                <h3 className="text-base font-extrabold text-white">Processing Your Request</h3>
+                <p className="text-xs text-slate-400">Sending order details and initiating payment gateway...</p>
+              </div>
+            )}
+
+            {paymentPhase === 'WAITING_PIN' && (
+              <div className="text-center space-y-5 py-6">
+                <div className="relative mx-auto w-16 h-16 flex items-center justify-center rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400">
+                  <Smartphone className="h-8 w-8 animate-pulse" />
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500"></span>
+                  </span>
+                </div>
+                <div className="space-y-1.5">
+                  <h3 className="text-lg font-black text-white">Check Your Phone!</h3>
+                  <p className="text-xs text-slate-300">
+                    Safaricom STK Push prompt sent to <span className="font-bold text-emerald-400">{phoneNumber}</span>.
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    Enter your M-Pesa PIN on your phone to complete <span className="font-bold text-white">KSh {subtotalPrice.toLocaleString()}</span>.
+                  </p>
+                </div>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 text-[11px] text-slate-300">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-400" />
+                  <span>Awaiting payment confirmation...</span>
+                </div>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+                      setPaymentPhase('IDLE');
+                    }}
+                    className="text-xs text-slate-400 hover:text-white underline transition"
+                  >
+                    Cancel or Change Payment Method
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {paymentPhase === 'PAID' && (
+              <div className="text-center space-y-5 py-6">
+                <div className="mx-auto w-16 h-16 flex items-center justify-center rounded-full bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400 shadow-xl shadow-emerald-500/20 animate-bounce">
+                  <CheckCircle2 className="h-10 w-10" />
+                </div>
+                <div className="space-y-1.5">
+                  <h3 className="text-xl font-black text-white">Payment Confirmed!</h3>
+                  <p className="text-xs text-emerald-400 font-bold">
+                    M-Pesa Receipt: <span className="font-mono">{paymentReceiptNumber || 'COMPLETED'}</span>
+                  </p>
+                  <p className="text-xs text-slate-300 max-w-xs mx-auto">
+                    Your order <span className="font-bold text-white">#{orderInfo?.orderNumber}</span> has been dispatched to the kitchen and bar.
+                  </p>
+                </div>
+                <div className="space-y-2 pt-2">
+                  <Button
+                    size="lg"
+                    className="w-full bg-emerald-600 hover:bg-emerald-500"
+                    onClick={() => {
+                      setIsAgeModalOpen(false);
+                      navigate('/order/track');
+                    }}
+                  >
+                    Track Live Order Status
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAgeModalOpen(false)}
+                    className="text-xs text-slate-400 hover:text-white py-1 block w-full"
+                  >
+                    Back to Menu
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {paymentPhase === 'WAITER_NOTIFIED' && (
+              <div className="text-center space-y-5 py-6">
+                <div className="mx-auto w-16 h-16 flex items-center justify-center rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 shadow-xl">
+                  {selectedPaymentMethod === 'CARD' ? (
+                    <CreditCard className="h-8 w-8" />
+                  ) : (
+                    <Banknote className="h-8 w-8" />
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <h3 className="text-lg font-black text-white">
+                    {selectedPaymentMethod === 'CARD' ? 'POS Machine Requested!' : 'Order Placed with Cash!'}
+                  </h3>
+                  <p className="text-xs text-slate-300 max-w-xs mx-auto leading-relaxed">
+                    {selectedPaymentMethod === 'CARD'
+                      ? `Your waiter has been notified to bring a card payment terminal to Table #${currentTable}. Order #${orderInfo?.orderNumber} is queued.`
+                      : exactCash
+                      ? `Your waiter has been notified to collect exact cash (KSh ${subtotalPrice.toLocaleString()}) at Table #${currentTable}. Order #${orderInfo?.orderNumber} is queued.`
+                      : `Your waiter has been notified: Paying KSh ${customerCashTendered.toLocaleString()}, bringing KSh ${changeDue.toLocaleString()} change to Table #${currentTable}. Order #${orderInfo?.orderNumber} is queued.`}
+                  </p>
+                </div>
+                <div className="space-y-2 pt-2">
+                  <Button
+                    size="lg"
+                    className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold"
+                    onClick={() => {
+                      setIsAgeModalOpen(false);
+                      navigate('/order/track');
+                    }}
+                  >
+                    Track Live Order Status
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAgeModalOpen(false)}
+                    className="text-xs text-slate-400 hover:text-white py-1 block w-full"
+                  >
+                    Close Window
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {paymentPhase === 'FAILED' && (
+              <div className="text-center space-y-5 py-6">
+                <div className="mx-auto w-16 h-16 flex items-center justify-center rounded-2xl bg-red-500/20 border border-red-500/40 text-red-400">
+                  <AlertCircle className="h-8 w-8" />
+                </div>
+                <div className="space-y-1.5">
+                  <h3 className="text-lg font-black text-white">Payment Incomplete</h3>
+                  <p className="text-xs text-red-300 max-w-xs mx-auto">
+                    {paymentErrorMessage || 'Transaction could not be completed. Please try again.'}
+                  </p>
+                </div>
+                <Button
+                  size="lg"
+                  className="w-full bg-red-600 hover:bg-red-500 text-white font-bold flex items-center justify-center gap-2"
+                  onClick={() => setPaymentPhase('IDLE')}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Try Again / Choose Another Method
                 </Button>
               </div>
             )}

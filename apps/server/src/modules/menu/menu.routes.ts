@@ -22,6 +22,7 @@ const menuController = new MenuController(menuService);
 export const menuRouter = Router();
 
 menuRouter.get('/', menuController.getMenu);
+menuRouter.get('/slug/:slug', menuController.getMenu);
 
 menuRouter.post(
   '/categories',

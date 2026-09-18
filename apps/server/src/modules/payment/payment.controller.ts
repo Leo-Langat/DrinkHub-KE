@@ -171,4 +171,36 @@ export class PaymentController {
       next(error);
     }
   };
+
+  getStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { paymentUuid } = req.params;
+      const payment = await this.paymentService.getPaymentById(paymentUuid);
+      if (!payment) {
+        res.status(404).json({
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Payment record not found' },
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        data: {
+          paymentUuid: payment.paymentUuid,
+          orderUuid: payment.orderUuid,
+          businessUuid: payment.businessUuid,
+          amount: Number(payment.amount),
+          paymentMethod: payment.paymentMethod,
+          paymentStatus: payment.paymentStatus,
+          mpesaReceiptNumber: payment.mpesaReceiptNumber,
+          paidAt: payment.paidAt,
+          createdAt: payment.createdAt,
+        },
+        meta: { timestamp: new Date().toISOString(), version: 'v1' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

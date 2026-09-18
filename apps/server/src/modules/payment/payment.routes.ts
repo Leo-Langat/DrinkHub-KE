@@ -10,6 +10,7 @@ import {
   processCardPaymentSchema,
   processCashPaymentSchema,
   updatePaymentStatusSchema,
+  getPaymentStatusSchema,
 } from './payment.schema';
 
 const paymentRepository = new PaymentRepository();
@@ -133,4 +134,25 @@ paymentRouter.patch(
   authorize([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER, UserRole.WAITER]),
   validateRequest(updatePaymentStatusSchema),
   paymentController.updateStatus,
+);
+
+/**
+ * @openapi
+ * /payments/{paymentUuid}/status:
+ *   get:
+ *     summary: Check payment status for polling from customer checkout screen
+ *     tags: [Payments]
+ *     parameters:
+ *       - in: path
+ *         name: paymentUuid
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Current payment status (PROCESSING, PAID, FAILED, etc.)
+ */
+paymentRouter.get(
+  '/:paymentUuid/status',
+  validateRequest(getPaymentStatusSchema),
+  paymentController.getStatus,
 );

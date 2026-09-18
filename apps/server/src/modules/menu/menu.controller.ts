@@ -4,6 +4,10 @@ import { verifyAccessToken } from '../../common/utils/jwt';
 
 const extractBusinessUuid = (req: Request): string | undefined => {
   let uuid: string | undefined =
+    (req.params as any)?.slug ||
+    (req.query.slug as string | undefined) ||
+    (req.query.venueSlug as string | undefined) ||
+    (req.query.businessSlug as string | undefined) ||
     req.businessUuid ||
     req.user?.businessUuid ||
     req.user?.tenantId ||

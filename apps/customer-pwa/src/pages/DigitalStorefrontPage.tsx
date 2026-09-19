@@ -273,6 +273,7 @@ export const DigitalStorefrontPage: React.FC = () => {
   });
 
   // Sync cart → sessionStorage on every change
+  // CART_KEY is derived from venueSlug + table which never change during a session
   useEffect(() => {
     try {
       if (Object.keys(cart).length === 0) {
@@ -281,9 +282,7 @@ export const DigitalStorefrontPage: React.FC = () => {
         sessionStorage.setItem(CART_KEY, JSON.stringify(cart));
       }
     } catch {}
-    // CART_KEY is stable for the lifetime of the page (venue + table never change)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cart]);
+  }, [cart, CART_KEY]);
 
   // Sync screen → sessionStorage on every change
   // When the order is placed ('success'), clear both keys so the next visit is clean
@@ -296,8 +295,8 @@ export const DigitalStorefrontPage: React.FC = () => {
         sessionStorage.setItem(SCREEN_KEY, screen);
       }
     } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [screen]);
+  }, [screen, SCREEN_KEY, CART_KEY]);
+
 
 
   const [payment, setPayment] = useState<'mpesa' | 'card' | 'cash'>('mpesa');

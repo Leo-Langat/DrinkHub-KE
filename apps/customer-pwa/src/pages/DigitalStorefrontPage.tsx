@@ -245,8 +245,61 @@ export const DigitalStorefrontPage: React.FC = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [cat, setCat] = useState<string>('All');
-  const [cart, setCart] = useState<CartMap>({});
-  const [screen, setScreen] = useState<'menu' | 'cart' | 'checkout' | 'success'>('menu');
+
+  // ── sessionStorage keys scoped to this venue + table ──
+  // Computed once here (not inside useState lazily) so they can be used
+  // in the useState initializer closures that run synchronously on mount.
+  const CART_KEY   = `drinkhub_cart_${venueSlug || 'venue'}_${table || '0'}`;
+  const SCREEN_KEY = `drinkhub_screen_${venueSlug || 'venue'}_${table || '0'}`;
+
+  // Cart persisted in sessionStorage — restored on refresh
+  const [cart, setCart] = useState<CartMap>(() => {
+    try {
+      const saved = sessionStorage.getItem(CART_KEY);
+      return saved ? (JSON.parse(saved) as CartMap) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // Screen persisted in sessionStorage — restored on refresh
+  // 'success' is never restored (order already placed; start fresh next visit)
+  const [screen, setScreen] = useState<'menu' | 'cart' | 'checkout' | 'success'>(() => {
+    try {
+      const saved = sessionStorage.getItem(SCREEN_KEY) as 'menu' | 'cart' | 'checkout' | 'success' | null;
+      if (saved && saved !== 'success') return saved;
+    } catch {}
+    return 'menu';
+  });
+
+  // Sync cart → sessionStorage on every change
+  useEffect(() => {
+    try {
+      if (Object.keys(cart).length === 0) {
+        sessionStorage.removeItem(CART_KEY);
+      } else {
+        sessionStorage.setItem(CART_KEY, JSON.stringify(cart));
+      }
+    } catch {}
+    // CART_KEY is stable for the lifetime of the page (venue + table never change)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart]);
+
+  // Sync screen → sessionStorage on every change
+  // When the order is placed ('success'), clear both keys so the next visit is clean
+  useEffect(() => {
+    try {
+      if (screen === 'success') {
+        sessionStorage.removeItem(SCREEN_KEY);
+        sessionStorage.removeItem(CART_KEY);
+      } else {
+        sessionStorage.setItem(SCREEN_KEY, screen);
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen]);
+
+
   const [payment, setPayment] = useState<'mpesa' | 'card' | 'cash'>('mpesa');
   const [phone, setPhone] = useState(() => {
     try {

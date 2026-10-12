@@ -852,8 +852,8 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           </div>
 
           {/* KPI Grid Skeleton */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-            {Array.from({ length: 8 }).map((_, i) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
               <div
                 key={i}
                 className="p-4 rounded-2xl border"
@@ -1089,7 +1089,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           </div>
         </div>
 
-        {/* ── Summary KPI Cards (8 Metrics) ── */}
+        {/* ── Summary KPI Cards (Consolidated 4 Cards) ── */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
@@ -1100,133 +1100,147 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
             </span>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* 1. Today Revenue */}
-            <div className="p-3.5 rounded-2xl border flex flex-col justify-between" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500">Revenue</span>
-                <DollarSign className="h-3.5 w-3.5 text-emerald-500" />
-              </div>
-              <div className="my-1.5">
-                <div className="text-lg font-black text-emerald-600 truncate">
-                  {formatKsh(summary.todayRevenue)}
+            <div className="p-4 rounded-2xl border flex flex-col justify-between" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500">Today's Revenue</span>
+                  <div className="h-8 w-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center">
+                    <DollarSign className="h-4 w-4 text-emerald-500" />
+                  </div>
+                </div>
+                <div className="my-2.5">
+                  <div className="text-2xl font-black text-emerald-600 truncate">
+                    {formatKsh(summary.todayRevenue)}
+                  </div>
                 </div>
               </div>
-              <div className="text-[10px] font-semibold flex items-center gap-1">
+              <div className="pt-2.5 border-t flex items-center justify-between text-xs" style={{ borderColor: 'var(--border)' }}>
                 {revTrend?.percentageChange !== null && revTrend?.percentageChange !== undefined ? (
-                  <span className={revTrend.percentageChange >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
-                    {revTrend.percentageChange >= 0 ? '+' : ''}{revTrend.percentageChange}% vs yday
+                  <span className={`text-[11px] font-bold ${revTrend.percentageChange >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {revTrend.percentageChange >= 0 ? '+' : ''}{revTrend.percentageChange}% vs yesterday
                   </span>
                 ) : (
-                  <span className="text-slate-400">Settled (PAID)</span>
+                  <span className="text-[11px] text-slate-400">Settled (PAID)</span>
                 )}
+                <span className="text-[10px] text-slate-400 font-medium">Real-time</span>
               </div>
             </div>
 
-            {/* 2. Today Orders */}
-            <div className="p-3.5 rounded-2xl border flex flex-col justify-between" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500">Orders</span>
-                <ClipboardList className="h-3.5 w-3.5 text-blue-500" />
-              </div>
-              <div className="my-1.5">
-                <div className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
-                  {summary.todayOrders}
+            {/* 2. Consolidated Orders KPI (Pending, In Progress, Completed & Cancelled) */}
+            <div className="p-4 rounded-2xl border flex flex-col justify-between" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500">Orders & Fulfillment</span>
+                  <div className="h-8 w-8 rounded-xl bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center">
+                    <ClipboardList className="h-4 w-4 text-blue-500" />
+                  </div>
+                </div>
+
+                <div className="my-2 flex items-baseline justify-between gap-2">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-black" style={{ color: 'var(--text-primary)' }}>
+                      {summary.todayOrders}
+                    </span>
+                    <span className="text-[11px] font-semibold text-slate-400">orders today</span>
+                  </div>
+                  {ordTrend?.percentageChange !== null && ordTrend?.percentageChange !== undefined && (
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${ordTrend.percentageChange >= 0 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40' : 'bg-rose-50 text-rose-600 dark:bg-rose-950/40'}`}>
+                      {ordTrend.percentageChange >= 0 ? '+' : ''}{ordTrend.percentageChange}% vs yday
+                    </span>
+                  )}
+                </div>
+
+                {/* All 4 Order Status Stats inside this single KPI */}
+                <div className="grid grid-cols-2 gap-1.5 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                      <Clock className="h-3 w-3 text-amber-500" /> Pending
+                    </span>
+                    <span className="text-xs font-black text-amber-600 dark:text-amber-300">{summary.pendingOrders}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+                    <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400 flex items-center gap-1.5">
+                      <Sliders className="h-3 w-3 text-indigo-500" /> In Progress
+                    </span>
+                    <span className="text-xs font-black text-indigo-600 dark:text-indigo-300">{summary.inProgressOrders}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                    <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500" /> Completed
+                    </span>
+                    <span className="text-xs font-black text-emerald-600 dark:text-emerald-300">{summary.completedOrders}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20">
+                    <span className="text-[11px] font-bold text-rose-700 dark:text-rose-400 flex items-center gap-1.5">
+                      <X className="h-3 w-3 text-rose-500" /> Cancelled
+                    </span>
+                    <span className="text-xs font-black text-rose-600 dark:text-rose-300">{summary.cancelledOrders}</span>
+                  </div>
                 </div>
               </div>
-              <div className="text-[10px] font-semibold flex items-center gap-1">
-                {ordTrend?.percentageChange !== null && ordTrend?.percentageChange !== undefined ? (
-                  <span className={ordTrend.percentageChange >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
-                    {ordTrend.percentageChange >= 0 ? '+' : ''}{ordTrend.percentageChange}% vs yday
-                  </span>
-                ) : (
-                  <span className="text-slate-400">Total placed today</span>
-                )}
+
+              {/* Mini Segmented Progress Bar */}
+              <div className="mt-3">
+                <div className="h-1.5 w-full bg-slate-500/10 rounded-full overflow-hidden flex">
+                  {totalStatusOrders === 0 ? (
+                    <div className="h-full w-full bg-slate-500/20" />
+                  ) : (
+                    <>
+                      <div style={{ width: `${pendingPct}%` }} className="bg-amber-500 transition-all duration-300" title={`Pending: ${summary.pendingOrders} (${pendingPct}%)`} />
+                      <div style={{ width: `${inProgressPct}%` }} className="bg-indigo-500 transition-all duration-300" title={`In Progress: ${summary.inProgressOrders} (${inProgressPct}%)`} />
+                      <div style={{ width: `${completedPct}%` }} className="bg-emerald-500 transition-all duration-300" title={`Completed: ${summary.completedOrders} (${completedPct}%)`} />
+                      <div style={{ width: `${cancelledPct}%` }} className="bg-rose-500 transition-all duration-300" title={`Cancelled: ${summary.cancelledOrders} (${cancelledPct}%)`} />
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* 3. Pending Orders */}
-            <div className="p-3.5 rounded-2xl border flex flex-col justify-between" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500">Pending</span>
-                <Clock className="h-3.5 w-3.5 text-amber-500" />
-              </div>
-              <div className="my-1.5">
-                <div className="text-xl font-black text-amber-600">
-                  {summary.pendingOrders}
+            {/* 3. Managers */}
+            <div className="p-4 rounded-2xl border flex flex-col justify-between" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500">Managers</span>
+                  <div className="h-8 w-8 rounded-xl bg-sky-50 dark:bg-sky-950/50 flex items-center justify-center">
+                    <Shield className="h-4 w-4 text-sky-500" />
+                  </div>
+                </div>
+                <div className="my-2.5">
+                  <div className="text-2xl font-black text-sky-600">
+                    {summary.totalManagers}
+                  </div>
                 </div>
               </div>
-              <span className="text-[10px] text-amber-600 font-semibold">Awaiting claim</span>
+              <div className="pt-2.5 border-t flex items-center justify-between text-xs" style={{ borderColor: 'var(--border)' }}>
+                <span className="text-[11px] text-sky-600 dark:text-sky-400 font-semibold">Active staff</span>
+                <span className="text-[10px] text-slate-400 font-medium">Operations</span>
+              </div>
             </div>
 
-            {/* 4. In Progress Orders */}
-            <div className="p-3.5 rounded-2xl border flex flex-col justify-between" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500">In Progress</span>
-                <Sliders className="h-3.5 w-3.5 text-indigo-500" />
-              </div>
-              <div className="my-1.5">
-                <div className="text-xl font-black text-indigo-600">
-                  {summary.inProgressOrders}
+            {/* 4. Waiters */}
+            <div className="p-4 rounded-2xl border flex flex-col justify-between" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500">Waiters</span>
+                  <div className="h-8 w-8 rounded-xl bg-purple-50 dark:bg-purple-950/50 flex items-center justify-center">
+                    <Award className="h-4 w-4 text-purple-500" />
+                  </div>
+                </div>
+                <div className="my-2.5">
+                  <div className="text-2xl font-black text-purple-600">
+                    {summary.totalWaiters}
+                  </div>
                 </div>
               </div>
-              <span className="text-[10px] text-indigo-600 font-semibold">Preparing / Ready</span>
-            </div>
-
-            {/* 5. Completed Orders */}
-            <div className="p-3.5 rounded-2xl border flex flex-col justify-between" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500">Completed</span>
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+              <div className="pt-2.5 border-t flex items-center justify-between text-xs" style={{ borderColor: 'var(--border)' }}>
+                <span className="text-[11px] text-purple-600 dark:text-purple-400 font-semibold">Active floor</span>
+                <span className="text-[10px] text-slate-400 font-medium">Service</span>
               </div>
-              <div className="my-1.5">
-                <div className="text-xl font-black text-emerald-600">
-                  {summary.completedOrders}
-                </div>
-              </div>
-              <span className="text-[10px] text-emerald-600 font-semibold">Fulfilled</span>
-            </div>
-
-            {/* 6. Cancelled Orders */}
-            <div className="p-3.5 rounded-2xl border flex flex-col justify-between" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500">Cancelled</span>
-                <X className="h-3.5 w-3.5 text-rose-500" />
-              </div>
-              <div className="my-1.5">
-                <div className="text-xl font-black text-rose-600">
-                  {summary.cancelledOrders}
-                </div>
-              </div>
-              <span className="text-[10px] text-rose-600 font-semibold">Voided / Aborted</span>
-            </div>
-
-            {/* 7. Managers Count */}
-            <div className="p-3.5 rounded-2xl border flex flex-col justify-between" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500">Managers</span>
-                <Shield className="h-3.5 w-3.5 text-sky-500" />
-              </div>
-              <div className="my-1.5">
-                <div className="text-xl font-black text-sky-600">
-                  {summary.totalManagers}
-                </div>
-              </div>
-              <span className="text-[10px] text-sky-600 font-semibold">Active staff</span>
-            </div>
-
-            {/* 8. Waiters Count */}
-            <div className="p-3.5 rounded-2xl border flex flex-col justify-between" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500">Waiters</span>
-                <Award className="h-3.5 w-3.5 text-purple-500" />
-              </div>
-              <div className="my-1.5">
-                <div className="text-xl font-black text-purple-600">
-                  {summary.totalWaiters}
-                </div>
-              </div>
-              <span className="text-[10px] text-purple-600 font-semibold">Active floor</span>
             </div>
           </div>
         </div>

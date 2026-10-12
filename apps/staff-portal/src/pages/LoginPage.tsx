@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Wine, Eye, EyeOff, ChevronRight, Loader2, User, Briefcase, Shield, Timer } from 'lucide-react';
 import { getApiUrl } from '../config/api';
 import { getSessionExpiredNotice } from '@drinkhub/shared';
+import { PrivacyPolicyModal, TermsAndConditionsModal } from '../components/LegalModals';
 
 type StaffRole = 'waiter' | 'manager' | 'admin';
 
@@ -24,6 +25,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [tempPassword, setTempPassword] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,6 +119,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       setError('Passwords do not match.');
       return;
     }
+    if (role === 'admin' && !acceptedTerms) {
+      setError('As the Business Administrator, you must review and accept the Privacy Policy and Terms & Conditions upon onboarding.');
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -133,6 +141,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error?.message || data.message || 'Failed to update password.');
+      }
+      if (role === 'admin') {
+        try {
+          const userObj = JSON.parse(localStorage.getItem('drinkhub_user') || '{}');
+          const userKey = userObj.userUuid || userObj.id || userObj.email || 'admin';
+          localStorage.setItem('drinkhub_policy_accepted_' + userKey, new Date().toISOString());
+        } catch {
+          localStorage.setItem('drinkhub_policy_accepted_admin', new Date().toISOString());
+        }
       }
       setNeedsPasswordChange(false);
       onLogin(role);
@@ -292,6 +309,48 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 </div>
               </div>
 
+              {/* Business Admin Compliance Acceptance */}
+              {role === 'admin' && (
+                <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3.5 space-y-2 text-xs text-blue-900">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="font-bold flex items-center gap-1.5 text-blue-800">
+                      <Shield className="h-4 w-4 text-blue-600" /> Business Admin Compliance Agreement
+                    </span>
+                    <div className="flex items-center gap-2 text-[11px]">
+                      <button
+                        type="button"
+                        onClick={() => setShowPrivacyModal(true)}
+                        className="text-blue-600 underline font-semibold hover:text-blue-800"
+                      >
+                        Privacy Policy
+                      </button>
+                      <span>•</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowTermsModal(true)}
+                        className="text-blue-600 underline font-semibold hover:text-blue-800"
+                      >
+                        Terms & Conditions
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-blue-700 leading-relaxed">
+                    Under the Kenya Data Protection Act, 2019 and platform governance, Business Administrators must review and accept the Terms & Conditions and Privacy Policy upon initial onboarding.
+                  </p>
+                  <label className="flex items-start gap-2.5 cursor-pointer pt-1">
+                    <input
+                      type="checkbox"
+                      checked={acceptedTerms}
+                      onChange={(e) => setAcceptedTerms(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span className="text-xs font-medium text-blue-950 select-none">
+                      I accept the <strong>Terms & Conditions</strong> and <strong>Privacy Policy</strong> as the Business Administrator.
+                    </span>
+                  </label>
+                </div>
+              )}
+
               {error && (
                 <div className="rounded-lg bg-red-50 border border-red-200 px-3.5 py-2.5 text-sm text-red-700">
                   {error}
@@ -405,6 +464,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           </p>
         </div>
       </div>
+
+      <PrivacyPolicyModal open={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
+      <TermsAndConditionsModal open={showTermsModal} onClose={() => setShowTermsModal(false)} />
     </div>
   );
 };

@@ -38,6 +38,7 @@ import {
   Clock,
   Briefcase,
   Shield,
+  ShieldCheck,
   QrCode,
   Copy,
   ExternalLink,
@@ -71,6 +72,7 @@ import {
   Legend,
 } from 'recharts';
 import { getApiUrl, resolveImageUrl } from '../config/api';
+import { PrivacyPolicyModal, TermsAndConditionsModal, BusinessAdminOnboardingModal } from '../components/LegalModals';
 
 /* ─────────────────────────────────────────────────────────────
    TYPES & INTERFACES
@@ -476,6 +478,34 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     }
   }, []);
 
+  /* Compliance & Onboarding State */
+  const userKey = useMemo(() => {
+    return user.userUuid || user.id || user.email || 'admin';
+  }, [user]);
+
+  const [policyAccepted, setPolicyAccepted] = useState<boolean>(() => {
+    try {
+      const key = user.userUuid || user.id || user.email || 'admin';
+      return !!localStorage.getItem('drinkhub_policy_accepted_' + key);
+    } catch {
+      return false;
+    }
+  });
+
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+
+  const handleAcceptPolicy = useCallback(() => {
+    try {
+      const key = user.userUuid || user.id || user.email || 'admin';
+      localStorage.setItem('drinkhub_policy_accepted_' + key, new Date().toISOString());
+      setPolicyAccepted(true);
+      showToast('Compliance agreements accepted. Welcome to your Business Dashboard!', 'success');
+    } catch {
+      setPolicyAccepted(true);
+    }
+  }, [user, showToast]);
+
   /* State stores */
   const [businessSummary, setBusinessSummary] = useState<BusinessSummaryData | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsReportData | null>(null);
@@ -571,7 +601,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   const [scheduleSaving, setScheduleSaving] = useState(false);
 
   // Active settings sub-tab
-  const [settingsTab, setSettingsTab] = useState<'profile' | 'branding' | 'hours'>('profile');
+  const [settingsTab, setSettingsTab] = useState<'profile' | 'branding' | 'hours' | 'compliance'>('profile');
 
   /**
    * Load business profile from GET /api/v1/business/profile
@@ -1563,7 +1593,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Enter a valid email address';
     }
     if (field === 'phone' && value.trim()) {
-      if (!/^\d+$/.test(value.trim())) return 'Phone must contain numbers only';
+      const digits = value.replace(/\D/g, '');
+      if (!/^\d+$/.test(digits)) return 'Phone must contain numbers only';
+      if (digits.length !== 9) return 'Phone number must be exactly 9 digits (e.g. 712345678)';
     }
     return '';
   };
@@ -1744,6 +1776,13 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     if (!editManagerFullName.trim() || !editManagerEmail.trim()) {
       showToast('Full name and email are required.', 'error');
       return;
+    }
+    if (editManagerPhone.trim()) {
+      const digits = editManagerPhone.replace(/\D/g, '');
+      if (digits.length !== 9) {
+        showToast('Phone number must be exactly 9 digits (e.g. 712345678)', 'error');
+        return;
+      }
     }
     try {
       setEditManagerSaving(true);
@@ -2256,18 +2295,28 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
 
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-500">Phone Number (Optional)</label>
-              <input
-                type="tel"
-                placeholder="07XX XXX XXX"
-                value={managerPhone}
-                onChange={(e) => {
-                  setManagerPhone(e.target.value);
-                  setManagerErrors(prev => ({ ...prev, phone: validateManagerField('phone', e.target.value) }));
-                }}
-                className={`w-full rounded-xl border p-2.5 text-xs outline-none focus:ring-2 ${managerErrors.phone ? 'border-red-400 focus:ring-red-400' : 'focus:ring-blue-500'}`}
-                style={{ background: 'var(--bg-body)', borderColor: managerErrors.phone ? undefined : 'var(--border)', color: 'var(--text-primary)' }}
-              />
-              {managerErrors.phone && <p className="text-[10px] text-red-500 mt-0.5 font-semibold">{managerErrors.phone}</p>}
+              <div className="flex">
+                <span className="inline-flex items-center px-2.5 rounded-l-xl border border-r-0 text-xs font-semibold select-none" style={{ background: 'var(--bg-body)', borderColor: managerErrors.phone ? '#f87171' : 'var(--border)', color: 'var(--text-muted)' }}>
+                  +254
+                </span>
+                <input
+                  type="tel"
+                  maxLength={9}
+                  placeholder="7XX XXX XXX"
+                  value={managerPhone}
+                  onChange={(e) => {
+                    const clean = e.target.value.replace(/^\+?254/, '').replace(/^0+/, '').replace(/\D/g, '').slice(0, 9);
+                    setManagerPhone(clean);
+                    setManagerErrors(prev => ({ ...prev, phone: validateManagerField('phone', clean) }));
+                  }}
+                  className={`w-full rounded-r-xl border p-2.5 text-xs outline-none focus:ring-2 ${managerErrors.phone ? 'border-red-400 focus:ring-red-400' : 'focus:ring-blue-500'}`}
+                  style={{ background: 'var(--bg-body)', borderColor: managerErrors.phone ? undefined : 'var(--border)', color: 'var(--text-primary)' }}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                {managerErrors.phone ? <p className="text-[10px] text-red-500 font-semibold">{managerErrors.phone}</p> : <span />}
+                <span className="text-[10px] text-slate-400 font-mono ml-auto">{managerPhone.length}/9 digits</span>
+              </div>
             </div>
 
 
@@ -2355,14 +2404,27 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-500">Phone Number</label>
-              <input
-                type="tel"
-                value={editManagerPhone}
-                onChange={(e) => setEditManagerPhone(e.target.value)}
-                className="w-full rounded-xl border p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
-                style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-              />
+              <label className="text-xs font-bold text-slate-500">Phone Number (Optional)</label>
+              <div className="flex">
+                <span className="inline-flex items-center px-2.5 rounded-l-xl border border-r-0 text-xs font-semibold select-none" style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+                  +254
+                </span>
+                <input
+                  type="tel"
+                  maxLength={9}
+                  placeholder="7XX XXX XXX"
+                  value={editManagerPhone}
+                  onChange={(e) => {
+                    const clean = e.target.value.replace(/^\+?254/, '').replace(/^0+/, '').replace(/\D/g, '').slice(0, 9);
+                    setEditManagerPhone(clean);
+                  }}
+                  className="w-full rounded-r-xl border p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                />
+              </div>
+              <div className="flex justify-end">
+                <span className="text-[10px] text-slate-400 font-mono">{editManagerPhone.length}/9 digits</span>
+              </div>
             </div>
 
             <div className="pt-3 flex gap-3">
@@ -2677,7 +2739,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Enter a valid email address';
     }
     if (field === 'phone' && value.trim()) {
-      if (!/^\d+$/.test(value.trim())) return 'Phone must contain numbers only';
+      const digits = value.replace(/\D/g, '');
+      if (!/^\d+$/.test(digits)) return 'Phone must contain numbers only';
+      if (digits.length !== 9) return 'Phone number must be exactly 9 digits (e.g. 712345678)';
     }
     return '';
   };
@@ -2855,6 +2919,14 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   const handleEditWaiterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editWaiterData) return;
+
+    if (editWaiterPhone.trim()) {
+      const digits = editWaiterPhone.replace(/\D/g, '');
+      if (digits.length !== 9) {
+        showToast('Phone number must be exactly 9 digits (e.g. 712345678)', 'error');
+        return;
+      }
+    }
 
     try {
       setEditWaiterSaving(true);
@@ -3401,18 +3473,28 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
 
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-500">Phone Number (Optional)</label>
-              <input
-                type="tel"
-                placeholder="e.g. +254 712 345 678"
-                value={waiterPhone}
-                onChange={(e) => {
-                  setWaiterPhone(e.target.value);
-                  setWaiterErrors(prev => ({ ...prev, phone: validateWaiterField('phone', e.target.value) }));
-                }}
-                className={`w-full rounded-xl border p-2.5 text-xs outline-none focus:ring-2 ${waiterErrors.phone ? 'border-red-400 focus:ring-red-400' : 'focus:ring-emerald-500'}`}
-                style={{ background: 'var(--bg-body)', borderColor: waiterErrors.phone ? undefined : 'var(--border)', color: 'var(--text-primary)' }}
-              />
-              {waiterErrors.phone && <p className="text-[10px] text-red-500 mt-0.5 font-semibold">{waiterErrors.phone}</p>}
+              <div className="flex">
+                <span className="inline-flex items-center px-2.5 rounded-l-xl border border-r-0 text-xs font-semibold select-none" style={{ background: 'var(--bg-body)', borderColor: waiterErrors.phone ? '#f87171' : 'var(--border)', color: 'var(--text-muted)' }}>
+                  +254
+                </span>
+                <input
+                  type="tel"
+                  maxLength={9}
+                  placeholder="7XX XXX XXX"
+                  value={waiterPhone}
+                  onChange={(e) => {
+                    const clean = e.target.value.replace(/^\+?254/, '').replace(/^0+/, '').replace(/\D/g, '').slice(0, 9);
+                    setWaiterPhone(clean);
+                    setWaiterErrors(prev => ({ ...prev, phone: validateWaiterField('phone', clean) }));
+                  }}
+                  className={`w-full rounded-r-xl border p-2.5 text-xs outline-none focus:ring-2 ${waiterErrors.phone ? 'border-red-400 focus:ring-red-400' : 'focus:ring-emerald-500'}`}
+                  style={{ background: 'var(--bg-body)', borderColor: waiterErrors.phone ? undefined : 'var(--border)', color: 'var(--text-primary)' }}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                {waiterErrors.phone ? <p className="text-[10px] text-red-500 font-semibold">{waiterErrors.phone}</p> : <span />}
+                <span className="text-[10px] text-slate-400 font-mono ml-auto">{waiterPhone.length}/9 digits</span>
+              </div>
             </div>
 
 
@@ -3492,14 +3574,27 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-500">Phone Number</label>
-              <input
-                type="tel"
-                value={editWaiterPhone}
-                onChange={(e) => setEditWaiterPhone(e.target.value)}
-                className="w-full rounded-xl border p-2.5 text-xs outline-none focus:ring-2 focus:ring-emerald-500"
-                style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-              />
+              <label className="text-xs font-bold text-slate-500">Phone Number (Optional)</label>
+              <div className="flex">
+                <span className="inline-flex items-center px-2.5 rounded-l-xl border border-r-0 text-xs font-semibold select-none" style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+                  +254
+                </span>
+                <input
+                  type="tel"
+                  maxLength={9}
+                  placeholder="7XX XXX XXX"
+                  value={editWaiterPhone}
+                  onChange={(e) => {
+                    const clean = e.target.value.replace(/^\+?254/, '').replace(/^0+/, '').replace(/\D/g, '').slice(0, 9);
+                    setEditWaiterPhone(clean);
+                  }}
+                  className="w-full rounded-r-xl border p-2.5 text-xs outline-none focus:ring-2 focus:ring-emerald-500"
+                  style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                />
+              </div>
+              <div className="flex justify-end">
+                <span className="text-[10px] text-slate-400 font-mono">{editWaiterPhone.length}/9 digits</span>
+              </div>
             </div>
 
             <div className="pt-3 flex gap-3">
@@ -5037,6 +5132,13 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       showToast('Business name is required.', 'error');
       return;
     }
+    if (profPhone.trim()) {
+      const digits = profPhone.replace(/\D/g, '');
+      if (digits.length !== 9) {
+        showToast('Phone number must be exactly 9 digits (e.g. 712345678)', 'error');
+        return;
+      }
+    }
 
     try {
       setProfileSaving(true);
@@ -5333,6 +5435,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               { key: 'profile', label: 'Profile & Location', icon: <Building2 className="h-4 w-4" /> },
               { key: 'branding', label: 'Branding & Theme', icon: <Sparkles className="h-4 w-4" /> },
               { key: 'hours', label: 'Operating Schedule', icon: <Clock className="h-4 w-4" /> },
+              { key: 'compliance', label: 'Compliance & Legal', icon: <Shield className="h-4 w-4" /> },
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -5416,14 +5519,28 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500">Public Contact Phone</label>
-                <input
-                  type="tel"
-                  placeholder="e.g. +254 7XX XXX XXX"
-                  value={profPhone}
-                  onChange={(e) => setProfPhone(e.target.value)}
-                  className="w-full rounded-xl border p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
-                  style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                />
+                <div className="flex">
+                  <span className="inline-flex items-center px-2.5 rounded-l-xl border border-r-0 text-xs font-semibold select-none" style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+                    +254
+                  </span>
+                  <input
+                    type="tel"
+                    maxLength={9}
+                    placeholder="7XX XXX XXX"
+                    value={profPhone.replace(/^\+?254/, '').replace(/^0+/, '').replace(/\D/g, '').slice(0, 9)}
+                    onChange={(e) => {
+                      const clean = e.target.value.replace(/^\+?254/, '').replace(/^0+/, '').replace(/\D/g, '').slice(0, 9);
+                      setProfPhone(clean);
+                    }}
+                    className="w-full rounded-r-xl border p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                    style={{ background: 'var(--bg-body)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {profPhone.replace(/^\+?254/, '').replace(/^0+/, '').replace(/\D/g, '').slice(0, 9).length}/9 digits
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -5685,6 +5802,78 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               </button>
             </div>
           </form>
+        )}
+
+        {/* ── Tab 4: Compliance & Legal ── */}
+        {settingsTab === 'compliance' && (
+          <div className="p-6 rounded-2xl border space-y-6" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+            <div>
+              <h3 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>
+                Business Compliance & Legal Agreements
+              </h3>
+              <p className="text-xs text-slate-500">
+                Statutory regulatory governance under the Kenya Data Protection Act, 2019 and OrderUp Master Service Agreement.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Privacy Policy Card */}
+              <div className="rounded-xl border border-blue-100 dark:border-blue-900/50 bg-blue-50/40 dark:bg-blue-950/20 p-5 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-blue-100 dark:bg-blue-900/60 text-blue-600 flex items-center justify-center">
+                    <ShieldCheck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">Privacy Policy</h4>
+                    <p className="text-[11px] text-slate-500">Kenya DPA 2019 Merchant Obligations</p>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Defines lawful data processing, merchant fiduciary duties, order record security, and customer privacy controls for this establishment.
+                </p>
+                <div className="pt-2 flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Accepted upon Onboarding
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowPrivacyModal(true)}
+                    className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition"
+                  >
+                    View Policy
+                  </button>
+                </div>
+              </div>
+
+              {/* Terms of Service Card */}
+              <div className="rounded-xl border border-emerald-100 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20 p-5 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 flex items-center justify-center">
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">Terms of Service</h4>
+                    <p className="text-[11px] text-slate-500">Master Service Agreement</p>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Defines multi-tenant licensing, administrative authority, M-Pesa automated reconciliation, catalog integrity, and service level standards.
+                </p>
+                <div className="pt-2 flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Accepted upon Onboarding
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowTermsModal(true)}
+                    className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition"
+                  >
+                    View Terms
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
         </div>
       </div>
@@ -6726,6 +6915,16 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           )}
         </main>
       </div>
+
+      {/* ── Business Admin Onboarding Compliance Modal ── */}
+      <BusinessAdminOnboardingModal
+        open={!policyAccepted}
+        businessName={businessName}
+        onAccept={handleAcceptPolicy}
+      />
+
+      <PrivacyPolicyModal open={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
+      <TermsAndConditionsModal open={showTermsModal} onClose={() => setShowTermsModal(false)} />
     </div>
   );
 };

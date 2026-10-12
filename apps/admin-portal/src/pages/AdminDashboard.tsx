@@ -834,7 +834,6 @@ type BusinessFormState = {
   subStatus: string;
   startDate: string;
   expiryDate: string;
-  acceptedTerms: boolean;
 };
 
 const defaultBusinessForm: BusinessFormState = {
@@ -861,7 +860,6 @@ const defaultBusinessForm: BusinessFormState = {
   subStatus: 'Trial',
   startDate: new Date().toISOString().split('T')[0],
   expiryDate: '',
-  acceptedTerms: false,
 };
 
 /* Step 1 */
@@ -944,19 +942,7 @@ const Step1 = ({ f, set, errors }: { f: BusinessFormState; set: (k: keyof Busine
 );
 
 /* Step 2 */
-const Step2 = ({
-  f,
-  set,
-  errors,
-  onOpenPrivacy,
-  onOpenTerms,
-}: {
-  f: BusinessFormState;
-  set: (k: keyof BusinessFormState, v: any) => void;
-  errors: Partial<Record<keyof BusinessFormState, string>>;
-  onOpenPrivacy: () => void;
-  onOpenTerms: () => void;
-}) => {
+const Step2 = ({ f, set, errors }: { f: BusinessFormState; set: (k: keyof BusinessFormState, v: any) => void; errors: Partial<Record<keyof BusinessFormState, string>> }) => {
   const [showPwd, setShowPwd] = useState(false);
   return (
     <div className="space-y-4">
@@ -1010,52 +996,6 @@ const Step2 = ({
               <RotateCcw className="h-3.5 w-3.5" /> Generate
             </button>
           </div>
-        </div>
-
-        {/* Compliance & Policy Acceptance (Business Admin Only) */}
-        <div className="col-span-2 rounded-xl border border-blue-100 dark:border-blue-900/50 bg-blue-50/40 dark:bg-blue-950/20 p-4 space-y-3">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <span className="text-xs font-bold text-slate-900 dark:text-white">
-                Business Admin Onboarding Compliance
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-xs">
-              <button
-                type="button"
-                onClick={onOpenPrivacy}
-                className="text-blue-600 dark:text-blue-400 underline font-semibold hover:text-blue-700"
-              >
-                Privacy Policy
-              </button>
-              <span className="text-slate-400">•</span>
-              <button
-                type="button"
-                onClick={onOpenTerms}
-                className="text-blue-600 dark:text-blue-400 underline font-semibold hover:text-blue-700"
-              >
-                Terms & Conditions
-              </button>
-            </div>
-          </div>
-          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-            The Business Admin must accept the OrderUp Privacy Policy and Terms & Conditions upon establishment onboarding.
-          </p>
-          <label className="flex items-start gap-2.5 cursor-pointer pt-1">
-            <input
-              type="checkbox"
-              checked={f.acceptedTerms}
-              onChange={e => set('acceptedTerms', e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-xs font-medium text-slate-800 dark:text-slate-200 select-none">
-              I confirm that the <strong>Business Admin</strong> accepts the <strong>Terms & Conditions</strong> and <strong>Privacy Policy</strong> for this business onboarding.
-            </span>
-          </label>
-          {errors.acceptedTerms && (
-            <p className="text-xs text-red-500 font-semibold">{errors.acceptedTerms}</p>
-          )}
         </div>
       </div>
     </div>
@@ -1126,8 +1066,6 @@ const CreateBusinessStepper = ({ onSuccess, onCancel }: { onSuccess: (b: Busines
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [form, setForm] = useState<BusinessFormState>({ ...defaultBusinessForm, tempPwd: generatePassword() });
   const [errors, setErrors] = useState<Partial<Record<keyof BusinessFormState, string>>>({});
-  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
-  const [showTermsModal, setShowTermsModal] = useState(false);
 
   const validateAdminField = (k: keyof BusinessFormState, v: string): string => {
     if (k === 'adminFirstName' || k === 'adminLastName') {
@@ -1186,9 +1124,6 @@ const CreateBusinessStepper = ({ onSuccess, onCancel }: { onSuccess: (b: Busines
     const phErr = validateAdminField('adminPhone', form.adminPhone);
     if (phErr) e.adminPhone = phErr;
     if (form.tempPwd.length < 8) e.tempPwd = 'Password must be at least 8 characters';
-    if (!form.acceptedTerms) {
-      e.acceptedTerms = 'The Business Admin must accept the Privacy Policy & Terms and Conditions upon onboarding.';
-    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -1332,15 +1267,7 @@ const CreateBusinessStepper = ({ onSuccess, onCancel }: { onSuccess: (b: Busines
         </div>
 
         {step === 1 && <Step1 f={form} set={set} errors={errors} />}
-        {step === 2 && (
-          <Step2
-            f={form}
-            set={set}
-            errors={errors}
-            onOpenPrivacy={() => setShowPrivacyModal(true)}
-            onOpenTerms={() => setShowTermsModal(true)}
-          />
-        )}
+        {step === 2 && <Step2 f={form} set={set} errors={errors} />}
         {step === 3 && <Step3 f={form} set={set} />}
 
         <div className="flex items-center justify-between mt-7 pt-5 border-t border-slate-100 dark:border-slate-800">
@@ -1371,9 +1298,6 @@ const CreateBusinessStepper = ({ onSuccess, onCancel }: { onSuccess: (b: Busines
           </div>
         </div>
       </div>
-
-      <PrivacyPolicyModal open={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
-      <TermsAndConditionsModal open={showTermsModal} onClose={() => setShowTermsModal(false)} />
     </div>
   );
 };
@@ -2232,9 +2156,6 @@ const CreateUserModal = ({
   const [password, setPassword] = useState(generatePassword());
   const [showPassword, setShowPassword] = useState(false);
   const [mustChangePassword, setMustChangePassword] = useState(true);
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
-  const [showTermsModal, setShowTermsModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -2263,10 +2184,6 @@ const CreateUserModal = ({
     const phoneErr = validateUserField('phone', phone);
     if (nameErr || emailErr || phoneErr) {
       setFieldErrors({ fullName: nameErr, email: emailErr, phone: phoneErr });
-      return;
-    }
-    if (role === 'ADMIN' && !acceptedTerms) {
-      setError('The Business Admin must accept the Privacy Policy & Terms and Conditions upon onboarding.');
       return;
     }
     if (role !== 'SUPER_ADMIN' && !businessUuid) {
@@ -2468,51 +2385,6 @@ const CreateUserModal = ({
             </span>
           </label>
 
-          {/* Compliance & Policy Acceptance (Business Admin Only upon onboarding) */}
-          {role === 'ADMIN' && (
-            <div className="rounded-xl border border-blue-100 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 p-3.5 space-y-2">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" /> Business Admin Compliance Agreement
-                </span>
-                <div className="flex items-center gap-2 text-[11px]">
-                  <button
-                    type="button"
-                    onClick={() => setShowPrivacyModal(true)}
-                    className="text-blue-600 dark:text-blue-400 underline font-semibold hover:text-blue-700"
-                  >
-                    Privacy Policy
-                  </button>
-                  <span className="text-slate-400">•</span>
-                  <button
-                    type="button"
-                    onClick={() => setShowTermsModal(true)}
-                    className="text-blue-600 dark:text-blue-400 underline font-semibold hover:text-blue-700"
-                  >
-                    Terms & Conditions
-                  </button>
-                </div>
-              </div>
-              <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                Business Admins are required to accept the platform Terms & Conditions and Privacy Policy upon onboarding.
-              </p>
-              <label className="flex items-start gap-2.5 cursor-pointer pt-1">
-                <input
-                  type="checkbox"
-                  checked={acceptedTerms}
-                  onChange={e => {
-                    setAcceptedTerms(e.target.checked);
-                    setError(null);
-                  }}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-xs text-slate-700 dark:text-slate-300 select-none">
-                  I confirm that the <strong>Business Admin</strong> accepts the <strong>Terms & Conditions</strong> and <strong>Privacy Policy</strong> upon onboarding.
-                </span>
-              </label>
-            </div>
-          )}
-
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
             <button
               type="button"
@@ -2532,9 +2404,6 @@ const CreateUserModal = ({
           </div>
         </form>
       </div>
-
-      <PrivacyPolicyModal open={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
-      <TermsAndConditionsModal open={showTermsModal} onClose={() => setShowTermsModal(false)} />
     </div>
   );
 };

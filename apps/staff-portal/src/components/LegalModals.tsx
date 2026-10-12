@@ -218,8 +218,9 @@ export const TermsAndConditionsModal: React.FC<{ open: boolean; onClose: () => v
 export const BusinessAdminOnboardingModal: React.FC<{
   open: boolean;
   businessName?: string;
+  subtitle?: string;
   onAccept: () => void;
-}> = ({ open, businessName, onAccept }) => {
+}> = ({ open, businessName, subtitle, onAccept }) => {
   const [accepted, setAccepted] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
@@ -242,7 +243,7 @@ export const BusinessAdminOnboardingModal: React.FC<{
               Business Admin Onboarding
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-              Welcome{businessName ? ` to ${businessName}` : ''}! Before accessing your Business Admin portal, statutory compliance requires your formal review and acceptance of our service agreements.
+              {subtitle || `Welcome${businessName ? ` to ${businessName}` : ''}! Before accessing your Business Admin portal, statutory compliance requires your formal review and acceptance of our service agreements.`}
             </p>
           </div>
 

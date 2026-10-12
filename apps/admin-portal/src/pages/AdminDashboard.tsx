@@ -9,7 +9,7 @@ import {
   ChevronLeft, Check, UserCog, Mail, Phone, MapPin,
   RotateCcw, UserX, UserCheck, Calendar, Lock, ShieldAlert,
   UtensilsCrossed, Store, Coffee, Hotel, Filter, SlidersHorizontal,
-  UserPlus, Menu,
+  UserPlus, Menu, FileText,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis,
@@ -472,27 +472,199 @@ const SS = ({ options, ...p }: React.SelectHTMLAttributes<HTMLSelectElement> & {
   </select>
 );
 
-const PhoneInput = ({ error, value, onChange }: { error?: string; value: string; onChange: (v: string) => void }) => (
-  <div>
-    <div className="flex">
-      <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-medium text-slate-600 dark:text-slate-300 select-none">
-        +254
-      </span>
-      <input
-        type="tel"
-        value={value}
-        onChange={e => onChange(e.target.value.replace(/^\+?254/, '').replace(/^0/, ''))}
-        placeholder="7XX XXX XXX"
-        className={`flex-1 rounded-r-lg border px-3 py-2.5 text-sm text-slate-900 dark:text-white dark:bg-slate-800 outline-none transition ${
-          error
-            ? 'border-red-400 bg-red-50 dark:bg-red-950/20 focus:ring-2 focus:ring-red-300'
-            : 'border-slate-200 dark:border-slate-700 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-        }`}
-      />
+const PhoneInput = ({ error, value, onChange }: { error?: string; value: string; onChange: (v: string) => void }) => {
+  // Extract digits only, strip any +254 or leading zeroes, clamp strictly to max 9 digits
+  const cleanDigits = (value || '').replace(/^\+?254/, '').replace(/^0+/, '').replace(/\D/g, '').slice(0, 9);
+
+  return (
+    <div>
+      <div className="flex">
+        <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-medium text-slate-600 dark:text-slate-300 select-none">
+          +254
+        </span>
+        <input
+          type="tel"
+          maxLength={9}
+          value={cleanDigits}
+          onChange={e => {
+            const raw = e.target.value.replace(/^\+?254/, '').replace(/^0+/, '').replace(/\D/g, '');
+            onChange(raw.slice(0, 9));
+          }}
+          placeholder="7XX XXX XXX"
+          className={`flex-1 rounded-r-lg border px-3 py-2.5 text-sm text-slate-900 dark:text-white dark:bg-slate-800 outline-none transition ${
+            error
+              ? 'border-red-400 bg-red-50 dark:bg-red-950/20 focus:ring-2 focus:ring-red-300'
+              : 'border-slate-200 dark:border-slate-700 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+          }`}
+        />
+      </div>
+      <div className="flex items-center justify-between mt-1">
+        <FE msg={error} />
+        <span className="text-[10px] text-slate-400 font-mono ml-auto">
+          {cleanDigits.length}/9 digits
+        </span>
+      </div>
     </div>
-    <FE msg={error} />
-  </div>
-);
+  );
+};
+
+/* ─── Legal & Compliance Modals ─── */
+const PrivacyPolicyModal = ({ open, onClose }: { open: boolean; onClose: () => void }) => {
+  return (
+    <Modal open={open} onClose={onClose} title="Platform Privacy Policy" size="lg">
+      <div className="space-y-4 text-xs text-slate-600 dark:text-slate-300 leading-relaxed max-h-[65vh] overflow-y-auto pr-2">
+        <div className="rounded-xl border border-blue-100 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-950/20 p-3.5 flex items-start gap-3">
+          <ShieldCheck className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <div className="font-bold text-slate-900 dark:text-white">Kenya Data Protection Act, 2019 Compliance</div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              This policy governs data collection, processing, and merchant obligations for establishments operating on OrderUp (DrinkHub Kenya).
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">1. Scope & Applicability</h4>
+          <p>
+            This Privacy Policy applies specifically to Business Administrators, venue operators, and staff accounts onboarded to the OrderUp multi-tenant platform. By accepting these terms during business admin onboarding, the establishment agrees to lawful processing of institutional and customer order data.
+          </p>
+        </div>
+
+        <div>
+          <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">2. Information Collected</h4>
+          <ul className="list-disc pl-5 space-y-1">
+            <li><strong>Business Entity Information:</strong> Business name, premises address, county, licensing details, logo, and brand parameters.</li>
+            <li><strong>Business Admin & Staff Data:</strong> Full names, official email addresses, 9-digit Kenyan mobile phone numbers (+254), and role permissions.</li>
+            <li><strong>Order & Transaction Records:</strong> Table assignments, items ordered, order fulfillment timestamps, and M-Pesa STK push receipt references. (Note: Customer M-Pesa PINs are strictly handled by Safaricom and never recorded on this platform).</li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">3. Purpose of Processing</h4>
+          <p>
+            Data processed within the platform is strictly utilized for:
+          </p>
+          <ul className="list-disc pl-5 space-y-1 mt-1">
+            <li>Operating digital menus, QR ordering, and table management workflows.</li>
+            <li>Facilitating automated Lipa Na M-Pesa STK push and payment reconciliation.</li>
+            <li>Maintaining tenant audit trails, revenue reporting, and operational analytics.</li>
+            <li>Preventing fraudulent access and enforcing multi-tenant data boundaries.</li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">4. Data Isolation & Security Measures</h4>
+          <p>
+            All establishment records are partitioned using row-level tenant security and cryptographic authentication tokens. Passwords utilize one-way cryptographic salting and hashing. Transmission of data across public networks is secured using TLS 1.3 encryption.
+          </p>
+        </div>
+
+        <div>
+          <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">5. Merchant Responsibilities</h4>
+          <p>
+            The Business Administrator is responsible for ensuring that all staff accounts (Managers and Waiters) created under their establishment adhere to data confidentiality standards and do not disclose customer order history or phone numbers to unauthorized third parties.
+          </p>
+        </div>
+
+        <div>
+          <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">6. Contact & Data Protection Officer</h4>
+          <p>
+            For privacy queries, data subject access requests, or regulatory compliance verification, contact the Data Protection Office via <strong>compliance@drinkhub.co.ke</strong> or <strong>+254 700 000 000</strong>.
+          </p>
+        </div>
+
+        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 text-xs transition"
+          >
+            I Understand & Close
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+const TermsAndConditionsModal = ({ open, onClose }: { open: boolean; onClose: () => void }) => {
+  return (
+    <Modal open={open} onClose={onClose} title="Terms and Conditions of Service" size="lg">
+      <div className="space-y-4 text-xs text-slate-600 dark:text-slate-300 leading-relaxed max-h-[65vh] overflow-y-auto pr-2">
+        <div className="rounded-xl border border-emerald-100 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 p-3.5 flex items-start gap-3">
+          <FileText className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <div className="font-bold text-slate-900 dark:text-white">Master Service Agreement for Business Administrators</div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              These terms must be reviewed and accepted by the Business Administrator prior to business onboarding.
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">1. Acceptance of Terms</h4>
+          <p>
+            By onboarding an establishment to OrderUp (DrinkHub Kenya), the Business Administrator confirms they possess full legal authority to bind the establishment to these Terms and Conditions. This agreement takes effect immediately upon account creation.
+          </p>
+        </div>
+
+        <div>
+          <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">2. Multi-Tenant Platform Licensing</h4>
+          <p>
+            OrderUp provides a cloud-based software-as-a-service (SaaS) solution granting the merchant non-exclusive access to table ordering, waiter notifications, kitchen display, catalog management, and payment reconciliation modules.
+          </p>
+        </div>
+
+        <div>
+          <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">3. Business Administrator Fiduciary Duties</h4>
+          <ul className="list-disc pl-5 space-y-1">
+            <li><strong>Credential Confidentiality:</strong> The Business Administrator must safeguard administrative login credentials and ensure initial temporary passwords are reset immediately.</li>
+            <li><strong>Staff Management:</strong> The administrator is responsible for provisioning and revoking staff access (Managers, Waiters) in compliance with internal operational protocols.</li>
+            <li><strong>Catalogue & Pricing Integrity:</strong> The business is solely responsible for maintaining accurate product availability, pricing, alcohol licensing compliance, and opening hours.</li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">4. Payment Processing & M-Pesa Integration</h4>
+          <p>
+            All electronic payments initiated via Safaricom Lipa Na M-Pesa STK push are subject to standard telecommunication network availability and Daraja API settlement policies. The establishment agrees to promptly fulfill orders once automated confirmation is received on the platform.
+          </p>
+        </div>
+
+        <div>
+          <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">5. Service Uptime & Maintenance</h4>
+          <p>
+            OrderUp strives for 99.9% platform availability. Routine maintenance windows will be communicated in advance. The platform is not liable for indirect losses arising from third-party cellular network failures or local power disruptions.
+          </p>
+        </div>
+
+        <div>
+          <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">6. Subscription, Trials & Billing</h4>
+          <p>
+            Accounts provisioned under promotional or trial periods will transition to standard monthly subscription fees upon trial expiration. Failure to remit subscription dues may result in automated storefront restriction until accounts are normalized.
+          </p>
+        </div>
+
+        <div>
+          <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">7. Termination & Suspension</h4>
+          <p>
+            Platform administrators reserve the right to suspend or terminate business tenants engaged in fraudulent activities, money laundering, or willful breach of platform terms. Merchants may export their business data and terminate access with 30 days notice.
+          </p>
+        </div>
+
+        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 text-xs transition"
+          >
+            I Accept & Close
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
 
 /* ─── Badges ─── */
 const StatusBadge = ({ status }: { status: string }) => {
@@ -662,6 +834,7 @@ type BusinessFormState = {
   subStatus: string;
   startDate: string;
   expiryDate: string;
+  acceptedTerms: boolean;
 };
 
 const defaultBusinessForm: BusinessFormState = {
@@ -688,6 +861,7 @@ const defaultBusinessForm: BusinessFormState = {
   subStatus: 'Trial',
   startDate: new Date().toISOString().split('T')[0],
   expiryDate: '',
+  acceptedTerms: false,
 };
 
 /* Step 1 */
@@ -770,7 +944,19 @@ const Step1 = ({ f, set, errors }: { f: BusinessFormState; set: (k: keyof Busine
 );
 
 /* Step 2 */
-const Step2 = ({ f, set, errors }: { f: BusinessFormState; set: (k: keyof BusinessFormState, v: any) => void; errors: Partial<Record<keyof BusinessFormState, string>> }) => {
+const Step2 = ({
+  f,
+  set,
+  errors,
+  onOpenPrivacy,
+  onOpenTerms,
+}: {
+  f: BusinessFormState;
+  set: (k: keyof BusinessFormState, v: any) => void;
+  errors: Partial<Record<keyof BusinessFormState, string>>;
+  onOpenPrivacy: () => void;
+  onOpenTerms: () => void;
+}) => {
   const [showPwd, setShowPwd] = useState(false);
   return (
     <div className="space-y-4">
@@ -824,6 +1010,52 @@ const Step2 = ({ f, set, errors }: { f: BusinessFormState; set: (k: keyof Busine
               <RotateCcw className="h-3.5 w-3.5" /> Generate
             </button>
           </div>
+        </div>
+
+        {/* Compliance & Policy Acceptance (Business Admin Only) */}
+        <div className="col-span-2 rounded-xl border border-blue-100 dark:border-blue-900/50 bg-blue-50/40 dark:bg-blue-950/20 p-4 space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <span className="text-xs font-bold text-slate-900 dark:text-white">
+                Business Admin Onboarding Compliance
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              <button
+                type="button"
+                onClick={onOpenPrivacy}
+                className="text-blue-600 dark:text-blue-400 underline font-semibold hover:text-blue-700"
+              >
+                Privacy Policy
+              </button>
+              <span className="text-slate-400">•</span>
+              <button
+                type="button"
+                onClick={onOpenTerms}
+                className="text-blue-600 dark:text-blue-400 underline font-semibold hover:text-blue-700"
+              >
+                Terms & Conditions
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+            The Business Admin must accept the OrderUp Privacy Policy and Terms & Conditions upon establishment onboarding.
+          </p>
+          <label className="flex items-start gap-2.5 cursor-pointer pt-1">
+            <input
+              type="checkbox"
+              checked={f.acceptedTerms}
+              onChange={e => set('acceptedTerms', e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-xs font-medium text-slate-800 dark:text-slate-200 select-none">
+              I confirm that the <strong>Business Admin</strong> accepts the <strong>Terms & Conditions</strong> and <strong>Privacy Policy</strong> for this business onboarding.
+            </span>
+          </label>
+          {errors.acceptedTerms && (
+            <p className="text-xs text-red-500 font-semibold">{errors.acceptedTerms}</p>
+          )}
         </div>
       </div>
     </div>
@@ -894,6 +1126,8 @@ const CreateBusinessStepper = ({ onSuccess, onCancel }: { onSuccess: (b: Busines
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [form, setForm] = useState<BusinessFormState>({ ...defaultBusinessForm, tempPwd: generatePassword() });
   const [errors, setErrors] = useState<Partial<Record<keyof BusinessFormState, string>>>({});
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   const validateAdminField = (k: keyof BusinessFormState, v: string): string => {
     if (k === 'adminFirstName' || k === 'adminLastName') {
@@ -908,7 +1142,9 @@ const CreateBusinessStepper = ({ onSuccess, onCancel }: { onSuccess: (b: Busines
     }
     if (k === 'adminPhone') {
       if (!v.trim()) return 'Phone number is required';
-      if (!/^\d+$/.test(v.trim())) return 'Phone must contain numbers only';
+      const digits = v.replace(/\D/g, '');
+      if (!/^\d+$/.test(digits)) return 'Phone must contain numbers only';
+      if (digits.length !== 9) return 'Phone number must be exactly 9 digits (e.g. 712345678)';
     }
     return '';
   };
@@ -927,6 +1163,10 @@ const CreateBusinessStepper = ({ onSuccess, onCancel }: { onSuccess: (b: Busines
   const validate1 = () => {
     const e: Partial<Record<keyof BusinessFormState, string>> = {};
     if (!form.name.trim()) e.name = 'Business name is required';
+    if (form.phone.trim()) {
+      const digits = form.phone.replace(/\D/g, '');
+      if (digits.length !== 9) e.phone = 'Business phone must be exactly 9 digits (e.g. 712345678)';
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -946,6 +1186,9 @@ const CreateBusinessStepper = ({ onSuccess, onCancel }: { onSuccess: (b: Busines
     const phErr = validateAdminField('adminPhone', form.adminPhone);
     if (phErr) e.adminPhone = phErr;
     if (form.tempPwd.length < 8) e.tempPwd = 'Password must be at least 8 characters';
+    if (!form.acceptedTerms) {
+      e.acceptedTerms = 'The Business Admin must accept the Privacy Policy & Terms and Conditions upon onboarding.';
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -1089,7 +1332,15 @@ const CreateBusinessStepper = ({ onSuccess, onCancel }: { onSuccess: (b: Busines
         </div>
 
         {step === 1 && <Step1 f={form} set={set} errors={errors} />}
-        {step === 2 && <Step2 f={form} set={set} errors={errors} />}
+        {step === 2 && (
+          <Step2
+            f={form}
+            set={set}
+            errors={errors}
+            onOpenPrivacy={() => setShowPrivacyModal(true)}
+            onOpenTerms={() => setShowTermsModal(true)}
+          />
+        )}
         {step === 3 && <Step3 f={form} set={set} />}
 
         <div className="flex items-center justify-between mt-7 pt-5 border-t border-slate-100 dark:border-slate-800">
@@ -1120,6 +1371,9 @@ const CreateBusinessStepper = ({ onSuccess, onCancel }: { onSuccess: (b: Busines
           </div>
         </div>
       </div>
+
+      <PrivacyPolicyModal open={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
+      <TermsAndConditionsModal open={showTermsModal} onClose={() => setShowTermsModal(false)} />
     </div>
   );
 };
@@ -1181,6 +1435,13 @@ const EditBusinessModal = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (form.phone.trim()) {
+      const digits = form.phone.replace(/\D/g, '');
+      if (digits.length !== 9) {
+        showToast('Phone number must be exactly 9 digits (e.g. 712345678)', 'error');
+        return;
+      }
+    }
     setSaving(true);
     try {
       const res = await apiFetch(getApiUrl(`/tenants/${business.id}`), {
@@ -1971,6 +2232,9 @@ const CreateUserModal = ({
   const [password, setPassword] = useState(generatePassword());
   const [showPassword, setShowPassword] = useState(false);
   const [mustChangePassword, setMustChangePassword] = useState(true);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1985,7 +2249,9 @@ const CreateUserModal = ({
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Enter a valid email address';
     }
     if (field === 'phone' && value.trim()) {
-      if (!/^\d+$/.test(value.trim())) return 'Phone must contain numbers only';
+      const digits = value.replace(/\D/g, '');
+      if (!/^\d+$/.test(digits)) return 'Phone must contain numbers only';
+      if (digits.length !== 9) return 'Phone number must be exactly 9 digits (e.g. 712345678)';
     }
     return '';
   };
@@ -1997,6 +2263,10 @@ const CreateUserModal = ({
     const phoneErr = validateUserField('phone', phone);
     if (nameErr || emailErr || phoneErr) {
       setFieldErrors({ fullName: nameErr, email: emailErr, phone: phoneErr });
+      return;
+    }
+    if (role === 'ADMIN' && !acceptedTerms) {
+      setError('The Business Admin must accept the Privacy Policy & Terms and Conditions upon onboarding.');
       return;
     }
     if (role !== 'SUPER_ADMIN' && !businessUuid) {
@@ -2114,21 +2384,14 @@ const CreateUserModal = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Phone Number (Optional)</label>
-              <input
-                type="tel"
+              <PhoneInput
                 value={phone}
-                onChange={e => {
-                  setPhone(e.target.value);
-                  setFieldErrors(prev => ({ ...prev, phone: validateUserField('phone', e.target.value) }));
+                onChange={v => {
+                  setPhone(v);
+                  setFieldErrors(prev => ({ ...prev, phone: validateUserField('phone', v) }));
                 }}
-                placeholder="07XX XXX XXX"
-                className={`w-full rounded-xl border ${
-                  fieldErrors.phone
-                    ? 'border-red-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 bg-red-50/30 dark:bg-red-950/20'
-                    : 'border-slate-200 dark:border-slate-700 focus:border-orange-500 bg-slate-50/50 dark:bg-slate-800/50'
-                } px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none transition`}
+                error={fieldErrors.phone}
               />
-              {fieldErrors.phone && <p className="text-xs text-red-500 mt-1 font-medium">{fieldErrors.phone}</p>}
             </div>
 
             <div>
@@ -2205,6 +2468,51 @@ const CreateUserModal = ({
             </span>
           </label>
 
+          {/* Compliance & Policy Acceptance (Business Admin Only upon onboarding) */}
+          {role === 'ADMIN' && (
+            <div className="rounded-xl border border-blue-100 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 p-3.5 space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" /> Business Admin Compliance Agreement
+                </span>
+                <div className="flex items-center gap-2 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setShowPrivacyModal(true)}
+                    className="text-blue-600 dark:text-blue-400 underline font-semibold hover:text-blue-700"
+                  >
+                    Privacy Policy
+                  </button>
+                  <span className="text-slate-400">•</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowTermsModal(true)}
+                    className="text-blue-600 dark:text-blue-400 underline font-semibold hover:text-blue-700"
+                  >
+                    Terms & Conditions
+                  </button>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                Business Admins are required to accept the platform Terms & Conditions and Privacy Policy upon onboarding.
+              </p>
+              <label className="flex items-start gap-2.5 cursor-pointer pt-1">
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={e => {
+                    setAcceptedTerms(e.target.checked);
+                    setError(null);
+                  }}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-xs text-slate-700 dark:text-slate-300 select-none">
+                  I confirm that the <strong>Business Admin</strong> accepts the <strong>Terms & Conditions</strong> and <strong>Privacy Policy</strong> upon onboarding.
+                </span>
+              </label>
+            </div>
+          )}
+
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
             <button
               type="button"
@@ -2224,6 +2532,9 @@ const CreateUserModal = ({
           </div>
         </form>
       </div>
+
+      <PrivacyPolicyModal open={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
+      <TermsAndConditionsModal open={showTermsModal} onClose={() => setShowTermsModal(false)} />
     </div>
   );
 };
@@ -3046,6 +3357,8 @@ const PlatformSettingsPage = ({ showToast }: { showToast: (m: string, t?: 'succe
   const [emailNotifs, setEmailNotifs] = useState(true);
   const [maintenance, setMaintenance] = useState(false);
   const [trialDays, setTrialDays] = useState('14');
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -3062,6 +3375,33 @@ const PlatformSettingsPage = ({ showToast }: { showToast: (m: string, t?: 'succe
             />
             <span className="text-sm text-slate-500">days for newly provisioned businesses</span>
           </div>
+        </div>
+      </div>
+
+      {/* Legal & Compliance Policies Section */}
+      <div className="rounded-xl border p-5 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 space-y-3">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-blue-600" />
+          <h3 className="font-bold text-sm text-slate-900 dark:text-white">Platform Legal & Compliance Policies</h3>
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Official statutory documents accepted by Business Administrators upon establishment onboarding.
+        </p>
+        <div className="flex flex-wrap items-center gap-3 pt-1">
+          <button
+            type="button"
+            onClick={() => setShowPrivacy(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition"
+          >
+            <ShieldCheck className="h-3.5 w-3.5 text-blue-600" /> View Privacy Policy
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowTerms(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition"
+          >
+            <FileText className="h-3.5 w-3.5 text-emerald-600" /> View Terms & Conditions
+          </button>
         </div>
       </div>
 
@@ -3090,6 +3430,9 @@ const PlatformSettingsPage = ({ showToast }: { showToast: (m: string, t?: 'succe
       >
         Save Platform Settings
       </button>
+
+      <PrivacyPolicyModal open={showPrivacy} onClose={() => setShowPrivacy(false)} />
+      <TermsAndConditionsModal open={showTerms} onClose={() => setShowTerms(false)} />
     </div>
   );
 };

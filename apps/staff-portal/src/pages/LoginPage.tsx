@@ -449,13 +449,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               </button>
             </form>
           )}
-
-          <p className="text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-            Platform Administration?{' '}
-            <a href={`${(import.meta as any).env?.VITE_ADMIN_URL || 'http://localhost:3002'}`} className="text-blue-600 hover:underline font-medium">
-              Admin Portal →
-            </a>
-          </p>
         </div>
       </div>
 

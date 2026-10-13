@@ -13,10 +13,17 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().default(process.env.JWT_REFRESH_SECRET || 'dev_refresh_secret_must_be_32_bytes_long'),
   JWT_ACCESS_EXPIRES_IN: z.string().default('8h'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
+  MPESA_ENVIRONMENT: z.enum(['sandbox', 'production']).default(
+    (process.env.MPESA_ENVIRONMENT as 'sandbox' | 'production') ||
+    (process.env.NODE_ENV === 'production' ? 'production' : 'sandbox')
+  ),
   MPESA_CONSUMER_KEY: z.string().optional(),
   MPESA_CONSUMER_SECRET: z.string().optional(),
   MPESA_PASSKEY: z.string().optional(),
   MPESA_SHORTCODE: z.string().optional(),
+  MPESA_TRANSACTION_TYPE: z.enum(['CustomerPayBillOnline', 'CustomerBuyGoodsOnline']).default(
+    (process.env.MPESA_TRANSACTION_TYPE as 'CustomerPayBillOnline' | 'CustomerBuyGoodsOnline') || 'CustomerPayBillOnline'
+  ),
   MPESA_CALLBACK_URL: z.string().optional(),
 });
 

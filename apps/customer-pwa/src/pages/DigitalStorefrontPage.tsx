@@ -1726,75 +1726,128 @@ export const DigitalStorefrontPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* ── Authentic Safaricom STK Push Dialog ── */}
-                    <div
-                      className="rounded-2xl p-5 space-y-5 text-left"
-                      style={{ background: '#1c1c1c' }}
-                    >
-                      <p className="text-base text-white leading-relaxed">
-                        Do you want to pay{' '}
-                        <span className="font-semibold">
-                          Kshs. {cartFinalTotal.toLocaleString('en-KE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                        </span>{' '}
-                        to{' '}
-                        <span className="font-semibold">{brand.name}</span>
-                        {' '}Account no.{' '}
-                        <span className="font-semibold">{brand.name}</span>?
-                      </p>
-
-                      <div className="space-y-1.5">
-                        <p className="text-base text-white">Enter M-PESA PIN:</p>
-                        <input
-                          type="password"
-                          inputMode="numeric"
-                          maxLength={4}
-                          autoFocus
-                          placeholder=""
-                          value={simulatedPin}
-                          onChange={(e) => setSimulatedPin(e.target.value.replace(/\D/g, ''))}
-                          className="w-full bg-transparent text-white text-lg tracking-[0.5em] outline-none py-1"
-                          style={{ borderBottom: '2px solid #ffffff' }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && simulatedPin.length >= 4) handleSimulatePinSubmit();
-                          }}
-                        />
-                      </div>
-
-                      {/* Cancel | Send */}
+                    {!stkPromptModal.isSimulated ? (
+                      /* ── Live Daraja Production Phone Prompt ── */
                       <div
-                        className="flex items-center"
-                        style={{ borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: '0.75rem' }}
+                        className="rounded-2xl p-5 space-y-4 text-center"
+                        style={{ background: '#1c1c1c' }}
                       >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (stkPollTimerRef.current) clearInterval(stkPollTimerRef.current);
-                            setStkPromptModal((prev) => ({ ...prev, isOpen: false }));
-                          }}
-                          className="flex-1 text-center text-base font-semibold text-white py-1 opacity-80 hover:opacity-100 transition"
-                        >
-                          Cancel
-                        </button>
-                        <div style={{ width: '1px', background: 'rgba(255,255,255,0.15)', height: '20px' }} />
-                        <button
-                          type="button"
-                          onClick={handleSimulatePinSubmit}
-                          disabled={isSubmittingPin}
-                          className="flex-1 text-center text-base font-bold text-white py-1 flex items-center justify-center gap-1.5 transition"
-                        >
-                          {isSubmittingPin ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            'Send'
-                          )}
-                        </button>
-                      </div>
+                        <div className="w-14 h-14 rounded-full bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400 mx-auto flex items-center justify-center">
+                          <Smartphone className="w-7 h-7 animate-pulse" />
+                        </div>
 
-                      {/* Countdown pill */}
-                      <p className="text-center text-[11px] text-slate-500 -mt-2">
-                        Prompt expires in {stkPromptModal.countdown}s · {phoneInfo.international}
-                      </p>
-                    </div>
+                        <div className="space-y-1">
+                          <h4 className="text-base font-bold text-white">M-Pesa Prompt Sent!</h4>
+                          <p className="text-xs text-slate-300 leading-relaxed">
+                            Please check your phone screen for the prompt from Safaricom and enter your <strong className="text-white">M-Pesa PIN</strong> to authorize payment.
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl bg-white/5 p-3 text-xs space-y-1">
+                          <div className="flex justify-between text-slate-400">
+                            <span>Amount:</span>
+                            <span className="font-bold text-white">
+                              KES {cartFinalTotal.toLocaleString('en-KE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-slate-400">
+                            <span>Phone:</span>
+                            <span className="font-mono text-emerald-400">{phoneInfo.international}</span>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 flex items-center justify-between text-xs">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (stkPollTimerRef.current) clearInterval(stkPollTimerRef.current);
+                              setStkPromptModal((prev) => ({ ...prev, isOpen: false }));
+                            }}
+                            className="text-slate-400 hover:text-white transition underline"
+                          >
+                            Cancel Payment
+                          </button>
+                          <span className="text-[11px] text-slate-500 font-mono">
+                            Expires in {stkPromptModal.countdown}s
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      /* ── Simulated Sandbox Fallback Dialog ── */
+                      <div
+                        className="rounded-2xl p-5 space-y-5 text-left"
+                        style={{ background: '#1c1c1c' }}
+                      >
+                        <div className="flex items-center justify-between text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg">
+                          <span>🧪 Sandbox / Simulated Mode</span>
+                          <span>Test PIN Prompt</span>
+                        </div>
+
+                        <p className="text-base text-white leading-relaxed">
+                          Do you want to pay{' '}
+                          <span className="font-semibold">
+                            Kshs. {cartFinalTotal.toLocaleString('en-KE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                          </span>{' '}
+                          to{' '}
+                          <span className="font-semibold">{brand.name}</span>
+                          {' '}Account no.{' '}
+                          <span className="font-semibold">{brand.name}</span>?
+                        </p>
+
+                        <div className="space-y-1.5">
+                          <p className="text-base text-white">Enter M-PESA PIN:</p>
+                          <input
+                            type="password"
+                            inputMode="numeric"
+                            maxLength={4}
+                            autoFocus
+                            placeholder=""
+                            value={simulatedPin}
+                            onChange={(e) => setSimulatedPin(e.target.value.replace(/\D/g, ''))}
+                            className="w-full bg-transparent text-white text-lg tracking-[0.5em] outline-none py-1"
+                            style={{ borderBottom: '2px solid #ffffff' }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && simulatedPin.length >= 4) handleSimulatePinSubmit();
+                            }}
+                          />
+                        </div>
+
+                        {/* Cancel | Send */}
+                        <div
+                          className="flex items-center"
+                          style={{ borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: '0.75rem' }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (stkPollTimerRef.current) clearInterval(stkPollTimerRef.current);
+                              setStkPromptModal((prev) => ({ ...prev, isOpen: false }));
+                            }}
+                            className="flex-1 text-center text-base font-semibold text-white py-1 opacity-80 hover:opacity-100 transition"
+                          >
+                            Cancel
+                          </button>
+                          <div style={{ width: '1px', background: 'rgba(255,255,255,0.15)', height: '20px' }} />
+                          <button
+                            type="button"
+                            onClick={handleSimulatePinSubmit}
+                            disabled={isSubmittingPin}
+                            className="flex-1 text-center text-base font-bold text-white py-1 flex items-center justify-center gap-1.5 transition"
+                          >
+                            {isSubmittingPin ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              'Send'
+                            )}
+                          </button>
+                        </div>
+
+                        {/* Countdown pill */}
+                        <p className="text-center text-[11px] text-slate-500 -mt-2">
+                          Prompt expires in {stkPromptModal.countdown}s · {phoneInfo.international}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
 
